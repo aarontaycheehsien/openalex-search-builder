@@ -32,7 +32,7 @@ jobs:
           OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
         run: python3 evals/reference_runs.py results
       - name: Upload scorecards
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: openalex-checks
           path: results/*.json
