@@ -33,3 +33,5 @@ Repeat in a fresh directory for the other condition and topic. Record the agent/
 `python evals/live_smoke.py` checks that an intentionally incorrect concept misses a real work, changing that concept recovers it, and the reported query is the one the API ran. The test uses a clearly labelled synthetic critique.
 
 `python evals/reference_runs.py /tmp/openalex-scores` compares fixed expanded and simple keyword strategies across both topics and seed assignments. These comparators are hand-authored. Scores from a completed blind agent build require the separate `score` step above. The manual GitHub workflow can run the smoke test alone or run it with the comparator matrix. It uploads JSON results and requires a repository Actions secret named `OPENALEX_API_KEY`.
+
+The latest checked-in comparator summary is in [RESULTS.md](RESULTS.md).
