@@ -1,0 +1,396 @@
+{
+  "id": "Anmarkrud_2021",
+  "question": "Which individual differences are associated with sourcing during reading?",
+  "eligibility": "Quantitative empirical reading studies of typically developing readers, measuring individual differences and use or evaluation of source information.",
+  "to_date": "2020-12-31",
+  "review": "https://doi.org/10.1007/s10648-021-09640-7",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Anmarkrud_2021/Anmarkrud_2021_ids.csv",
+  "baseline": "get works with (reading AND sourcing) in the title or abstract",
+  "gold": [
+    {
+      "row": 2,
+      "ids": [
+        "https://doi.org/10.1016/j.lindif.2013.01.007"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://doi.org/10.1016/j.learninstruc.2014.12.003"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://doi.org/10.1016/j.learninstruc.2020.101367"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://doi.org/10.1007/s11251-015-9359-4"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://doi.org/10.1080/07370008.2011.636495"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://doi.org/10.1016/j.lindif.2013.12.012"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://doi.org/10.1111/jcal.12162"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://doi.org/10.1111/1467-9817.12247"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://doi.org/10.1111/bjep.12005"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://doi.org/10.1016/j.cedpsych.2016.07.004"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://doi.org/10.1598/RRQ.44.1.1"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://doi.org/10.1016/j.learninstruc.2010.02.002"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://doi.org/10.1207/S1532690XCI2004_2"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://doi.org/10.1002/tea.21172"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://doi.org/10.1007/s11145-020-10030-8"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://doi.org/10.1016/S0747-5632(03)00021-9"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://doi.org/10.1111/bjep.12288"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://doi.org/10.1080/10508406.2011.582376"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://doi.org/10.1111/bjep.12278"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://doi.org/10.1080/11356405.2019.1601937"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://doi.org/10.1016/j.chb.2012.10.012"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://doi.org/10.1177/0735633120952731"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://doi.org/10.1080/0163853X.2016.1169968"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://doi.org/10.1016/j.compedu.2016.07.001"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://doi.org/10.1177/107769901108800403"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://doi.org/10.1007/s11251-013-9276-3"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://doi.org/10.13016/M2XW4H"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://doi.org/10.1080/0163853X.2016.1174654"
+      ]
+    },
+    {
+      "row": 30,
+      "ids": [
+        "https://doi.org/10.1016/j.cedpsych.2019.03.003"
+      ]
+    },
+    {
+      "row": 31,
+      "ids": [
+        "https://doi.org/10.1007/s11145-018-9863-4"
+      ]
+    },
+    {
+      "row": 32,
+      "ids": [
+        "https://doi.org/10.1002/asi.22743"
+      ]
+    },
+    {
+      "row": 33,
+      "ids": [
+        "https://doi.org/10.1080/07370008.2013.769995"
+      ]
+    },
+    {
+      "row": 34,
+      "ids": [
+        "https://doi.org/10.1080/02103702.2019.1690849"
+      ]
+    },
+    {
+      "row": 35,
+      "ids": [
+        "https://doi.org/10.1016/j.compedu.2014.03.016"
+      ]
+    },
+    {
+      "row": 36,
+      "ids": [
+        "https://doi.org/10.1016/j.lindif.2017.07.002"
+      ]
+    },
+    {
+      "row": 37,
+      "ids": [
+        "https://doi.org/10.1016/j.compedu.2017.12.009"
+      ]
+    },
+    {
+      "row": 38,
+      "ids": [
+        "https://doi.org/10.1111/jcal.12399"
+      ]
+    },
+    {
+      "row": 39,
+      "ids": [
+        "https://doi.org/10.1037/edu0000057"
+      ]
+    },
+    {
+      "row": 40,
+      "ids": [
+        "https://doi.org/10.1016/j.cedpsych.2020.101900"
+      ]
+    },
+    {
+      "row": 41,
+      "ids": [
+        "https://doi.org/10.1016/j.lindif.2017.01.021"
+      ]
+    },
+    {
+      "row": 42,
+      "ids": [
+        "https://doi.org/10.1080/02103702.2018.1480458"
+      ]
+    },
+    {
+      "row": 43,
+      "ids": [
+        "https://doi.org/10.1080/0163853X.2017.1402165"
+      ]
+    },
+    {
+      "row": 44,
+      "ids": [
+        "https://doi.org/10.1080/00220973.2018.1496058"
+      ]
+    },
+    {
+      "row": 45,
+      "ids": [
+        "https://doi.org/10.1080/02103702.2019.1690848"
+      ]
+    },
+    {
+      "row": 46,
+      "ids": [
+        "https://doi.org/10.1207/s1532690xci1501_3"
+      ]
+    },
+    {
+      "row": 47,
+      "ids": [
+        "https://doi.org/10.1016/j.cedpsych.2017.12.002"
+      ]
+    },
+    {
+      "row": 48,
+      "ids": [
+        "https://doi.org/10.1016/j.chb.2013.04.034"
+      ]
+    },
+    {
+      "row": 49,
+      "ids": [
+        "https://doi.org/10.1002/asi.23585"
+      ]
+    },
+    {
+      "row": 50,
+      "ids": [
+        "https://doi.org/10.1016/j.compedu.2019.103796"
+      ]
+    },
+    {
+      "row": 51,
+      "ids": [
+        "https://doi.org/10.1007/s11145-018-9868-z"
+      ]
+    },
+    {
+      "row": 52,
+      "ids": [
+        "https://doi.org/10.1080/02702711.2016.1278417"
+      ]
+    },
+    {
+      "row": 53,
+      "ids": [
+        "https://doi.org/10.1080/00313831.2018.1434828"
+      ]
+    },
+    {
+      "row": 54,
+      "ids": [
+        "https://doi.org/10.1007/s11145-020-10041-5"
+      ]
+    },
+    {
+      "row": 55,
+      "ids": [
+        "https://doi.org/10.1016/j.learninstruc.2009.02.001"
+      ]
+    },
+    {
+      "row": 56,
+      "ids": [
+        "https://doi.org/10.1080/01443410.2010.538039"
+      ]
+    },
+    {
+      "row": 57,
+      "ids": [
+        "https://doi.org/10.1080/11356405.2019.1597442"
+      ]
+    },
+    {
+      "row": 58,
+      "ids": [
+        "https://doi.org/10.1177/0735633115599604"
+      ]
+    },
+    {
+      "row": 59,
+      "ids": [
+        "https://doi.org/10.1177/0093650214565915"
+      ]
+    },
+    {
+      "row": 60,
+      "ids": [
+        "https://doi.org/10.1016/j.chb.2016.02.057"
+      ]
+    },
+    {
+      "row": 61,
+      "ids": [
+        "https://doi.org/10.1007/s11145-015-9601-0"
+      ]
+    },
+    {
+      "row": 62,
+      "ids": [
+        "https://doi.org/10.1111/jcc4.12006"
+      ]
+    },
+    {
+      "row": 63,
+      "ids": [
+        "https://doi.org/10.1016/j.learninstruc.2019.101266"
+      ]
+    },
+    {
+      "row": 64,
+      "ids": [
+        "https://doi.org/10.1037/0022-0663.83.1.73"
+      ]
+    },
+    {
+      "row": 65,
+      "ids": [
+        "https://doi.org/10.1111/j.1083-6101.2012.01596.x"
+      ]
+    }
+  ],
+  "reference": "get works where title-abstract has (read* OR text* OR document*) and title-abstract has (sourcing OR credibility OR trustworthiness OR stemmed \"source evaluation\" OR stemmed \"source information\")"
+}

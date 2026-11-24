@@ -1,0 +1,75 @@
+{
+  "id": "Bos_2018",
+  "question": "Do imaging markers of cerebral small vessel disease predict incident dementia?",
+  "eligibility": "Prospective population-based cohorts with imaging markers and incident dementia.",
+  "to_date": "2017-12-31",
+  "review": "https://doi.org/10.1016/j.jalz.2018.04.007",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Bos_2018/Bos_2018_ids.csv",
+  "baseline": "get works with (\"small vessel disease\" AND dementia) in the title or abstract",
+  "gold": [
+    {
+      "row": 2,
+      "ids": []
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://doi.org/10.1001/archneurol.2012.1527",
+        "https://pubmed.ncbi.nlm.nih.gov/22945686"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://doi.org/10.1056/NEJMoa022066",
+        "https://pubmed.ncbi.nlm.nih.gov/12660385"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28143923"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12938070"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/27659853"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://doi.org/10.1016/j.neurobiolaging.2008.04.008",
+        "https://pubmed.ncbi.nlm.nih.gov/18501994"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://doi.org/10.1212/wnl.0000000000003983"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://doi.org/10.1161/strokeaha.109.570044",
+        "https://pubmed.ncbi.nlm.nih.gov/20167919"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://doi.org/10.1001/jamaneurol.2016.1017",
+        "https://pubmed.ncbi.nlm.nih.gov/27271785"
+      ]
+    }
+  ],
+  "reference": "get works where title-abstract has (stemmed \"small vessel\" OR stemmed \"white matter\" OR microbleed* OR lacun* OR stemmed \"brain infarct\") and title-abstract has (dementia OR alzheimer* OR cognit*)"
+}

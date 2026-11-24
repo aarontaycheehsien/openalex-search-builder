@@ -1,0 +1,6 @@
+[project]
+name = "openalex-search-builder"
+version = "0.1.0"
+description = "Develop and audit high-sensitivity search strategies with the OpenAlex API"
+requires-python = ">=3.10"
+dependencies = []

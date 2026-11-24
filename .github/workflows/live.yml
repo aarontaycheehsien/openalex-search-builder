@@ -1,0 +1,38 @@
+name: OpenAlex live checks
+on:
+  workflow_dispatch:
+    inputs:
+      benchmarks:
+        description: Also score the fixed biomedical and education reference strategies
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run offline tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Check live retrieval and delivery
+        env:
+          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+        run: |
+          test -n "$OPENALEX_API_KEY" || { echo "Add the OPENALEX_API_KEY repository secret"; exit 1; }
+          mkdir -p results
+          python3 evals/live_smoke.py | tee results/smoke.json
+        shell: bash
+      - name: Benchmark reference strategies
+        if: ${{ inputs.benchmarks }}
+        env:
+          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+        run: python3 evals/reference_runs.py results
+      - name: Upload scorecards
+        uses: actions/upload-artifact@v4
+        with:
+          name: openalex-checks
+          path: results/*.json

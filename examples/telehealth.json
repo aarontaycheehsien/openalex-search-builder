@@ -1,0 +1,7 @@
+{
+  "blocks": [
+    {"id": "delivery", "role": "search", "field": "title-abstract", "terms": ["telemedicine", "telehealth"], "rationale": "The work must concern remote healthcare delivery."},
+    {"id": "setting", "role": "search", "field": "title-abstract", "terms": ["rural", "remote"], "rationale": "Test whether a geographic block retains known rural studies."}
+  ],
+  "limits": {}
+}
