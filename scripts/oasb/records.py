@@ -3,6 +3,7 @@ import re
 from collections import Counter
 
 from .api import Error, work_id, now
+from .strategy import CORPORA
 
 ROLES = ("seed", "relevant", "validation", "benchmark")
 DEVELOPMENT = {"seed", "relevant"}
@@ -77,12 +78,13 @@ def discover(run, api, args):
         if wid not in records or records[wid]["role"] not in DEVELOPMENT or not records[wid]["work"]:
             raise Error("Choose a resolved development record as the citation starting point.")
         direction = "citing" if args.direction == "citing" else "cited by"
-        query = f"get works {direction} []({wid})"
+        corpus = run.get("strategy").get("corpus", "core")
+        query = f"get works{CORPORA.get(corpus, '')} {direction} []({wid})"
     else:
         query = args.oql
     parsed = api.validate(query)
     obj = dict(parsed["oqo"])
-    if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by"}:
+    if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
         raise Error("Discovery requires a query that lists works.")
     if args.action == "sample":
         obj.update(sample=args.size, seed=str(args.seed))

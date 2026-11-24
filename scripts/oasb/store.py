@@ -71,7 +71,8 @@ class Run:
     def scope_data(self):
         s = self.get("strategy")
         concepts = [{k: b.get(k) for k in ("id", "role", "rationale")} for b in s["blocks"]]
-        return {"protocol": self.get("protocol"), "concepts": concepts, "limits": s.get("limits", {})}
+        return {"protocol": self.get("protocol"), "concepts": concepts, "limits": s.get("limits", {}),
+                "corpus": s.get("corpus", "core")}
 
     def approved(self):
         path = self.root / "scope.json"

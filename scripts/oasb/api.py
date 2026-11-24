@@ -151,3 +151,35 @@ class API:
                 raise Error("Incomplete or inconsistent OpenAlex ID intersection.")
             hits.update(found)
         return hits
+
+    def page(self, oqo, cursor="*", size=100):
+        """One cursor page of full work records for a validated query object."""
+        reply = self.request("/", body={"oqo": oqo, "per_page": size, "cursor": cursor})
+        meta, rows = reply.get("meta") or {}, reply.get("results")
+        echo = meta.get("x_query") or {}
+        if type(meta.get("count")) is not int or not isinstance(rows, list) or "next_cursor" not in meta:
+            raise Error("Cursor response lacks a count, results or next_cursor; completion cannot be established.")
+        if echo.get("oqo") and normalize_query(echo["oqo"]) != normalize_query(oqo):
+            raise Error("OpenAlex executed a different query object during export.")
+        return {"count": meta["count"], "rows": rows, "next_cursor": meta["next_cursor"]}
+
+
+def leaves(obj):
+    """Count condition leaves in an OQO filter tree (one per term, value or date bound)."""
+    if isinstance(obj, list):
+        return sum(leaves(v) for v in obj)
+    if not isinstance(obj, dict):
+        return 0
+    if "column_id" in obj:
+        return 1
+    return sum(leaves(v) for k, v in obj.items() if k in ("filter_rows", "filters"))
+
+
+def check_translation(oqo, corpus, expected):
+    """OpenAlex can drop an unrecognised clause without a validation error. Refuse that."""
+    if (oqo.get("corpus") or "core") != corpus:
+        raise Error(f"OpenAlex interpreted the corpus as {oqo.get('corpus') or 'core'}, not {corpus}.")
+    found = leaves(oqo.get("filter_rows", []))
+    if found != expected:
+        raise Error(f"OpenAlex kept {found} of {expected} search terms and limit values. "
+                    "Inspect the canonical OQL; a clause was dropped or split.")

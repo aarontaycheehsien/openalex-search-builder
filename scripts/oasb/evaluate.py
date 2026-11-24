@@ -4,10 +4,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from .api import Error, normalize_query, now
+from .api import Error, check_translation, normalize_query, now
 from .records import summary
 from .store import digest, write
-from .strategy import check, core, oql
+from .strategy import check, core, excluded, expected_leaves, failing, oql, parse_combine
 
 
 def evaluate(run, api):
@@ -15,14 +15,18 @@ def evaluate(run, api):
     strategy, records = run.get("strategy"), run.get("records")
     start_hash = run.fingerprint()
     check(strategy)
-    blocks = core(strategy)
+    blocks, excludes = core(strategy), excluded(strategy)
     limits = strategy.get("limits", {})
+    corpus = strategy.get("corpus", "core")
+    tree = parse_combine(strategy["combine"], [b["id"] for b in blocks]) if "combine" in strategy else None
     ids = {k for k, v in records.items() if v["work"]}
     cache = {}
 
-    def measure(query):
+    def measure(use=(), lims=None, ex=(), combine=None):
+        query = oql(list(use), lims, corpus, list(ex), combine)
         if query not in cache:
             parsed = api.validate(query)
+            check_translation(parsed["oqo"], corpus, expected_leaves(use, lims, ex))
             result = api.run(parsed["oql"])
             if normalize_query(result["oqo"]) != normalize_query(parsed["oqo"]):
                 raise Error("The executed query differs from the validated query object.")
@@ -33,27 +37,44 @@ def evaluate(run, api):
                             "hits": sorted(hits), "warnings": parsed["validation"].get("warnings", [])}
         return cache[query]
 
-    final = measure(oql(blocks, limits))
+    final = measure(blocks, limits, excludes, tree)
     hits = set(final["hits"])
     lines = {}
     for b in blocks:
-        lines["block/" + b["id"]] = measure(oql([b]))
+        lines["block/" + b["id"]] = measure([b])
+    for b in excludes:
+        lines["exclude/" + b["id"]] = measure([b])
     for key in limits:
-        lines["limit/" + key] = measure(oql([], {key: limits[key]}))
-    if len(blocks) > 1:
+        lines["limit/" + key] = measure((), {key: limits[key]})
+    if tree is None and len(blocks) > 1:
         for b in blocks:
-            lines["without/" + b["id"]] = measure(oql([x for x in blocks if x != b], limits))
+            lines["without/" + b["id"]] = measure([x for x in blocks if x != b], limits, excludes)
+    for b in excludes:
+        lines["without/" + b["id"]] = measure(blocks, limits, [x for x in excludes if x != b], tree)
     for b in strategy["blocks"]:
         if b["role"] == "optional":
-            lines["with/" + b["id"]] = measure(oql([*blocks, b], limits))
-    missed = {wid: [k for k, v in lines.items() if k.startswith(("block/", "limit/")) and wid not in v["hits"]]
-              for wid in sorted(ids - hits)}
+            if tree is None:
+                lines["with/" + b["id"]] = measure([*blocks, b], limits, excludes)
+            else:
+                lines["with/" + b["id"]] = measure([*blocks, b], limits, excludes, ("and", [tree, b["id"]]))
+
+    def explain(wid):
+        values = {b["id"]: wid in lines["block/" + b["id"]]["hits"] for b in blocks}
+        reasons = ["block/" + x for x in (failing(tree, values) if tree else [k for k, v in values.items() if not v])]
+        reasons += ["exclude/" + b["id"] for b in excludes if wid in lines["exclude/" + b["id"]]["hits"]]
+        reasons += [k for k in lines if k.startswith("limit/") and wid not in lines[k]["hits"]]
+        return reasons
+
+    missed = {wid: explain(wid) for wid in sorted(ids - hits)}
     if any(not reasons for reasons in missed.values()):
         raise Error("A missed work matched every required clause. Repeat against the current index.")
+    if any(explain(wid) for wid in hits):
+        raise Error("A retrieved work failed a required clause in its own line. Repeat against the current index.")
     if start_hash != run.fingerprint():
         raise Error("Inputs changed during evaluation. Rerun with the current files.")
     return {"at": now(), "input_hash": start_hash, "final": final, "lines": lines, "misses": missed,
-            "sets": summary(records, hits), "strategy": strategy,
+            "sets": summary(records, hits), "strategy": strategy, "corpus": corpus,
+            "ablation": "assessed" if tree is None else "not assessed for a custom combine expression",
             "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6),
                       "responses_without_cost_header": api.unpriced}}
 
@@ -101,6 +122,7 @@ def report(run, api):
     scope = run.scope_data()
     audit = ["# OpenAlex search audit", "", scope["protocol"]["question"], "",
              f"Executed {fresh['at']} via the OpenAlex OQL API. Works retrieved: {query['count']}.",
+             f"Corpus: {fresh['corpus']}. Block ablation: {fresh['ablation']}.",
              "", "## Search as executed", "", "```text", query["oql"], "```", "",
              "## Scope and eligibility", "", json.dumps(scope, ensure_ascii=False, indent=2),
              "", "## Counts and known records", "", "| Line | Works | Known works retrieved |",

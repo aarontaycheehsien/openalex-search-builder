@@ -1,0 +1,11 @@
+{
+  "corpus": "all",
+  "combine": "(delivery or apps) and setting",
+  "blocks": [
+    {"id": "delivery", "role": "search", "field": "title-abstract", "terms": ["telemedicine", "telehealth", "\"remote consultation\"", {"near": ["video", "consultation"], "within": 3}], "rationale": "Remote clinical care delivered at a distance."},
+    {"id": "apps", "role": "search", "field": "title-abstract-keywords", "terms": ["mhealth", "\"mobile health\""], "rationale": "Alternative entry route: mobile health, including works indexed only by keyword."},
+    {"id": "setting", "role": "search", "field": "title-abstract", "terms": ["rural", "remote", {"near": ["underserved", "communit*"], "within": 2, "exact": true}], "rationale": "Rural or remote populations."},
+    {"id": "veterinary", "role": "exclude", "field": "title", "terms": ["veterinary"], "rationale": "Animal health is out of scope. Check exclude/veterinary for known works before keeping it."}
+  ],
+  "limits": {}
+}
