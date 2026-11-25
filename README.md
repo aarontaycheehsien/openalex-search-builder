@@ -30,6 +30,8 @@ Edit the vocabulary and rerun `eval` to see gained or lost known works and the c
 
 | Task | Command after the workspace argument |
 |---|---|
+| Check syntax and heuristics offline (no API key) | `lint` |
+| Write untested draft query and notes offline | `draft` |
 | Mine terminology from development papers | `terms` |
 | Look up OpenAlex keywords or topics | `vocab keywords "telemedicine" --size 10` · `vocab topics "telemedicine"` |
 | Find works citing, referenced by, or related to a seed (cursor-paged) | `neighbors W2618851878 --direction citing\|references\|related --size 200` (or `--all`, `--cursor`, `--max-pages`) |

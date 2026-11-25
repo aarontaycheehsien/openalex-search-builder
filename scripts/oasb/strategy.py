@@ -230,3 +230,56 @@ def final_query(strategy):
     blocks, ex, limits = core(strategy), excluded(strategy), strategy.get("limits", {})
     return (oql(blocks, limits, strategy.get("corpus", "core"), ex, strategy.get("combine")),
             expected_leaves(blocks, limits, ex))
+
+
+def lint(strategy):
+    """Offline syntax check, local OQL compilation, and heuristic warnings. No API calls."""
+    check(strategy)
+    query, leaves = final_query(strategy)
+    corpus = strategy.get("corpus", "core")
+    blocks = core(strategy)
+    excludes = excluded(strategy)
+    warnings = []
+    block_oql = {}
+    for b in strategy["blocks"]:
+        bid = b["id"]
+        if not isinstance(b.get("rationale"), str) or not b["rationale"].strip():
+            warnings.append({"code": "missing_rationale", "block": bid,
+                             "message": f"Block {bid!r} has no rationale."})
+        if b["role"] == "screen":
+            continue
+        block_oql[bid] = oql([b], corpus=corpus)
+        seen_terms = set()
+        for t in b["terms"]:
+            rendered = term_text(t)
+            norm = rendered.casefold()
+            if norm in seen_terms:
+                warnings.append({"code": "duplicate_term", "block": bid, "term": rendered,
+                                 "message": f"Duplicate term {rendered!r} in block {bid!r}."})
+            seen_terms.add(norm)
+            if isinstance(t, str):
+                if "-" in t and not t.startswith(('"', 'stemmed "')):
+                    warnings.append({"code": "unquoted_hyphen", "block": bid, "term": t,
+                                     "message": f"Unquoted hyphenated term {t!r} in {bid!r} can split/stem broadly in OpenAlex; consider quoting it."})
+                if "*" in t and re.search(r'(?:^|[\s"])[^\s"*]{0,2}\*', t):
+                    warnings.append({"code": "short_wildcard", "block": bid, "term": t,
+                                     "message": f"Wildcard {t!r} in {bid!r} has fewer than 3 leading characters; OpenAlex will reject it."})
+                if t.startswith("stemmed ") and ("*" in t or "?" in t):
+                    warnings.append({"code": "stemmed_wildcard", "block": bid, "term": t,
+                                     "message": f"Stemmed phrase with wildcard {t!r} in {bid!r} is rejected by OpenAlex; drop stemmed."})
+    if "combine" not in strategy and len(blocks) >= 4:
+        warnings.append({"code": "many_and_blocks", "block": None,
+                         "message": f"{len(blocks)} search blocks are ANDed together; consider moving outcomes/settings/designs to role='screen' to protect recall."})
+    if excludes:
+        warnings.append({"code": "exclude_blocks", "block": None,
+                         "message": "Exclusion blocks (NOT) can drop relevant records; check exclude/<id> against known works when online."})
+    return {
+        "ok": True,
+        "validated_against_openalex": False,
+        "oql": query,
+        "corpus": corpus,
+        "leaves": leaves,
+        "blocks": block_oql,
+        "warnings": warnings,
+        "note": "Local syntax and heuristic checks only — not validated against OpenAlex.",
+    }

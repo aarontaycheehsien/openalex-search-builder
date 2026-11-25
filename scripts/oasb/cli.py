@@ -8,8 +8,8 @@ from .api import API, Error, check_translation, now
 from .evaluate import evaluate, report, review, save_eval
 from .export import export
 from .records import DEVELOPMENT, ROLES, add, discover, mining
-from .store import Run, digest
-from .strategy import check, final_query
+from .store import Run, digest, write
+from .strategy import check, final_query, lint
 
 
 def parser():
@@ -59,6 +59,8 @@ def parser():
     c.add_argument("entity", choices=["keywords", "topics"])
     c.add_argument("query")
     c.add_argument("--size", type=int, default=10)
+    cmds.add_parser("lint", help="Check strategy syntax and heuristics offline (no API key or network).")
+    cmds.add_parser("draft", help="Write untested draft artifacts under draft/ offline (no API key or network).")
     return p
 
 
@@ -78,10 +80,94 @@ def miss_details(records, misses, dev):
     return out
 
 
+def write_draft(run):
+    """Compile and save clearly labelled untested draft artifacts offline. No API calls."""
+    protocol = run.get("protocol")
+    strategy = run.get("strategy")
+    checked = lint(strategy)
+    dest = run.root / "draft"
+    dest.mkdir(parents=True, exist_ok=True)
+    at = now()
+    lines = [
+        "# Untested OpenAlex search draft",
+        "",
+        "> **Untested draft — not validated against OpenAlex.** No live counts, recall estimates, or API checks have been run.",
+        "",
+        f"Generated {at}. Corpus: `{checked['corpus']}`. Compiled leaves: {checked['leaves']}.",
+        "",
+        "## Review question",
+        "",
+        protocol["question"],
+        "",
+    ]
+    if protocol.get("eligibility"):
+        lines += ["## Eligibility criteria", ""] + [f"- {item}" for item in protocol["eligibility"]] + [""]
+    lines += [
+        "## Draft OQL query (untested)",
+        "",
+        "```text",
+        checked["oql"],
+        "```",
+        "",
+        "## Concept blocks",
+        "",
+        "| Block | Role | Field | Terms | Rationale |",
+        "|---|---|---|---:|---|",
+    ]
+    for b in strategy["blocks"]:
+        lines.append(f"| {b['id']} | {b['role']} | {b.get('field', 'title-abstract')} | {len(b.get('terms', []))} | {b.get('rationale', '')} |")
+    if strategy.get("combine"):
+        lines += ["", f"Combine expression: `{strategy['combine']}`"]
+    if strategy.get("limits"):
+        lines += ["", "## Limits", "", json.dumps(strategy["limits"], ensure_ascii=False, indent=2)]
+    lines += ["", "## Local lint warnings", ""]
+    if checked["warnings"]:
+        lines += [f"- **{w['code']}** — {w['message']}" for w in checked["warnings"]]
+    else:
+        lines.append("No local lint warnings.")
+    lines += [
+        "",
+        "## Next steps to validate against OpenAlex",
+        "",
+        "1. Set `OPENALEX_API_KEY` in the environment.",
+        "2. Confirm scope with `scope --confirm --note \"...\"`.",
+        "3. Run `validate` and `eval` (with optional seeds via `resolve`), then `review` and `report`.",
+        "",
+    ]
+    (dest / "draft-query.oql").write_text(checked["oql"] + "\n", encoding="utf-8", newline="\n")
+    (dest / "draft-notes.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    manifest = {
+        "at": at,
+        "validated_against_openalex": False,
+        "oql": checked["oql"],
+        "corpus": checked["corpus"],
+        "leaves": checked["leaves"],
+        "warnings": checked["warnings"],
+        "strategy": strategy,
+        "protocol": protocol,
+        "note": "Untested draft — not validated against OpenAlex. Cannot be exported.",
+    }
+    write(dest / "draft-manifest.json", manifest)
+    return {
+        "draft": str(dest),
+        "validated_against_openalex": False,
+        "oql": checked["oql"],
+        "corpus": checked["corpus"],
+        "leaves": checked["leaves"],
+        "warnings": checked["warnings"],
+        "files": ["draft-query.oql", "draft-notes.md", "draft-manifest.json"],
+        "note": "Untested draft — not validated against OpenAlex.",
+    }
+
+
 def dispatch(run, api, a):
     if a.action == "init":
         return run.init(a.question, a.eligibility, a.depth)
     run.get("protocol")
+    if a.action == "lint":
+        return lint(run.get("strategy"))
+    if a.action == "draft":
+        return write_draft(run)
     if a.action == "scope":
         scope = run.scope_data()
         if a.confirm:

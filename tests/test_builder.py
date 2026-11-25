@@ -341,6 +341,39 @@ class WorkspaceTests(unittest.TestCase):
         with self.assertRaisesRegex(Error, "Repeated cursor"):
             self.call("neighbors", "W1", "--direction", "citing", "--all")
 
+    def test_lint_and_draft_offline(self):
+        # Strategy exercising every local lint heuristic
+        s = {
+            "corpus": "all",
+            "blocks": [
+                {"id": "a", "role": "search", "field": "title-abstract",
+                 "terms": ["source-content", "telemedicine", "Telemedicine", "ab*", 'stemmed "bar*"'], "rationale": ""},
+                {"id": "b", "role": "search", "field": "title-abstract", "terms": ["rural"], "rationale": "r"},
+                {"id": "c", "role": "search", "field": "title-abstract", "terms": ["clinic"], "rationale": "r"},
+                {"id": "d", "role": "search", "field": "title-abstract", "terms": ["care"], "rationale": "r"},
+                {"id": "x", "role": "exclude", "field": "title", "terms": ["veterinary"], "rationale": "r"},
+            ],
+            "limits": {"from_date": "2015-01-01"},
+        }
+        self.run.put("strategy", s)
+        # Ensure neither lint nor draft touches the network/API
+        with patch.object(self.api, "validate", side_effect=AssertionError("offline!")), \
+             patch.object(self.api, "run", side_effect=AssertionError("offline!")):
+            checked = self.call("lint")
+            self.assertFalse(checked["validated_against_openalex"])
+            codes = {w["code"] for w in checked["warnings"]}
+            self.assertEqual(codes, {"missing_rationale", "duplicate_term", "unquoted_hyphen",
+                                     "short_wildcard", "stemmed_wildcard", "many_and_blocks", "exclude_blocks"})
+            out = self.call("draft")
+        self.assertFalse(out["validated_against_openalex"])
+        folder = Path(out["draft"])
+        self.assertEqual((folder / "draft-query.oql").read_text().strip(), checked["oql"])
+        self.assertIn("Untested draft — not validated against OpenAlex", (folder / "draft-notes.md").read_text())
+        self.assertFalse(json.loads((folder / "draft-manifest.json").read_text())["validated_against_openalex"])
+        # Draft cannot be exported as a validated report
+        with self.assertRaisesRegex(Error, "No delivered report"):
+            self.call("export")
+
 
 class StrategyTests(unittest.TestCase):
     def block(self, terms, role="search", field="title-abstract", id="a"):
