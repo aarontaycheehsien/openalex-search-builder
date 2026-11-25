@@ -55,6 +55,18 @@ def normalize_query(obj):
     return result
 
 
+def normalize_warnings(warnings):
+    """Canonicalize warning order and OpenAlex's set-ordered 'Fields involved:' lists."""
+    out = []
+    for w in warnings or []:
+        if isinstance(w, dict) and isinstance(w.get("message"), str) and "Fields involved: " in w["message"]:
+            head, _, tail = w["message"].partition("Fields involved: ")
+            fields = ", ".join(sorted(f.strip() for f in tail.split(",") if f.strip()))
+            w = dict(w, message=f"{head}Fields involved: {fields}")
+        out.append(w)
+    return sorted(out, key=lambda v: json.dumps(v, sort_keys=True))
+
+
 class API:
     def __init__(self, log=lambda event: None):
         self.log = log
@@ -151,3 +163,83 @@ class API:
                 raise Error("Incomplete or inconsistent OpenAlex ID intersection.")
             hits.update(found)
         return hits
+
+    def page(self, oqo, cursor="*", size=100):
+        """One cursor page of full work records for a validated query object."""
+        reply = self.request("/", body={"oqo": oqo, "per_page": size, "cursor": cursor})
+        meta, rows = reply.get("meta") or {}, reply.get("results")
+        echo = meta.get("x_query") or {}
+        if type(meta.get("count")) is not int or not isinstance(rows, list) or "next_cursor" not in meta:
+            raise Error("Cursor response lacks a count, results or next_cursor; completion cannot be established.")
+        if echo.get("oqo") and normalize_query(echo["oqo"]) != normalize_query(oqo):
+            raise Error("OpenAlex executed a different query object during export.")
+        return {"count": meta["count"], "rows": rows, "next_cursor": meta["next_cursor"]}
+
+    def vocabulary(self, entity, query, size=10):
+        """Look up OpenAlex keywords or topics for vocabulary brainstorming."""
+        select = {
+            "keywords": "id,display_name,description,display_name_alternatives,works_count,primary_topic",
+            "topics": "id,display_name,description,keywords,domain,field,subfield,works_count",
+        }
+        if entity not in select:
+            raise Error("Vocabulary entity must be keywords or topics.")
+        q = (query or "").strip()
+        if not q:
+            raise Error("Provide a nonempty search query for vocab.")
+        if type(size) is not int or not 1 <= size <= 50:
+            raise Error("--size must be between 1 and 50.")
+        reply = self.request(f"/{entity}", params={"search": q, "per-page": size, "select": select[entity]})
+        meta, raw = reply.get("meta") or {}, reply.get("results")
+        if not isinstance(raw, list):
+            raise Error("Incomplete vocabulary response from OpenAlex.")
+        rows = []
+        for item in raw:
+            short_id = re.sub(r"^https?://openalex\.org/", "", str(item.get("id") or ""))
+            if entity == "keywords":
+                rows.append({
+                    "id": short_id,
+                    "display_name": item.get("display_name"),
+                    "description": item.get("description"),
+                    "alternatives": item.get("display_name_alternatives") or [],
+                    "works_count": item.get("works_count"),
+                    "primary_topic": (item.get("primary_topic") or {}).get("display_name"),
+                })
+            else:
+                rows.append({
+                    "id": short_id,
+                    "display_name": item.get("display_name"),
+                    "description": item.get("description"),
+                    "keywords": [k["display_name"] if isinstance(k, dict) and k.get("display_name") else k
+                                 for k in item.get("keywords") or []],
+                    "domain": (item.get("domain") or {}).get("display_name"),
+                    "field": (item.get("field") or {}).get("display_name"),
+                    "subfield": (item.get("subfield") or {}).get("display_name"),
+                    "works_count": item.get("works_count"),
+                })
+        return {
+            "entity": entity, "query": q, "count": meta.get("count"), "results": rows,
+            "usage": {"credits_reported": self.credits, "usd_reported": round(self.cost_usd, 6)},
+            "note": "OpenAlex keywords and topics are algorithmically assigned labels, not a controlled "
+                    "thesaurus like MeSH. Test candidate terms empirically with eval.",
+        }
+
+
+def leaves(obj):
+    """Count condition leaves in an OQO filter tree (one per term, value or date bound)."""
+    if isinstance(obj, list):
+        return sum(leaves(v) for v in obj)
+    if not isinstance(obj, dict):
+        return 0
+    if "column_id" in obj:
+        return 1
+    return sum(leaves(v) for k, v in obj.items() if k in ("filter_rows", "filters"))
+
+
+def check_translation(oqo, corpus, expected):
+    """OpenAlex can drop an unrecognised clause without a validation error. Refuse that."""
+    if (oqo.get("corpus") or "core") != corpus:
+        raise Error(f"OpenAlex interpreted the corpus as {oqo.get('corpus') or 'core'}, not {corpus}.")
+    found = leaves(oqo.get("filter_rows", []))
+    if found != expected:
+        raise Error(f"OpenAlex kept {found} of {expected} search terms and limit values. "
+                    "Inspect the canonical OQL; a clause was dropped or split.")

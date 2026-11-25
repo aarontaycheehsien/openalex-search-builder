@@ -4,11 +4,12 @@ import json
 import sys
 from pathlib import Path
 
-from .api import API, Error, now
+from .api import API, Error, check_translation, now
 from .evaluate import evaluate, report, review, save_eval
+from .export import export
 from .records import DEVELOPMENT, ROLES, add, discover, mining
 from .store import Run, digest
-from .strategy import check, core, oql
+from .strategy import check, final_query
 
 
 def parser():
@@ -48,7 +49,30 @@ def parser():
     c.add_argument("work_id")
     c.add_argument("decision", choices=["include", "exclude", "unclear"])
     c.add_argument("--reason", required=True)
+    c = cmds.add_parser("export", help="Page the delivered query into resumable CSV, RIS and JSONL files.")
+    c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
+    c.add_argument("--max-pages", type=int, help="Stop after this many 100-record pages; rerun to resume.")
+    c = cmds.add_parser("vocab", help="Look up OpenAlex keywords or topics for vocabulary development.")
+    c.add_argument("entity", choices=["keywords", "topics"])
+    c.add_argument("query")
+    c.add_argument("--size", type=int, default=10)
     return p
+
+
+def miss_details(records, misses, dev):
+    """Development-only context for each missed work. Protected records never appear here."""
+    out = {}
+    for wid, reasons in misses.items():
+        if wid not in dev:
+            continue
+        work = records[wid]["work"] or {}
+        out[wid] = {"title": work.get("display_name"), "year": work.get("publication_year"),
+                    "has_abstract": bool(work.get("abstract_inverted_index")),
+                    "keywords": [k.get("display_name") for k in work.get("keywords") or []],
+                    "failed": reasons}
+        if not out[wid]["has_abstract"]:
+            out[wid]["note"] = "No abstract in OpenAlex: abstract-based blocks can only match the title (or keywords/full text)."
+    return out
 
 
 def dispatch(run, api, a):
@@ -67,23 +91,33 @@ def dispatch(run, api, a):
     if a.action == "validate":
         strategy = run.get("strategy")
         check(strategy)
-        return api.validate(oql(core(strategy), strategy.get("limits")))
+        query, expected = final_query(strategy)
+        result = api.validate(query)
+        check_translation(result["oqo"], strategy.get("corpus", "core"), expected)
+        return dict(result, submitted=query, leaves_checked=expected)
     if a.action == "eval":
         data = evaluate(run, api)
         uid = save_eval(run, data)
-        dev = {k for k, v in run.get("records").items() if v["role"] in DEVELOPMENT}
+        records = run.get("records")
+        dev = {k for k, v in records.items() if v["role"] in DEVELOPMENT}
         return {"evaluation": uid, "oql": data["final"]["oql"], "count": data["final"]["count"],
+                "corpus": data["corpus"], "ablation": data["ablation"],
                 "warnings": data["final"]["warnings"],
                 "lines": {k: {"count": v["count"], "development_hits": sorted(dev.intersection(v["hits"])),
                               "warnings": v["warnings"]} for k, v in data["lines"].items()},
                 "sets": {k: data["sets"][k] for k in sorted(DEVELOPMENT)},
                 "misses": {k: v for k, v in data["misses"].items() if k in dev},
+                "miss_details": miss_details(records, data["misses"], dev),
                 "change": {k: sorted(dev.intersection(v)) if isinstance(v, list) else v
                            for k, v in data.get("change", {}).items()}, "usage": data["usage"]}
     if a.action == "review":
         return {"review": review(run, a.file)}
     if a.action == "report":
         return report(run, api)
+    if a.action == "export":
+        if a.max_pages is not None and a.max_pages < 1:
+            raise Error("--max-pages must be at least 1.")
+        return export(run, api, a.report, a.max_pages)
     records = run.get("records")
     if a.action == "resolve":
         result = [add(api, records, i, a.role, a.source) for i in a.identifiers]
@@ -99,6 +133,8 @@ def dispatch(run, api, a):
         return {"role": "relevant", "key": a.key}
     if a.action == "terms":
         return mining(records)
+    if a.action == "vocab":
+        return api.vocabulary(a.entity, a.query, a.size)
     if a.action in ("sample", "neighbors"):
         if not 1 <= a.size <= 100:
             raise Error("--size must be between 1 and 100.")
