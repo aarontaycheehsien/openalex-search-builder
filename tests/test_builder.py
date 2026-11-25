@@ -431,7 +431,7 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(out["development_rescued"], ["W2"])
         self.assertNotIn("W3", out["development_rescued"])  # protected record not leaked
         rdir = Path(out["rescue_dir"])
-        self.assertTrue((rdir / "rescue-query.oql").is_file())
+        self.assertTrue((rdir / "rescue-query-cited-by.oql").is_file())
         manifest = json.loads((rdir / "rescue-manifest.json").read_text())
         self.assertEqual(manifest["rescued_all_sets"], ["W2", "W3"])
         # Export --rescue pages the rescue query into exports/<report>-rescue/
@@ -538,6 +538,86 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual((rows[0]["is_pulled"], rows[0]["is_retracted"]), ("True", "True"))
         with self.assertRaises(Error):
             check(dict(self.strategy, pulled="hide"))
+
+    def patch_rescue(self, counts, slow=()):
+        """Rescue validation/run/members fakes: per-direction counts, hits and optional timeouts."""
+        real_val, real_run = self.api.validate, self.api.run
+        def direction(q):
+            return "citing" if "it cites a work" in q else "cited-by"
+        def fake_val(q):
+            if "doesn't have an abstract" not in q:
+                return real_val(q)
+            out = {"oqo": rescue_oqo(), "oql": q, "validation": {"valid": True, "warnings": []},
+                   "check": {"estimate": {"seconds": 9.0 if direction(q) in slow else 2.0, "budget_seconds": 10.0}}}
+            out["oqo"] = dict(out["oqo"], tag=direction(q))   # distinct query objects per direction
+            return out
+        def fake_run(q, size=1, fields="id", include_pulled=None):
+            if isinstance(q, dict):
+                return {"oqo": q, "oql": "no_abs", "rows": [], "count": 1}
+            if "doesn't have an abstract" in q:
+                if counts[direction(q)] is None:
+                    raise Error('OpenAlex HTTP 500: {"errors":[{"type":"es_error","message":"Connection timed out"}]}')
+                return {"oqo": fake_val(q)["oqo"], "oql": q, "rows": [], "count": counts[direction(q)]}
+            return real_run(q, size, fields, include_pulled)
+        def fake_members(obj, ids, include_pulled=None):
+            if obj.get("tag"):
+                return set(ids) & ({"W2"} if obj["tag"] == "cited-by" else {"W2", "W3"})
+            return Index.members(self.api, obj, ids, include_pulled)
+        return (patch.object(self.api, "validate", side_effect=fake_val), patch.object(self.api, "run", side_effect=fake_run),
+                patch.object(self.api, "members", side_effect=fake_members))
+
+    def test_rescue_both_runs_two_queries_and_export_deduplicates(self):
+        report = self.deliver()
+        a, b, c = self.patch_rescue({"cited-by": 2, "citing": 3}, slow={"citing"})
+        with a, b, c:
+            self.assertEqual(self.call("rescue")["direction"], "cited-by")          # new default
+            out = self.call("rescue", "--direction", "both")
+        self.assertEqual(out["counts_by_direction"], {"cited-by": 2, "citing": 3})
+        self.assertIsNone(out["rescue_count"])
+        self.assertEqual(out["rescue_count_upper_bound"], 5)
+        self.assertTrue(any("close to its time budget" in n for n in out["notes"]))
+        rdir = Path(out["rescue_dir"])
+        self.assertEqual(sorted(p.name for p in rdir.glob("rescue-query*")),
+                         ["rescue-query-cited-by.json", "rescue-query-cited-by.oql",
+                          "rescue-query-citing.json", "rescue-query-citing.oql"])
+        pages = {"cited-by": [{"id": "https://openalex.org/W2"}, {"id": "https://openalex.org/W7"}],
+                 "citing": [{"id": "https://openalex.org/W7"}, {"id": "https://openalex.org/W8"}, {"id": "https://openalex.org/W9"}]}
+        seen = []
+        def page(oqo, cursor="*", size=100):
+            seen.append(oqo["tag"])
+            return {"count": len(pages[oqo["tag"]]), "rows": pages[oqo["tag"]], "next_cursor": None}
+        self.api.page = page
+        est = self.call("export", "--rescue", "--estimate")
+        self.assertEqual((est["validated_count"], est["pages"], len(est["queries"])), (5, 2, 2))
+        exp = self.call("export", "--rescue", "--max-pages", "1")            # stop between the two queries
+        self.assertFalse(exp["complete"])
+        exp = self.call("export", "--rescue")                                # resume with the citing query
+        self.assertEqual(seen, ["cited-by", "citing"])
+        self.assertTrue(exp["complete"])
+        self.assertEqual((exp["received"], exp["unique_records"], exp["duplicates_across_queries"]), (5, 4, 1))
+        self.assertEqual(self.call("export", "--rescue", "--estimate")["remaining_pages"], 0)
+        # A rescue rerun in another direction must not resume the old checkpoint.
+        a, b, c = self.patch_rescue({"cited-by": 2, "citing": 3})
+        with a, b, c:
+            self.call("rescue", "--direction", "citing")
+        with self.assertRaisesRegex(Error, "checkpoint for a different query"):
+            self.call("export", "--rescue")
+        # Older single-query rescues stay exportable.
+        legacy = json.loads((rdir / "rescue-manifest.json").read_text())
+        q = legacy.pop("queries")[0]
+        legacy.update(oql=q["oql"], oqo=q["oqo"], rescue_count=q["count"])
+        write(rdir / "rescue-manifest.json", legacy)
+        (rdir / "rescue-query.oql").write_text(q["oql"] + "\n")
+        write(rdir / "rescue-query.json", q["oqo"])
+        self.assertEqual(self.call("export", "--rescue", "--estimate")["validated_count"], 3)
+
+    def test_rescue_timeout_gives_actionable_advice(self):
+        self.deliver()
+        a, b, c = self.patch_rescue({"cited-by": 2, "citing": None}, slow={"citing"})
+        with a, b, c:
+            with self.assertRaisesRegex(Error, r"citing rescue query timed out.*9.0s of a 10.0s budget.*"
+                                               r"cited-by direction completed.*--direction cited-by.*does not shorten it.*neighbors"):
+                self.call("rescue", "--direction", "both")
 
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
@@ -772,6 +852,29 @@ class ClientTests(unittest.TestCase):
             api.include_pulled = True
             api.members({"get_rows": "works"}, ["W1"])
             self.assertEqual(sent[-1], "true")
+
+    def test_search_timeouts_are_retried_but_refusals_are_not(self):
+        def err(code, body):
+            return HTTPError("https://api.openalex.org", code, "x", {}, io.BytesIO(body))
+        timeout = b'{"validation":{"errors":[{"type":"es_error","message":"Elasticsearch error: Connection timed out"}]}}'
+        ok = MagicMock()
+        ok.__enter__.return_value = ok
+        ok.read.return_value = b'{"ok":true}'
+        ok.headers, ok.status = {}, 200
+        with patch("oasb.api.urlopen", side_effect=[err(500, timeout), err(500, timeout), ok]) as req, \
+                patch("oasb.api.time.sleep") as nap:
+            self.assertEqual(API().request("/"), {"ok": True})
+            self.assertEqual(req.call_count, 3)
+            self.assertEqual([c.args[0] for c in nap.call_args_list], [2, 4])
+        with patch("oasb.api.urlopen", side_effect=[err(500, timeout) for _ in range(4)]) as req, patch("oasb.api.time.sleep"):
+            with self.assertRaisesRegex(Error, "es_error"):
+                API().request("/")
+            self.assertEqual(req.call_count, 4)
+        for code, body in [(400, b'{"error":"query_too_slow"}'), (500, b'{"error":"internal"}')]:
+            with patch("oasb.api.urlopen", side_effect=err(code, body)) as req, patch("oasb.api.time.sleep"):
+                with self.assertRaises(Error):
+                    API().request("/")
+                self.assertEqual(req.call_count, 1)
 
     def test_cost_limit_does_not_become_a_miss_or_retry(self):
         error = HTTPError("https://api.openalex.org", 429, "budget", {}, io.BytesIO(b'{"error":"not_enough_credits"}'))

@@ -25,14 +25,13 @@ Running record of implemented fixes/features and open improvements surfaced duri
 
 ## Open bugs & improvements (prioritized)
 
-### 1. High — `rescue` hits OpenAlex `query_too_slow` (>11s) on large Boolean strategies
+### 1. High — `rescue` hits OpenAlex `query_too_slow` (>11s) on large Boolean strategies (mostly done)
 - **Observed:** On `Lewowski_2021` (~180 leaves), `rescue --direction both` failed with HTTP 400 `query_too_slow` because `both` embeds the full Boolean query twice inside `set (works where ...)`, whereas `--direction cited-by` succeeded in seconds and rescued 1/1 abstract-less miss. On `Moran_2020` (238 leaves), even single-direction subquery materialization timed out.
 - **Also observed (2026-11-25):** with or without an API key, rescue intermittently fails with HTTP 500 `es_error` "Elasticsearch error: Connection timed out", even on the small `examples/telehealth.json` strategy and on `cited-by` alone. Failures are erratic, not size-driven (a 47k-work set failed while a 63k-work set succeeded), and OpenAlex's own pre-check reported these queries `within_budget` (6–9 s of 10 s), so `check.estimate` does not predict them. `api.request` does not retry HTTP 500.
-- **Suggested fix:**
-  0. Treat HTTP 500 `es_error` timeouts as retryable with backoff, and warn when `check.estimate.seconds` is close to `budget_seconds`.
-  1. Change `rescue`'s default `--direction` from `both` to `cited-by` (halving subquery cost).
-  2. When `--direction both` is requested, either run `cited-by` and `citing` as two separate single-set queries and union/deduplicate their counts/hits, or automatically retry `cited-by` on `query_too_slow`.
-  3. When even a single `set (works where ...)` times out on very large strategies (200+ leaves), fail with an actionable fallback suggesting `neighbors --direction references|citing` on top screened/development works (or narrowing the rescue set by year/topic).
+- **Done (see Implemented):** retry of HTTP 500 `es_error` timeouts with 2/4/8 s backoff (`query_too_slow` refusals are not retried); warning when OpenAlex's estimate is within 80% of its time budget; default `--direction cited-by`; `both` run as two single-direction queries, deduplicated on export; actionable advice when a direction still times out.
+- **Live retest (2026-11-25):** `examples/telehealth.json` (29,673 works) now completes in both directions. `examples/telehealth-advanced.json` (40,622 works, all corpora, proximity, exclusion) still times out on every attempt, with or without `--topic`: OpenAlex's estimate stays at 8.0 s of 10 s, so the cost is rebuilding the delivered set, not the outer gate.
+- **Export of rescue records (open, important):** paging a citation-walk query re-runs the walk for every 100-record page. For the basic example the rescue counts succeeded, but all 12 cursor-paging attempts (3 runs × 4 retries) timed out, so `export --rescue` could not download a single page. The export fails safely (incomplete, resumable), but rescue records are currently unobtainable for searches of this size.
+- **Still open:** a rescue that avoids rebuilding the delivered set, for example paging the delivered works' `referenced_works` locally for `cited-by` (one page per 100 delivered works; the 2026-11-25 ground-truth test matched OpenAlex's walk exactly once pulled works were excluded), and a live retest on `Lewowski_2021` and `Moran_2020`.
 
 ### 2. High — Stemming & single-token hyphen quote-stripping hazards
 - **Observed:** In `Moran_2020`, Porter stemming mapped `fasted`/`fasting` → `fast` and `ration` → `rational`, and OpenAlex OQL stripped quotes on single-token hyphenated phrases (`"open-field"`, `"risk-prone"`, `"anti-predator"`), inflating initial hits to 42,154 before fixing brought them to 5,969.

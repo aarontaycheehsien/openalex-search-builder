@@ -73,6 +73,11 @@ PULLED_VIEWS = {"exclude": False, "include": True}
 PULLED_QUERY = {"get_rows": "works", "corpus": "all", "filter_rows": [{"column_id": "is_pulled", "value": True}]}
 
 
+def search_timeout(code, detail):
+    """OpenAlex's transient back-end timeout (HTTP 500 es_error), not a query_too_slow refusal."""
+    return code == 500 and bool(re.search(r"es_error", detail)) and bool(re.search(r"timed out|timeout", detail, re.I))
+
+
 class API:
     def __init__(self, log=lambda event: None):
         self.log = log
@@ -96,7 +101,7 @@ class API:
             data = json.dumps(body, ensure_ascii=False).encode()
             headers["Content-Type"] = "application/json"
         req = Request(url, data=data, headers=headers)
-        for attempt in range(3):
+        for attempt in range(4):
             event = {"at": now(), "method": req.get_method(), "path": path, "params": params, "body": body}
             try:
                 with urlopen(req, timeout=35) as res:
@@ -121,10 +126,15 @@ class API:
                     if wait <= 8 and not (exc.code == 429 and re.search(r"not_enough_credits|daily|budget|insufficient", detail, re.I)):
                         time.sleep(wait)
                         continue
+                if search_timeout(exc.code, detail) and attempt < 3:
+                    # Observed 2026-11-25: erratic Elasticsearch timeouts on citation-set queries that
+                    # OpenAlex's own check rates within budget. They were not charged; retry with backoff.
+                    time.sleep(2 ** (attempt + 1))
+                    continue
                 raise Error(f"OpenAlex HTTP {exc.code}: {detail}") from exc
             except (URLError, TimeoutError, OSError) as exc:
                 self.log(dict(event, error=str(exc)))
-                if attempt == 2:
+                if attempt >= 2:
                     raise Error(f"OpenAlex request failed: {exc}") from exc
                 time.sleep(2 ** attempt)
             except (UnicodeError, json.JSONDecodeError) as exc:

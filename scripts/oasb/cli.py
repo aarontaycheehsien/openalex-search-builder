@@ -62,8 +62,9 @@ def parser():
     c.add_argument("--estimate", action="store_true", help="Report pages and expected credits without downloading (free).")
     c = cmds.add_parser("rescue", help="Optional post-delivery citation-set rescue for works lacking abstracts in OpenAlex.")
     c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
-    c.add_argument("--direction", choices=["both", "cited-by", "citing"], default="both",
-                   help="Citation link direction from the delivered Boolean set (default: both).")
+    c.add_argument("--direction", choices=["cited-by", "citing", "both"], default="cited-by",
+                   help="Citation link direction from the delivered Boolean set (default: cited-by, works the set "
+                        "cites). both runs cited-by and citing as two queries, deduplicated on export.")
     c.add_argument("--topic", action="append", default=[],
                    help="Optional OpenAlex Topic ID (e.g. T10102) to gate rescue instead of the default any-block text gate. Repeatable.")
     c = cmds.add_parser("vocab", help="Look up OpenAlex keywords or topics for vocabulary development.")

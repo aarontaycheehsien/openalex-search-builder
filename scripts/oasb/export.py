@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .api import PULLED_VIEWS, Error, normalize_query, now, subquery, work_id
 from .records import abstract
-from .store import write
+from .store import digest, write
 from .strategy import pulled_view
 
 COLUMNS = ["id", "doi", "title", "authors", "year", "date", "type", "source", "volume", "issue",
@@ -129,66 +129,103 @@ def request_cost(oqo, check):
     return 1, "documented price of a filter-only request (1 credit)"
 
 
+def rescue_queries(dest):
+    """The saved rescue queries, checked against the manifest. Reads older single-query rescues too."""
+    rdir = dest / "rescue"
+    if not (rdir / "rescue-manifest.json").is_file():
+        raise Error("No rescue query found for this report. Run rescue first.")
+    manifest = json.loads((rdir / "rescue-manifest.json").read_text(encoding="utf-8"))
+    entries = manifest.get("queries") or [{"direction": manifest.get("direction", "both"), "oql": manifest["oql"],
+                                           "oqo": manifest["oqo"], "count": manifest["rescue_count"], "legacy": True}]
+    queries = []
+    for q in entries:
+        stem = "rescue-query" if q.get("legacy") else f"rescue-query-{q['direction']}"
+        oqo = json.loads((rdir / (stem + ".json")).read_text(encoding="utf-8"))
+        oql = (rdir / (stem + ".oql")).read_text(encoding="utf-8").strip()
+        if normalize_query(oqo) != normalize_query(q["oqo"]) or oql != q["oql"]:
+            raise Error("The rescue query files differ from the rescue manifest. Rerun rescue.")
+        queries.append({"label": q["direction"], "oqo": oqo, "oql": oql, "count": q["count"]})
+    return queries
+
+
 def target(run, report_id=None, rescue=False):
-    """The delivered (or rescue) query to export, its folder and its validated count."""
+    """The delivered (or rescue) queries to export, their folder and validated count."""
     dest, archive, oqo = delivered(run, report_id)
     if rescue:
-        rdir = dest / "rescue"
-        if not (rdir / "rescue-manifest.json").is_file():
-            raise Error("No rescue query found for this report. Run rescue first.")
-        rmanifest = json.loads((rdir / "rescue-manifest.json").read_text(encoding="utf-8"))
-        oqo = json.loads((rdir / "rescue-query.json").read_text(encoding="utf-8"))
-        roql = (rdir / "rescue-query.oql").read_text(encoding="utf-8").strip()
-        if normalize_query(oqo) != normalize_query(rmanifest["oqo"]) or roql != rmanifest["oql"]:
-            raise Error("The rescue query files differ from the rescue manifest. Rerun rescue.")
+        queries = rescue_queries(dest)
         folder = run.root / "exports" / (dest.name + "-rescue")
-        validated = rmanifest["rescue_count"]
-        oql_text = rmanifest["oql"]
     else:
+        final = archive["evaluation"]["final"]
+        queries = [{"label": "final", "oqo": oqo, "oql": final["oql"], "count": final["count"]}]
         folder = run.root / "exports" / dest.name
-        validated = archive["evaluation"]["final"]["count"]
-        oql_text = archive["evaluation"]["final"]["oql"]
-    return dest, archive, oqo, folder, validated, oql_text
+    return dest, archive, queries, folder
+
+
+def checkpoint_state(folder):
+    if not (folder / "checkpoint.sqlite3").is_file():
+        return None
+    db = sqlite3.connect(folder / "checkpoint.sqlite3")
+    try:
+        saved = db.execute("select value from state where key='checkpoint'").fetchone()
+    except sqlite3.Error:
+        saved = None
+    db.close()
+    return json.loads(saved[0]) if saved else None
+
+
+def query_hash(queries):
+    return digest([normalize_query(q["oqo"]) for q in queries])
 
 
 def estimate(run, api, report_id=None, rescue=False):
     """Expected export cost without paging. Query translation is free; nothing is downloaded."""
-    dest, _, oqo, folder, validated, oql_text = target(run, report_id, rescue)
-    parsed = api.validate(oql_text)
-    # export pages the stored query object, so a changed translation of the text only
-    # makes OpenAlex's cost check describe a different query: fall back to the documented price.
-    changed = normalize_query(parsed["oqo"]) != normalize_query(oqo)
-    per_request, basis = request_cost(oqo, None if changed else parsed.get("check"))
-    pages = max(1, math.ceil(validated / PAGE_SIZE))
-    received, complete = 0, False
-    if (folder / "checkpoint.sqlite3").is_file():
-        db = sqlite3.connect(folder / "checkpoint.sqlite3")
-        try:
-            saved = db.execute("select value from state where key='checkpoint'").fetchone()
-        except sqlite3.Error:
-            saved = None
-        db.close()
-        if saved:
-            state = json.loads(saved[0])
-            received, complete = state["received"], state["complete"]
-    remaining = 0 if complete else max(1, math.ceil(max(validated - received, 0) / PAGE_SIZE))
+    dest, _, queries, folder = target(run, report_id, rescue)
+    state = checkpoint_state(folder)
+    if state and state.get("query_hash", query_hash(queries)) != query_hash(queries):
+        state = None   # belongs to an earlier query; export will refuse to resume it
+    parts, changed_any = [], False
+    for i, q in enumerate(queries):
+        parsed = api.validate(q["oql"])
+        # export pages the stored query object, so a changed translation of the text only
+        # makes OpenAlex's cost check describe a different query: fall back to the documented price.
+        changed = normalize_query(parsed["oqo"]) != normalize_query(q["oqo"])
+        changed_any |= changed
+        per_request, basis = request_cost(q["oqo"], None if changed else parsed.get("check"))
+        pages = max(1, math.ceil(q["count"] / PAGE_SIZE))
+        if state is None:
+            remaining = pages
+        elif state["complete"] or i < state.get("query_index", 0):
+            remaining = 0
+        elif i == state.get("query_index", 0):
+            remaining = max(1, math.ceil(max(q["count"] - state.get("received_in_query", state["received"]), 0) / PAGE_SIZE))
+        else:
+            remaining = pages
+        parts.append({"label": q["label"], "count": q["count"], "pages": pages, "credits_per_page": per_request,
+                      "basis": basis, "remaining_pages": remaining, "translation_changed_since_report": changed})
+    pages = sum(p["pages"] for p in parts)
+    credits = sum(p["pages"] * p["credits_per_page"] for p in parts)
+    remaining_pages = sum(p["remaining_pages"] for p in parts)
+    remaining = sum(p["remaining_pages"] * p["credits_per_page"] for p in parts)
     return {
-        "report": dest.name, "rescue": rescue, "oql": oql_text, "validated_count": validated,
-        "page_size": PAGE_SIZE, "pages": pages, "credits_per_page": per_request, "basis": basis,
-        "estimated_credits": pages * per_request,
-        "estimated_usd": round(pages * per_request * USD_PER_CREDIT, 4),
-        "translation_changed_since_report": changed,
-        "already_received": received, "remaining_pages": remaining,
-        "remaining_credits": remaining * per_request,
-        "remaining_usd": round(remaining * per_request * USD_PER_CREDIT, 4),
-        "note": "Estimate from the count validated at delivery; the live index may hold more or fewer works. "
-                "Actual credits are recorded in export-manifest.json.",
+        "report": dest.name, "rescue": rescue, "oql": [q["oql"] for q in queries] if len(queries) > 1 else queries[0]["oql"],
+        "validated_count": sum(q["count"] for q in queries), "page_size": PAGE_SIZE, "pages": pages,
+        "credits_per_page": parts[0]["credits_per_page"] if len(parts) == 1 else None,
+        "basis": parts[0]["basis"] if len(parts) == 1 else "per query, see queries",
+        "queries": parts if len(parts) > 1 else None,
+        "estimated_credits": credits, "estimated_usd": round(credits * USD_PER_CREDIT, 4),
+        "translation_changed_since_report": changed_any,
+        "already_received": state["received"] if state else 0, "remaining_pages": remaining_pages,
+        "remaining_credits": remaining, "remaining_usd": round(remaining * USD_PER_CREDIT, 4),
+        "note": "Estimate from the count validated at delivery (summed over rescue directions, before "
+                "deduplication); the live index may hold more or fewer works. Actual credits are recorded "
+                "in export-manifest.json.",
     }
 
 
 def export(run, api, report_id=None, max_pages=None, rescue=False):
-    dest, archive, oqo, folder, validated, oql_text = target(run, report_id, rescue)
+    dest, archive, queries, folder = target(run, report_id, rescue)
     api.include_pulled = PULLED_VIEWS[pulled_view(archive["evaluation"]["strategy"])]
+    qhash = query_hash(queries)
     folder.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(folder / "checkpoint.sqlite3")
     db.execute("create table if not exists records (id text primary key, body text not null)")
@@ -196,23 +233,36 @@ def export(run, api, report_id=None, max_pages=None, rescue=False):
     saved = db.execute("select value from state where key='checkpoint'").fetchone()
     state = json.loads(saved[0]) if saved else {"report": dest.name, "started_at": now(), "cursor": "*",
                                                "complete": False, "pages": 0, "received": 0, "counts": [],
-                                               "seen_cursors": []}
+                                               "seen_cursors": [], "query_index": 0, "received_in_query": 0,
+                                               "counts_by_query": {}, "query_hash": qhash}
+    if state.get("query_hash", qhash) != qhash:
+        db.close()
+        raise Error(f"{folder} holds a checkpoint for a different query (for example an earlier rescue direction). "
+                    "Move or delete that folder, then rerun export.")
     error, pages_now = None, 0
     try:
         while not state["complete"]:
             if max_pages is not None and pages_now >= max_pages:
                 error = f"Stopped after --max-pages {max_pages}; rerun export to resume."
                 break
-            cursor = state["cursor"]
-            page = api.page(oqo, cursor)
+            index, cursor = state.get("query_index", 0), state["cursor"]
+            seen_key = cursor if index == 0 else f"{index}:{cursor}"
+            page = api.page(queries[index]["oqo"], cursor)
             nxt = page["next_cursor"]
-            if nxt and (nxt == cursor or nxt in state["seen_cursors"]):
+            if nxt and (nxt == cursor or (nxt if index == 0 else f"{index}:{nxt}") in state["seen_cursors"]):
                 raise Error("Repeated cursor; export stopped to prevent an infinite loop.")
             if not page["rows"] and nxt:
                 raise Error("Empty page with a continuation cursor; export remains incomplete.")
+            label = queries[index]["label"]
+            by_query = dict(state.get("counts_by_query", {}))
+            by_query[label] = sorted({*by_query.get(label, []), page["count"]})
+            last = nxt is None and index + 1 == len(queries)
             new = {**state, "pages": state["pages"] + 1, "received": state["received"] + len(page["rows"]),
-                   "cursor": nxt, "complete": nxt is None,
-                   "counts": sorted({*state["counts"], page["count"]}), "seen_cursors": [*state["seen_cursors"], cursor]}
+                   "cursor": nxt if nxt is not None or last else "*", "complete": last,
+                   "query_index": index + 1 if nxt is None and not last else index,
+                   "received_in_query": 0 if nxt is None else state.get("received_in_query", 0) + len(page["rows"]),
+                   "counts": sorted({*state["counts"], page["count"]}) if len(queries) == 1 else state["counts"],
+                   "counts_by_query": by_query, "seen_cursors": [*state["seen_cursors"], seen_key], "query_hash": qhash}
             with db:
                 for r in page["rows"]:
                     db.execute("insert or ignore into records values (?, ?)",
@@ -225,12 +275,17 @@ def export(run, api, report_id=None, max_pages=None, rescue=False):
         unique = db.execute("select count(*) from records").fetchone()[0]
         files = render(db, folder, state["complete"])
         db.close()
+    validated = sum(q["count"] for q in queries)
+    single = len(queries) == 1
     manifest = {
-        "at": now(), "report": dest.name, "rescue": rescue, "oql": oql_text, "include_pulled": api.include_pulled,
-        "complete": state["complete"],
+        "at": now(), "report": dest.name, "rescue": rescue,
+        "oql": queries[0]["oql"] if single else [q["oql"] for q in queries],
+        "include_pulled": api.include_pulled, "complete": state["complete"],
         "error": error, "pages": state["pages"], "received": state["received"], "unique_records": unique,
-        "validated_count": validated, "counts_seen_while_paging": state["counts"],
-        "count_discrepancy": any(c != unique for c in [validated, *state["counts"]]) if state["complete"] else None,
+        "validated_count": validated, "counts_seen_while_paging": state["counts"] if single else state.get("counts_by_query", {}),
+        "count_discrepancy": (any(c != unique for c in [validated, *state["counts"]]) if single else None)
+                             if state["complete"] else None,
+        "duplicates_across_queries": (state["received"] - unique) if not single and state["complete"] else None,
         "workspace_changed_since_report": run.fingerprint() != archive["evaluation"]["input_hash"],
         "files": files, "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)},
         "note": "Cursor traversal of a changing index, not a historical snapshot. CSV formula-like cells are "
