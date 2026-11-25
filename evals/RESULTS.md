@@ -41,6 +41,7 @@ Single-run pilot evaluations built autonomously by an agent using `SKILL.md` and
 | Anmarkrud 2021 | `core` | `core` | Seedless | 64/64 | 43/64 (67.2%) | 38/59 (64.4%) | 4,526 | 105 | \$0.068 | — |
 | Anmarkrud 2021 | `core` | `core` | Seeded | 61/64 | 40/61 (65.6%) | 36/57 (63.2%) | 6,673 | 167 | \$0.129 | — |
 | Langham-Putrow 2021 (OACA) | `openalex-native` | `all` | Seedless | 114/134 | 100/114 (87.7%) | 97/111 (87.4%) | 2,915 (≤2020-11) / 6,570 (all) | 29 | ~\$0.03 | +6/6 no-abs misses → **106/114 (93.0%)** (+3,569 ≤2020) |
+| Langham-Putrow 2021 (OACA) | `openalex-native` | `core` | Seedless (blind) | 113/134 | **105/113 (92.9%)** | **87/95 (91.6%)** | **3,590** (0.893× orig 4,019) | 34 | \$0.104 | — (baseline: 90/113 = 79.6%, 3,848 works, 0.957×) |
 | Lewowski 2021 | `openalex-native` | `core` | Seedless | 40/46 | 33/40 (82.5%) | 20/27 (74.1%) | 1,144 | 35 | \$0.130 | +1/1 no-abs miss → **34/40 (85.0%)** (+1,374 works) |
 | Moran 2020 | `openalex-native` | `core` | Seedless | 139/142 | 93/139 (66.9%) | 90/136 (66.2%) | 9,383 | 101 | \$0.073 | `query_too_slow` (>11s on 238-leaf subquery) |
 
