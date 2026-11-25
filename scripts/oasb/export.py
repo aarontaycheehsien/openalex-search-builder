@@ -6,12 +6,13 @@ import math
 import sqlite3
 from pathlib import Path
 
-from .api import Error, normalize_query, now, subquery, work_id
+from .api import PULLED_VIEWS, Error, normalize_query, now, subquery, work_id
 from .records import abstract
 from .store import write
+from .strategy import pulled_view
 
 COLUMNS = ["id", "doi", "title", "authors", "year", "date", "type", "source", "volume", "issue",
-           "first_page", "last_page", "abstract", "url", "language", "pmid", "is_xpac"]
+           "first_page", "last_page", "abstract", "url", "language", "pmid", "is_xpac", "is_pulled", "is_retracted"]
 RIS_TYPES = {"article": "JOUR", "review": "JOUR", "letter": "JOUR", "editorial": "JOUR", "book": "BOOK",
              "book-chapter": "CHAP", "dissertation": "THES", "dataset": "DATA", "preprint": "UNPB",
              "report": "RPRT", "conference-paper": "CPAPER"}
@@ -31,6 +32,7 @@ def row(record):
         "first_page": biblio.get("first_page") or "", "last_page": biblio.get("last_page") or "",
         "abstract": abstract(record), "url": location.get("landing_page_url") or record.get("doi") or record.get("id"),
         "language": record.get("language") or "", "pmid": pmid, "is_xpac": record.get("is_xpac", ""),
+        "is_pulled": record.get("is_pulled", ""), "is_retracted": record.get("is_retracted", ""),
     }
 
 
@@ -186,6 +188,7 @@ def estimate(run, api, report_id=None, rescue=False):
 
 def export(run, api, report_id=None, max_pages=None, rescue=False):
     dest, archive, oqo, folder, validated, oql_text = target(run, report_id, rescue)
+    api.include_pulled = PULLED_VIEWS[pulled_view(archive["evaluation"]["strategy"])]
     folder.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(folder / "checkpoint.sqlite3")
     db.execute("create table if not exists records (id text primary key, body text not null)")
@@ -223,7 +226,8 @@ def export(run, api, report_id=None, max_pages=None, rescue=False):
         files = render(db, folder, state["complete"])
         db.close()
     manifest = {
-        "at": now(), "report": dest.name, "rescue": rescue, "oql": oql_text, "complete": state["complete"],
+        "at": now(), "report": dest.name, "rescue": rescue, "oql": oql_text, "include_pulled": api.include_pulled,
+        "complete": state["complete"],
         "error": error, "pages": state["pages"], "received": state["received"], "unique_records": unique,
         "validated_count": validated, "counts_seen_while_paging": state["counts"],
         "count_discrepancy": any(c != unique for c in [validated, *state["counts"]]) if state["complete"] else None,

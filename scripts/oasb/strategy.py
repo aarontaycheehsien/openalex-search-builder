@@ -2,7 +2,7 @@
 import re
 from datetime import date
 
-from .api import Error, tokens
+from .api import PULLED_VIEWS, Error, tokens
 
 FIELDS = {"title", "abstract", "title-abstract", "title-abstract-keywords", "fulltext"}
 # OQL field names after `where`. "fulltext" searches title, abstract and full text.
@@ -195,11 +195,20 @@ def failing(tree, values):
 
 # --- validation and compilation -------------------------------------------------------
 
+def pulled_view(strategy):
+    """"exclude" (OpenAlex's default view) or "include" retracted, withdrawn and removed works."""
+    view = strategy.get("pulled", "exclude")
+    if view not in PULLED_VIEWS:
+        raise Error("pulled must be exclude or include.")
+    return view
+
+
 def check(strategy):
-    if not isinstance(strategy, dict) or set(strategy) - {"blocks", "limits", "corpus", "combine"}:
-        raise Error("Expected a strategy with blocks and optional limits, corpus and combine.")
+    if not isinstance(strategy, dict) or set(strategy) - {"blocks", "limits", "corpus", "combine", "pulled"}:
+        raise Error("Expected a strategy with blocks and optional limits, corpus, combine and pulled.")
     if strategy.get("corpus", "core") not in CORPORA:
         raise Error("corpus must be core, all or expansion.")
+    pulled_view(strategy)
     blocks = strategy.get("blocks")
     if not isinstance(blocks, list) or not blocks:
         raise Error("Define at least one search block in strategy.json.")
@@ -365,6 +374,7 @@ def lint(strategy):
         "validated_against_openalex": False,
         "oql": query,
         "corpus": corpus,
+        "pulled": pulled_view(strategy),
         "leaves": leaves,
         "blocks": block_oql,
         "warnings": warnings,

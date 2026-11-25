@@ -11,7 +11,7 @@ from urllib.parse import quote, urlencode, unquote
 from urllib.request import Request, urlopen
 
 ROOT = "https://api.openalex.org"
-FIELDS = "id,ids,display_name,publication_year,abstract_inverted_index,keywords"
+FIELDS = "id,ids,display_name,publication_year,abstract_inverted_index,keywords,is_pulled,is_retracted"
 WORK = re.compile(r"W[1-9][0-9]*", re.I)
 
 
@@ -69,9 +69,17 @@ def normalize_warnings(warnings):
     return sorted(out, key=lambda v: json.dumps(v, sort_keys=True))
 
 
+PULLED_VIEWS = {"exclude": False, "include": True}
+PULLED_QUERY = {"get_rows": "works", "corpus": "all", "filter_rows": [{"column_id": "is_pulled", "value": True}]}
+
+
 class API:
     def __init__(self, log=lambda event: None):
         self.log = log
+        # Since 2026-11-19 OpenAlex leaves pulled (retracted, withdrawn, removed) works out of
+        # lists and counts by default, but an ID filter brings them back. Every execution
+        # therefore states the view explicitly, so known-work checks see what the search sees.
+        self.include_pulled = False
         self.credits = 0
         self.cost_usd = 0.0
         self.unpriced = 0
@@ -134,14 +142,18 @@ class API:
             out["check"] = value["check"]
         return out
 
-    def run(self, query, size=1, fields="id"):
+    def pulled_param(self, include_pulled=None):
+        return {"include_pulled": "true" if (self.include_pulled if include_pulled is None else include_pulled) else "false"}
+
+    def run(self, query, size=1, fields="id", include_pulled=None):
         key = "oql" if isinstance(query, str) else "oqo"
+        view = self.pulled_param(include_pulled)
         params = {key: query if key == "oql" else json.dumps(query, separators=(",", ":")),
-                  "per-page": size, "select": fields}
+                  "per-page": size, "select": fields, **view}
         if len(urlencode(params)) <= 5500:
             reply = self.request("/", params=params)
         else:
-            reply = self.request("/", body={key: query, "per_page": size, "select": fields})
+            reply = self.request("/", params=view, body={key: query, "per_page": size, "select": fields})
         meta, rows = reply.get("meta") or {}, reply.get("results")
         echo = meta.get("x_query") or {}
         if type(meta.get("count")) is not int or not isinstance(rows, list) or not echo.get("oqo") or not echo.get("oql"):
@@ -155,7 +167,7 @@ class API:
             work_id(record)
         return alias, record
 
-    def members(self, query, ids):
+    def members(self, query, ids, include_pulled=None):
         hits = set()
         ordered = sorted(set(ids))
         for start in range(0, len(ordered), 25):
@@ -163,19 +175,23 @@ class API:
             choices = [{"column_id": "ids.openalex", "value": wid} for wid in batch]
             restriction = choices[0] if len(choices) == 1 else {"join": "or", "filters": choices}
             scoped = dict(query, filter_rows=[*query.get("filter_rows", []), restriction])
-            result = self.run(scoped, len(batch))
+            result = self.run(scoped, len(batch), include_pulled=include_pulled)
             found = {work_id(row) for row in result["rows"]}
             if len(found) != result["count"] or not found.issubset(batch):
                 raise Error("Incomplete or inconsistent OpenAlex ID intersection.")
             hits.update(found)
         return hits
 
+    def pulled(self, ids):
+        """Which of these works OpenAlex currently marks as pulled (any corpus)."""
+        return self.members(PULLED_QUERY, ids, include_pulled=True) if ids else set()
+
     def page(self, oqo, cursor="*", size=100, select=None):
         """One cursor page of work records for a validated query object."""
         body = {"oqo": oqo, "per_page": size, "cursor": cursor}
         if select:
             body["select"] = select
-        reply = self.request("/", body=body)
+        reply = self.request("/", params=self.pulled_param(), body=body)
         meta, rows = reply.get("meta") or {}, reply.get("results")
         echo = meta.get("x_query") or {}
         if type(meta.get("count")) is not int or not isinstance(rows, list) or "next_cursor" not in meta:

@@ -104,7 +104,7 @@ def write_draft(run):
         "",
         "> **Untested draft — not validated against OpenAlex.** No live counts, recall estimates, or API checks have been run.",
         "",
-        f"Generated {at}. Corpus: `{checked['corpus']}`. Compiled leaves: {checked['leaves']}.",
+        f"Generated {at}. Corpus: `{checked['corpus']}`. Pulled works: `{checked['pulled']}`. Compiled leaves: {checked['leaves']}.",
         "",
         "## Review question",
         "",
@@ -211,6 +211,8 @@ def dispatch(run, api, a):
                "miss_details": miss_details(records, data["misses"], dev),
                "change": {k: sorted(dev.intersection(v)) if isinstance(v, list) else v
                           for k, v in data.get("change", {}).items()}, "usage": data["usage"]}
+        out["pulled"] = {"view": data["pulled"]["view"], "final_pulled_works": data["pulled"]["final_pulled_works"],
+                         "development_pulled": sorted(dev.intersection(data["pulled"]["known_pulled"]))}
         if "abstract_stats" in data:
             out["abstract_stats"] = data["abstract_stats"]
         if exposed := exposed_holdouts(run, records):

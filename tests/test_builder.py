@@ -49,21 +49,31 @@ class Index:
 
     def __init__(self):
         self.source = {}
+        self.include_pulled = False
+        self.pulled_ids = set()      # works OpenAlex marks as pulled in this synthetic index
 
-    def run(self, q, size=1, fields="id"):
+    def visible(self, include_pulled):
+        return self.include_pulled if include_pulled is None else include_pulled
+
+    def pulled(self, ids):
+        return set(ids) & self.pulled_ids
+
+    def run(self, q, size=1, fields="id", include_pulled=None):
         if isinstance(q, dict):
             return {"oqo": q, "oql": "pilot", "rows": [{"id": f"W{i}", "display_name": f"title {i}"} for i in (1, 2, 3)], "count": 3}
         oq = self.validate(q)["oqo"]
-        return {"oqo": oq, "oql": q, "rows": [], "count": len(self.members(oq, ["W1", "W2", "W3"]))}
+        return {"oqo": oq, "oql": q, "rows": [], "count": len(self.members(oq, ["W1", "W2", "W3"], include_pulled))}
 
     def page(self, oqo, cursor="*", size=100, select=None):
         rows = [{"id": f"W{i}", "display_name": f"title {i}"} for i in (1, 2, 3)][:size]
         return {"count": 3, "rows": rows, "next_cursor": None, "oqo": oqo, "oql": "neighbors"}
 
-    def members(self, obj, ids):
+    def members(self, obj, ids, include_pulled=None):
         where = self.source[json.dumps(obj, sort_keys=True)].partition(" where ")[2]
         hits = set()
         for wid in ids:
+            if wid in self.pulled_ids and not self.visible(include_pulled):
+                continue
             def clause(m):
                 found = any(wid in TERMS.get(t, set()) for t in m[2].split(" OR "))
                 return str(found != bool(m[1]))
@@ -400,13 +410,13 @@ class WorkspaceTests(unittest.TestCase):
             if "doesn't have an abstract" in q:
                 return {"oqo": rescue_oqo(), "oql": q, "validation": {"valid": True, "warnings": []}}
             return real_val(q)
-        def fake_run(q, size=1, fields="id"):
+        def fake_run(q, size=1, fields="id", include_pulled=None):
             if isinstance(q, dict):
                 return {"oqo": q, "oql": "no_abs", "rows": [], "count": 1}
             if "doesn't have an abstract" in q:
                 oq = fake_val(q)["oqo"]
                 return {"oqo": oq, "oql": q, "rows": [], "count": 2}
-            return Index.run(self.api, q, size, fields)
+            return Index.run(self.api, q, size, fields, include_pulled)
         def fake_members(obj, ids):
             if any(f.get("column_id") == "has_abstract" for f in obj.get("filter_rows", [])):
                 return set(ids) & {"W2", "W3"}
@@ -493,15 +503,51 @@ class WorkspaceTests(unittest.TestCase):
         self.call("export")
         self.assertEqual(self.call("export", "--estimate")["remaining_pages"], 0)
 
+    def test_pulled_known_work_is_a_miss_not_a_hit(self):
+        self.api.pulled_ids = {"W1"}            # W1 is the only seed the search otherwise retrieves
+        ev = self.call("eval")
+        self.assertEqual(ev["sets"]["seed"]["hits"], [])
+        self.assertEqual(ev["misses"]["W1"], ["pulled"])
+        self.assertEqual(ev["pulled"], {"view": "exclude", "final_pulled_works": 1, "development_pulled": ["W1"]})
+        self.attach_critique()
+        audit = (Path(self.call("report")["report"]) / "audit.md").read_text()
+        self.assertIn("Pulled works: excluded (request parameter include_pulled=false", audit)
+        self.assertIn("1 retracted, withdrawn or removed works matching this search are left out", audit)
+        self.assertIn("Known works OpenAlex marks as pulled: W1.", audit)
+        self.assertIn("- W1 — pulled", audit)
+
+    def test_including_pulled_is_a_scope_decision(self):
+        self.api.pulled_ids = {"W1"}
+        self.run.put("strategy", dict(self.strategy, pulled="include"))
+        with self.assertRaisesRegex(Error, "Confirm the current concepts"):
+            self.call("eval")
+        self.call("scope", "--confirm", "--note", "Review must identify retracted studies")
+        ev = self.call("eval")
+        self.assertEqual(ev["sets"]["seed"]["hits"], ["W1"])
+        self.assertEqual(ev["pulled"]["view"], "include")
+        self.assertEqual(ev["pulled"]["final_pulled_works"], 1)
+        self.attach_critique()
+        report = Path(self.call("report")["report"])
+        self.assertIn("Pulled works: included", (report / "audit.md").read_text())
+        self.api.page = lambda oqo, cursor="*", size=100: {"count": 1, "rows": [
+            {"id": "https://openalex.org/W1", "display_name": "Pulled", "is_pulled": True, "is_retracted": True}], "next_cursor": None}
+        self.api.include_pulled = False          # export must set the delivered view itself
+        out = self.call("export")
+        self.assertTrue(out["include_pulled"] and self.api.include_pulled)
+        rows = list(__import__("csv").DictReader(open(Path(out["directory"]) / "results.csv", encoding="utf-8")))
+        self.assertEqual((rows[0]["is_pulled"], rows[0]["is_retracted"]), ("True", "True"))
+        with self.assertRaises(Error):
+            check(dict(self.strategy, pulled="hide"))
+
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
         real_run = self.api.run
-        def fake_run(q, size=1, fields="id"):
+        def fake_run(q, size=1, fields="id", include_pulled=None):
             if isinstance(q, dict) and any(f.get("column_id") == "has_abstract" for f in q.get("filter_rows", [])):
                 # 1 filter row + has_abstract = single block; >2 = final
                 n_leaves = len(q["filter_rows"]) - 1
                 return {"oqo": q, "oql": "no_abs", "rows": [], "count": 0 if n_leaves >= 4 else 1}
-            return real_run(q, size, fields)
+            return real_run(q, size, fields, include_pulled)
         with patch.object(self.api, "run", side_effect=fake_run):
             ev = self.call("eval", "--abstract-stats")
             self.assertEqual(ev["abstract_stats"]["final"]["pct_without_abstract"], 0.0)
@@ -693,7 +739,7 @@ class ClientTests(unittest.TestCase):
 
     def test_membership_batches_and_consistency(self):
         api = API()
-        def reply(query, size):
+        def reply(query, size, include_pulled=None):
             group = query["filter_rows"][-1]
             leaves = group.get("filters", [group])
             rows = [{"id": x["value"]} for x in leaves]
@@ -705,6 +751,27 @@ class ClientTests(unittest.TestCase):
         with patch.object(api, "run", return_value={"rows": [], "count": 1}):
             with self.assertRaisesRegex(Error, "intersection"):
                 api.members({"get_rows": "works"}, ["W1"])
+
+    def test_every_execution_states_the_pulled_view(self):
+        """An ID filter brings pulled works back unless include_pulled is explicit (live, 2026-11-25)."""
+        api, sent = API(), []
+        def fake_request(path, params=None, body=None, allow_missing=False):
+            sent.append((params or {}).get("include_pulled"))
+            filters = (body or {}).get("oqo", {}).get("filter_rows") or json.loads((params or {}).get("oqo", "{}")).get("filter_rows", [])
+            ids = [f["value"] for f in filters[-1].get("filters", [filters[-1]])] if filters else []
+            rows = [{"id": i} for i in ids if i.startswith("W")]
+            return {"meta": {"count": len(rows), "next_cursor": None, "x_query": {"oqo": (body or {}).get("oqo") or {"x": 1}, "oql": "q"}}, "results": rows}
+        with patch.object(api, "request", side_effect=fake_request):
+            api.run("get works", 1)
+            api.run({"get_rows": "works", "filter_rows": [{"column_id": "t", "value": "x" * 6000}]}, 1)   # POST
+            api.members({"get_rows": "works"}, ["W1"])
+            api.page({"get_rows": "works"})
+            self.assertEqual(sent, ["false"] * 4)
+            self.assertEqual(api.pulled(["W1"]), {"W1"})
+            self.assertEqual(sent[-1], "true")      # detection must see pulled works
+            api.include_pulled = True
+            api.members({"get_rows": "works"}, ["W1"])
+            self.assertEqual(sent[-1], "true")
 
     def test_cost_limit_does_not_become_a_miss_or_retry(self):
         error = HTTPError("https://api.openalex.org", 429, "budget", {}, io.BytesIO(b'{"error":"not_enough_credits"}'))

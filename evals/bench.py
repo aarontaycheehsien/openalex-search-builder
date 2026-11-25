@@ -9,9 +9,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / "evals/fixtures"
 sys.path.insert(0, str(ROOT / "scripts"))
-from oasb.api import API, Error, identifier, normalize_query, now, work_id
+from oasb.api import API, PULLED_VIEWS, Error, identifier, normalize_query, now, work_id
 from oasb.store import Run, digest, write
 from oasb.records import wilson
+from oasb.strategy import pulled_view
 
 
 def fixture_index():
@@ -82,6 +83,7 @@ def score(case, folder, api, report_dir=None, reference=False):
         raise Error("Fixture or seed assignment changed after preparation.")
     run = Run(folder / "run")
     mined = set()
+    view = "exclude"   # comparator queries use OpenAlex's default view
     if report_dir:
         if report_dir.resolve().parent != (run.root / "reports").resolve():
             raise Error("Select a delivery from the prepared workspace.")
@@ -93,6 +95,7 @@ def score(case, folder, api, report_dir=None, reference=False):
         if normalize_query(canonical["oqo"]) != normalize_query(frozen["oqo"]):
             raise Error("The canonical query changed after delivery.")
         obj = frozen["oqo"]
+        view = pulled_view(archive["evaluation"]["strategy"])
         mined = {k for k, r in archive["records"].items() if r["role"] in {"seed", "relevant"}}
     else:
         key = "reference" if reference else "baseline"
@@ -102,6 +105,7 @@ def score(case, folder, api, report_dir=None, reference=False):
         obj = api.validate(candidate)["oqo"]
         obj = dict(obj, filter_rows=[*obj["filter_rows"], {"column_id": "to_publication_date", "value": case["to_date"]}])
     check_limit(obj, case["to_date"])
+    api.include_pulled = PULLED_VIEWS[view]
     result = api.run(obj)
     known, seed_works = set(), set()
     unresolved = []
@@ -120,9 +124,12 @@ def score(case, folder, api, report_dir=None, reference=False):
         known.add(wid)
     # Only indexed records published by the stated cutoff belong in conditional recall.
     dated = api.members({"get_rows": "works", "filter_rows": [
-        {"column_id": "to_publication_date", "value": case["to_date"]}]}, known)
+        {"column_id": "to_publication_date", "value": case["to_date"]}]}, known, include_pulled=True)
     excluded = sorted(known - dated)
-    test = dated - seed_works
+    # Under the default view a pulled gold work cannot be retrieved: report it, don't score it.
+    pulled_gold = api.pulled(dated)
+    unretrievable = (dated - seed_works) & pulled_gold if view == "exclude" else set()
+    test = dated - seed_works - unretrievable
     hits = api.members(obj, test)
     unseen = test - mined
     costs = []
@@ -134,6 +141,9 @@ def score(case, folder, api, report_dir=None, reference=False):
             "at": now(), "oql": result["oql"], "cutoff": case["to_date"], "gold_rows": len(case["gold"]),
             "distinct_resolved": len(known), "unresolved_source_rows": unresolved,
             "outside_date_bound": len(excluded), "resolved_seed_works_excluded": len(dated & seed_works),
+            "pulled_view": view, "pulled_gold": len(pulled_gold),
+            "pulled_gold_excluded_from_test": len(unretrievable),
+            "relative_recall_counting_pulled_as_missed": len(hits)/len(test | unretrievable) if test | unretrievable else None,
             "tested": len(test), "hits": len(hits), "relative_recall": len(hits)/len(test) if test else None,
             "relative_recall_ci95": wilson(len(hits), len(test)),
             "unseen_tested": len(unseen), "unseen_hits": len(hits & unseen),

@@ -1,9 +1,9 @@
 """Optional post-delivery citation-set rescue for works lacking abstracts in OpenAlex."""
-from .api import Error, check_translation, normalize_query, now
+from .api import PULLED_VIEWS, Error, check_translation, normalize_query, now
 from .export import delivered
 from .records import DEVELOPMENT
 from .store import write
-from .strategy import rescue_expectation, rescue_oql
+from .strategy import pulled_view, rescue_expectation, rescue_oql
 
 MAX_SET_WORKS = 450_000
 
@@ -17,6 +17,7 @@ def rescue(run, api, report_id=None, direction="both", topics=None):
     dest, archive, final_oqo = delivered(run, report_id)
     ev = archive["evaluation"]
     strategy = ev["strategy"]
+    api.include_pulled = PULLED_VIEWS[pulled_view(strategy)]   # the delivered search's view
     final_count = ev["final"]["count"]
     if final_count > MAX_SET_WORKS:
         raise Error(f"Delivered query has {final_count:,} works, exceeding OpenAlex's {MAX_SET_WORKS:,}-work set limit.")
@@ -59,6 +60,7 @@ def rescue(run, api, report_id=None, direction="both", topics=None):
         "gate": gate,
         "topics": list(topics or []),
         "corpus": strategy.get("corpus", "core"),
+        "include_pulled": api.include_pulled,
         "final_count": final_count,
         "final_without_abstract": final_no_abs,
         "final_without_abstract_pct": final_no_abs_pct,

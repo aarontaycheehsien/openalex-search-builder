@@ -3,8 +3,8 @@ import math
 import re
 from collections import Counter
 
-from .api import Error, work_id, now
-from .strategy import CORPORA
+from .api import PULLED_VIEWS, Error, work_id, now
+from .strategy import CORPORA, pulled_view
 
 ROLES = ("seed", "relevant", "validation", "benchmark")
 DEVELOPMENT = {"seed", "relevant"}
@@ -108,6 +108,7 @@ DISCOVERY_FIELDS = "id,display_name,publication_year,abstract_inverted_index"
 
 def discover(run, api, args):
     protected = {k for k, v in run.get("records").items() if v["role"] not in DEVELOPMENT}
+    api.include_pulled = PULLED_VIEWS[pulled_view(run.get("strategy"))]
     if args.action == "neighbors":
         records = run.get("records")
         wid = args.work_id.upper()
