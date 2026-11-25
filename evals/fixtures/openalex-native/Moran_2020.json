@@ -1,0 +1,863 @@
+{
+  "id": "Moran_2020",
+  "suite": "openalex-native",
+  "question": "Does poor nutritional condition promote high-risk behaviours across species?",
+  "eligibility": [
+    "We screened records to find original experimental studies that manipulated the condition of animals in independent treatment groups through their diet, via both dietary quantity (i.e. partial restriction, complete deprivation or enrichment) or quality treatments (e.g. protein restriction or enrichment), and including both short-term and longer-term manipulations up to extended periods of weeks to months. We screened for studies that then subjected those animals to behavioural observations in contexts relating to risk (e.g. novel environments, novel object, risk-sensitive foraging, predator response) in independent trials (for inclusion and exclusion decision trees see Appendix S1). we excluded studies using species with compromised genetic diversity and/or evolved adaptive responses (e.g. domesticated animals, laboratory breeds, genetically modified organisms; as per Kelly et al., 2018) as well as studies on humans. Studies manipulating the micronutrient content of diets, or subjecting animals to high-fat diets were also excluded as the relationship between these diet manipulations and body condition is not clear and was considered beyond the scope of this review. Dietary treatments were excluded as ‘non-independent’: (i) where the behaviour was measured in the presence of high and low food availability, or dietary treatments such as periods of deprivation were applied within the novel environment (i.e. non-independence of treatments from the behavioural assay); (ii) where the dietary treatments were coupled with additional non-dietary factors (e.g. temperature; i.e. non-independence of the diet factor within treatments); or, (iii) the dietary treatments were applied longitudinally (within individuals) rather than crosssectionally (i.e. non-independence between high and low treatments)."
+  ],
+  "to_date": "2019-12-31",
+  "to_date_source": "December 31 of the year preceding review publication (2020).",
+  "review": "https://doi.org/10.1111/brv.12655",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Moran_2020/Moran_2020_ids.csv",
+  "baseline": null,
+  "seeds": [],
+  "gold": [
+    {
+      "row": 2,
+      "ids": [
+        "https://doi.org/10.1023/A:1007616212592"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0187657"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://doi.org/10.1163/156853912X623748"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://doi.org/10.1111/j.1469-7998.2011.00850.x"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://doi.org/10.1016/j.beproc.2017.10.008"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://doi.org/10.1007/s00265-017-2395-0"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://doi.org/10.1007/s00265-016-2215-y"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://doi.org/10.1007/s00265-016-2184-1"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://doi.org/10.1093/icb/icu095"
+      ]
+    },
+    {
+      "row": 33,
+      "ids": [
+        "https://doi.org/10.1034/j.1600-0706.2003.12206.x"
+      ]
+    },
+    {
+      "row": 34,
+      "ids": [
+        "https://doi.org/10.1016/j.physbeh.2006.09.035"
+      ]
+    },
+    {
+      "row": 37,
+      "ids": [
+        "https://doi.org/10.1093/beheco/ary009"
+      ]
+    },
+    {
+      "row": 47,
+      "ids": [
+        "https://doi.org/10.1163/156853807780202396"
+      ]
+    },
+    {
+      "row": 50,
+      "ids": [
+        "https://doi.org/10.1006/jfbi.1995.0156"
+      ]
+    },
+    {
+      "row": 51,
+      "ids": [
+        "https://doi.org/10.1111/j.1570-7458.2006.00357.x"
+      ]
+    },
+    {
+      "row": 53,
+      "ids": [
+        "https://doi.org/10.1006/anbe.1993.1185"
+      ]
+    },
+    {
+      "row": 67,
+      "ids": [
+        "https://doi.org/10.1080/03949370.2017.1313785"
+      ]
+    },
+    {
+      "row": 69,
+      "ids": [
+        "https://doi.org/10.2307/2390261"
+      ]
+    },
+    {
+      "row": 72,
+      "ids": [
+        "https://doi.org/10.1642/AUK-17-67.1"
+      ]
+    },
+    {
+      "row": 75,
+      "ids": [
+        "https://doi.org/10.1007/s11692-017-9430-y"
+      ]
+    },
+    {
+      "row": 76,
+      "ids": [
+        "https://doi.org/10.1111/jzo.12556"
+      ]
+    },
+    {
+      "row": 89,
+      "ids": [
+        "https://doi.org/10.1016/S0001-706X(98)00025-4"
+      ]
+    },
+    {
+      "row": 91,
+      "ids": [
+        "https://doi.org/10.1002/ps.4851"
+      ]
+    },
+    {
+      "row": 95,
+      "ids": [
+        "https://doi.org/10.1016/j.yhbeh.2018.07.013"
+      ]
+    },
+    {
+      "row": 96,
+      "ids": [
+        "https://doi.org/10.1111/1744-7917.12596"
+      ]
+    },
+    {
+      "row": 107,
+      "ids": [
+        "https://doi.org/10.1007/s10164-018-0550-3"
+      ]
+    },
+    {
+      "row": 130,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2004.02.023"
+      ]
+    },
+    {
+      "row": 131,
+      "ids": [
+        "https://doi.org/10.1006/anbe.2002.3076"
+      ]
+    },
+    {
+      "row": 143,
+      "ids": [
+        "https://doi.org/10.1242/jeb.030668"
+      ]
+    },
+    {
+      "row": 145,
+      "ids": [
+        "https://doi.org/10.1016/j.baae.2007.03.004"
+      ]
+    },
+    {
+      "row": 147,
+      "ids": [
+        "https://doi.org/10.1111/j.1600-0633.2007.00272.x"
+      ]
+    },
+    {
+      "row": 152,
+      "ids": [
+        "https://doi.org/10.1890/07-1318.1"
+      ]
+    },
+    {
+      "row": 153,
+      "ids": [
+        "https://doi.org/10.1007/s00442-005-0334-7"
+      ]
+    },
+    {
+      "row": 164,
+      "ids": [
+        "https://doi.org/10.1006/anbe.1999.1259"
+      ]
+    },
+    {
+      "row": 166,
+      "ids": [
+        "https://doi.org/10.1098/rsbl.2014.0834"
+      ]
+    },
+    {
+      "row": 169,
+      "ids": [
+        "https://doi.org/10.1007/s10750-014-2048-5"
+      ]
+    },
+    {
+      "row": 175,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2013.12.018"
+      ]
+    },
+    {
+      "row": 178,
+      "ids": [
+        "https://doi.org/10.1016/S0003-3472(05)80921-2"
+      ]
+    },
+    {
+      "row": 179,
+      "ids": [
+        "https://doi.org/10.1126/science.284.5420.1640"
+      ]
+    },
+    {
+      "row": 196,
+      "ids": [
+        "https://doi.org/10.1007/s00227-012-2020-8"
+      ]
+    },
+    {
+      "row": 199,
+      "ids": [
+        "https://doi.org/10.1093/beheco/9.1.26"
+      ]
+    },
+    {
+      "row": 212,
+      "ids": [
+        "https://doi.org/10.1111/1365-2656.12512"
+      ]
+    },
+    {
+      "row": 213,
+      "ids": [
+        "https://doi.org/10.1023/A:1005543910683"
+      ]
+    },
+    {
+      "row": 214,
+      "ids": [
+        "https://doi.org/10.1093/beheco/8.2.186"
+      ]
+    },
+    {
+      "row": 217,
+      "ids": [
+        "https://doi.org/10.1007/s00442-004-1712-2"
+      ]
+    },
+    {
+      "row": 222,
+      "ids": [
+        "https://doi.org/10.1139/z02-036"
+      ]
+    },
+    {
+      "row": 225,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0139050"
+      ]
+    },
+    {
+      "row": 230,
+      "ids": []
+    },
+    {
+      "row": 231,
+      "ids": []
+    },
+    {
+      "row": 241,
+      "ids": [
+        "https://doi.org/10.1093/beheco/arr162"
+      ]
+    },
+    {
+      "row": 245,
+      "ids": [
+        "https://doi.org/10.1007/s00265-008-0549-9"
+      ]
+    },
+    {
+      "row": 267,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0102880"
+      ]
+    },
+    {
+      "row": 276,
+      "ids": [
+        "https://doi.org/10.1111/een.12146"
+      ]
+    },
+    {
+      "row": 279,
+      "ids": [
+        "https://doi.org/10.3354/meps327279"
+      ]
+    },
+    {
+      "row": 282,
+      "ids": [
+        "https://doi.org/10.1111/btp.12031"
+      ]
+    },
+    {
+      "row": 284,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0065079"
+      ]
+    },
+    {
+      "row": 287,
+      "ids": [
+        "https://doi.org/10.1007/BF00167330"
+      ]
+    },
+    {
+      "row": 290,
+      "ids": [
+        "https://doi.org/10.1093/beheco/arv200"
+      ]
+    },
+    {
+      "row": 294,
+      "ids": [
+        "https://doi.org/10.1098/rspb.2017.1658"
+      ]
+    },
+    {
+      "row": 302,
+      "ids": [
+        "https://doi.org/10.1006/anbe.2003.2075"
+      ]
+    },
+    {
+      "row": 303,
+      "ids": [
+        "https://doi.org/10.1111/j.1420-9101.2011.02371.x"
+      ]
+    },
+    {
+      "row": 310,
+      "ids": [
+        "https://doi.org/10.1006/jfbi.1999.1113"
+      ]
+    },
+    {
+      "row": 311,
+      "ids": [
+        "https://doi.org/10.1046/j.1439-0418.2002.00694.x"
+      ]
+    },
+    {
+      "row": 317,
+      "ids": [
+        "https://doi.org/10.1007/s00265-016-2257-1"
+      ]
+    },
+    {
+      "row": 319,
+      "ids": [
+        "https://doi.org/10.1007/s00265-009-0790-x"
+      ]
+    },
+    {
+      "row": 322,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2003.06.026"
+      ]
+    },
+    {
+      "row": 323,
+      "ids": [
+        "https://doi.org/10.1006/anbe.1994.1019"
+      ]
+    },
+    {
+      "row": 330,
+      "ids": [
+        "https://doi.org/10.1577/1548-8659(1998)127<0192:RIODAI>2.0.CO;2"
+      ]
+    },
+    {
+      "row": 338,
+      "ids": [
+        "https://doi.org/10.1016/S0163-1047(05)80067-6"
+      ]
+    },
+    {
+      "row": 340,
+      "ids": [
+        "https://doi.org/10.1163/1568540042781711"
+      ]
+    },
+    {
+      "row": 341,
+      "ids": []
+    },
+    {
+      "row": 352,
+      "ids": [
+        "https://doi.org/10.1006/anbe.1998.1010"
+      ]
+    },
+    {
+      "row": 354,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0005015"
+      ]
+    },
+    {
+      "row": 355,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2011.03.021"
+      ]
+    },
+    {
+      "row": 356,
+      "ids": [
+        "https://doi.org/10.1111/j.1439-0310.2011.01886.x"
+      ]
+    },
+    {
+      "row": 357,
+      "ids": [
+        "https://doi.org/10.1007/s10682-013-9674-7"
+      ]
+    },
+    {
+      "row": 358,
+      "ids": [
+        "https://doi.org/10.1186/1742-9994-12-S1-S11"
+      ]
+    },
+    {
+      "row": 359,
+      "ids": [
+        "https://doi.org/10.1163/15685381-0003033"
+      ]
+    },
+    {
+      "row": 360,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2017.04.003"
+      ]
+    },
+    {
+      "row": 361,
+      "ids": [
+        "https://doi.org/10.1163/1568539X-00003239"
+      ]
+    },
+    {
+      "row": 363,
+      "ids": [
+        "https://doi.org/10.1111/j.1365-2656.2011.01917.x"
+      ]
+    },
+    {
+      "row": 365,
+      "ids": [
+        "https://doi.org/10.1111/1365-2435.12324"
+      ]
+    },
+    {
+      "row": 367,
+      "ids": [
+        "https://doi.org/10.1186/s13071-015-1017-9"
+      ]
+    },
+    {
+      "row": 368,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2007.11.011"
+      ]
+    },
+    {
+      "row": 371,
+      "ids": [
+        "https://doi.org/10.1016/j.beproc.2015.10.010"
+      ]
+    },
+    {
+      "row": 376,
+      "ids": [
+        "https://doi.org/10.1186/s12983-016-0180-y"
+      ]
+    },
+    {
+      "row": 384,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2013.12.031"
+      ]
+    },
+    {
+      "row": 386,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2008.12.015"
+      ]
+    },
+    {
+      "row": 397,
+      "ids": [
+        "https://doi.org/10.2307/5827"
+      ]
+    },
+    {
+      "row": 399,
+      "ids": [
+        "https://doi.org/10.1016/j.jinsphys.2012.08.012"
+      ]
+    },
+    {
+      "row": 403,
+      "ids": [
+        "https://doi.org/10.1023/A:1010309108210"
+      ]
+    },
+    {
+      "row": 415,
+      "ids": [
+        "https://doi.org/10.1046/j.1365-2427.1996.00479.x"
+      ]
+    },
+    {
+      "row": 418,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2007.12.007"
+      ]
+    },
+    {
+      "row": 420,
+      "ids": [
+        "https://doi.org/10.1111/j.1439-0310.2006.01224.x"
+      ]
+    },
+    {
+      "row": 422,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0022162"
+      ]
+    },
+    {
+      "row": 424,
+      "ids": [
+        "https://doi.org/10.1111/j.0030-1299.2005.13766.x"
+      ]
+    },
+    {
+      "row": 425,
+      "ids": [
+        "https://doi.org/10.1111/j.2007.0030-1299.15139.x"
+      ]
+    },
+    {
+      "row": 427,
+      "ids": [
+        "https://doi.org/10.1111/j.1600-048X.2010.05124.x"
+      ]
+    },
+    {
+      "row": 429,
+      "ids": [
+        "https://doi.org/10.1037/a0020656"
+      ]
+    },
+    {
+      "row": 432,
+      "ids": [
+        "https://doi.org/10.1111/een.12389"
+      ]
+    },
+    {
+      "row": 433,
+      "ids": [
+        "https://doi.org/10.1016/j.jembe.2008.10.026"
+      ]
+    },
+    {
+      "row": 443,
+      "ids": [
+        "https://doi.org/10.1007/s10905-009-9194-z"
+      ]
+    },
+    {
+      "row": 446,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2015.12.027"
+      ]
+    },
+    {
+      "row": 449,
+      "ids": [
+        "https://doi.org/10.1046/j.1365-2311.2002.00442.x"
+      ]
+    },
+    {
+      "row": 451,
+      "ids": [
+        "https://doi.org/10.1046/j.1365-2427.1999.00467.x"
+      ]
+    },
+    {
+      "row": 452,
+      "ids": [
+        "https://doi.org/10.1111/eff.12291"
+      ]
+    },
+    {
+      "row": 479,
+      "ids": [
+        "https://doi.org/10.1016/j.physbeh.2016.04.015"
+      ]
+    },
+    {
+      "row": 483,
+      "ids": [
+        "https://doi.org/10.1111/j.1095-8649.2010.02772.x"
+      ]
+    },
+    {
+      "row": 487,
+      "ids": [
+        "https://doi.org/10.1006/anbe.2001.1955"
+      ]
+    },
+    {
+      "row": 494,
+      "ids": [
+        "https://doi.org/10.1098/rsbl.2016.0097"
+      ]
+    },
+    {
+      "row": 497,
+      "ids": [
+        "https://doi.org/10.1006/anbe.1998.1051"
+      ]
+    },
+    {
+      "row": 504,
+      "ids": [
+        "https://doi.org/10.1093/beheco/arm057"
+      ]
+    },
+    {
+      "row": 506,
+      "ids": [
+        "https://doi.org/10.1016/S0022-2011(02)00201-X"
+      ]
+    },
+    {
+      "row": 507,
+      "ids": [
+        "https://doi.org/10.1093/beheco/arw164"
+      ]
+    },
+    {
+      "row": 509,
+      "ids": [
+        "https://doi.org/10.1023/A:1014236127912"
+      ]
+    },
+    {
+      "row": 515,
+      "ids": [
+        "https://doi.org/10.1007/s00359-017-1158-8"
+      ]
+    },
+    {
+      "row": 536,
+      "ids": [
+        "https://doi.org/10.3354/meps133043"
+      ]
+    },
+    {
+      "row": 537,
+      "ids": [
+        "https://doi.org/10.1023/A:1007393307007"
+      ]
+    },
+    {
+      "row": 538,
+      "ids": [
+        "https://doi.org/10.1016/S0022-0981(97)00137-8"
+      ]
+    },
+    {
+      "row": 539,
+      "ids": [
+        "https://doi.org/10.1111/j.1439-0310.2005.01107.x"
+      ]
+    },
+    {
+      "row": 545,
+      "ids": [
+        "https://doi.org/10.1007/BF00317866"
+      ]
+    },
+    {
+      "row": 546,
+      "ids": [
+        "https://doi.org/10.1093/beheco/art110"
+      ]
+    },
+    {
+      "row": 567,
+      "ids": [
+        "https://doi.org/10.1016/j.yhbeh.2012.03.014"
+      ]
+    },
+    {
+      "row": 570,
+      "ids": [
+        "https://doi.org/10.1093/beheco/ars175"
+      ]
+    },
+    {
+      "row": 571,
+      "ids": [
+        "https://doi.org/10.1016/j.physbeh.2014.02.030"
+      ]
+    },
+    {
+      "row": 581,
+      "ids": [
+        "https://doi.org/10.1603/0022-2585(2008)45[36:RPBTSL]2.0.CO;2"
+      ]
+    },
+    {
+      "row": 583,
+      "ids": [
+        "https://doi.org/10.1006/anbe.2002.4015"
+      ]
+    },
+    {
+      "row": 584,
+      "ids": [
+        "https://doi.org/10.1006/anbe.1999.1180"
+      ]
+    },
+    {
+      "row": 586,
+      "ids": [
+        "https://doi.org/10.1111/1365-2435.12851"
+      ]
+    },
+    {
+      "row": 588,
+      "ids": [
+        "https://doi.org/10.1093/jee/tox148"
+      ]
+    },
+    {
+      "row": 591,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2004.04.003"
+      ]
+    },
+    {
+      "row": 592,
+      "ids": [
+        "https://doi.org/10.1093/beheco/arw133"
+      ]
+    },
+    {
+      "row": 593,
+      "ids": [
+        "https://doi.org/10.1242/jeb.074930"
+      ]
+    },
+    {
+      "row": 596,
+      "ids": [
+        "https://doi.org/10.1023/A:1005590913680"
+      ]
+    },
+    {
+      "row": 600,
+      "ids": [
+        "https://doi.org/10.3376/1081-1710(2006)31[344:PBAOAA]2.0.CO;2"
+      ]
+    },
+    {
+      "row": 601,
+      "ids": [
+        "https://doi.org/10.1111/j.1365-2311.2007.00902.x"
+      ]
+    },
+    {
+      "row": 602,
+      "ids": [
+        "https://doi.org/10.1016/j.actao.2009.08.001"
+      ]
+    },
+    {
+      "row": 603,
+      "ids": [
+        "https://doi.org/10.1111/een.12129"
+      ]
+    },
+    {
+      "row": 612,
+      "ids": [
+        "https://doi.org/10.1093/aesa/85.6.775"
+      ]
+    },
+    {
+      "row": 617,
+      "ids": [
+        "https://doi.org/10.1016/j.applanim.2012.07.009"
+      ]
+    },
+    {
+      "row": 622,
+      "ids": [
+        "https://doi.org/10.1016/j.anbehav.2018.11.013"
+      ]
+    },
+    {
+      "row": 626,
+      "ids": [
+        "https://doi.org/10.1139/cjz-2018-0006"
+      ]
+    }
+  ],
+  "notes": "Non-biomedical SYNERGY dataset (0 PMIDs in source CSV) using DOIs and/or OpenAlex Work IDs directly."
+}

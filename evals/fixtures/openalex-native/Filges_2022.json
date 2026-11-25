@@ -1,0 +1,185 @@
+{
+  "id": "Filges_2022",
+  "suite": "openalex-native",
+  "question": "Does service learning improve academic success and related outcomes for K-12 students?",
+  "eligibility": [
+    "The intervention was service learning which can be described as a curriculum-based community service that integrates classroom instruction (such as classroom discussions, presentations, or directed writing) with community service activities. We included children in primary and secondary education (grades kindergarten to 12) in general education. Our primary focus was on measures of academic success and NEET status. A secondary focus was on measures of personal and social skills, and risk behaviour (such as drug and alcohol use, violent behaviour, sexual risk taking). All study designs that used a well-defined control group were eligible for inclusion. Studies that utilised qualitative approaches were not included."
+  ],
+  "to_date": "2021-12-31",
+  "to_date_source": "December 31 of the year preceding review publication (2022).",
+  "review": "https://doi.org/10.1002/cl2.1210",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Filges_2022/Filges_2022_ids.csv",
+  "baseline": null,
+  "seeds": [],
+  "gold": [
+    {
+      "row": 2,
+      "ids": [
+        "https://openalex.org/w117552264"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://openalex.org/w1484411757"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://openalex.org/w1528950336"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://openalex.org/w1555486138"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://openalex.org/w188778733"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://openalex.org/w1963740746"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://openalex.org/w1986027646"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://openalex.org/w2013055978"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://openalex.org/w2054421127"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://openalex.org/w213026570"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://openalex.org/w2139731049"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://openalex.org/w2431964556"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://openalex.org/w2469908846"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://openalex.org/w2525545930"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://openalex.org/w2526530469"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://openalex.org/w2593555294"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://openalex.org/w2607700861"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://openalex.org/w273308950"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://openalex.org/w2804473942"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://openalex.org/w2887550860"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://openalex.org/w2952648813"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://openalex.org/w3016859942"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://openalex.org/w306678599"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://openalex.org/w44150910"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://openalex.org/w56510125"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://openalex.org/w595975512"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://openalex.org/w78345391"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://openalex.org/w829412593"
+      ]
+    }
+  ],
+  "notes": "Non-biomedical SYNERGY dataset (0 PMIDs in source CSV) using DOIs and/or OpenAlex Work IDs directly."
+}

@@ -1,0 +1,283 @@
+{
+  "id": "Lewowski_2021",
+  "suite": "openalex-native",
+  "question": "How reproducible is empirical research on automated code smell detection in software engineering?",
+  "eligibility": [
+    "A paper would be further processed (i.e., relevant data would be extracted from it) only if all of the following statements would be true regarding it:\n1. The entry is a single journal paper, chapter of a book or conference proceedings paper which requires peer review (i.e., it is not an editorial, abstract, technical report etc.).\n2. The paper is written in English.\n3. The paper was published in 1999 or later.\n4. Title or abstract of the paper indicates that it is related to software engineering.\n5. Title or abstract of the paper indicates that at least one code smell/anti-pattern plays an important part of the study.\n6. Title or abstract of the paper indicates that it might use machine learning techniques.\n7. Abstract or full text of the paper indicates that it focuses on code smells/anti-patterns in programming languages.\n8. Abstract or full text of the paper indicates that it focuses on code smells/anti-patterns detection using source code.\n9. The paper does not focus on techniques for resolving code smells/anti-patterns.\n10. The paper does not focus on using code smells/anti-patterns as predictors of other code or project traits.\n11. The paper focuses on detection/prediction of code smells/anti-patterns.\n12. If the paper is a chapter of a book or conference proceedings publication, its authors have not published a study under the same title in a journal (we want to include the paper once and it may be expected that the journal version includes more details).\n13. Full text of the paper is available."
+  ],
+  "to_date": "2020-12-31",
+  "to_date_source": "December 31 of the year preceding review publication (2021).",
+  "review": "https://doi.org/10.1016/j.infsof.2021.106783",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Lewowski_2021/Lewowski_2021_ids.csv",
+  "baseline": null,
+  "seeds": [],
+  "gold": [
+    {
+      "row": 688,
+      "ids": [
+        "https://doi.org/10.1109/ISSRE.2015.7381819"
+      ]
+    },
+    {
+      "row": 1140,
+      "ids": [
+        "https://doi.org/10.1007/s10664-015-9378-4"
+      ]
+    },
+    {
+      "row": 1150,
+      "ids": [
+        "https://doi.org/10.1016/j.knosys.2017.04.014"
+      ]
+    },
+    {
+      "row": 1154,
+      "ids": []
+    },
+    {
+      "row": 1163,
+      "ids": [
+        "https://doi.org/10.1016/j.jss.2019.110486"
+      ]
+    },
+    {
+      "row": 1165,
+      "ids": [
+        "https://doi.org/10.1109/ICSME.2019.00021"
+      ]
+    },
+    {
+      "row": 1173,
+      "ids": [
+        "https://doi.org/10.1007/978-3-642-39742-4_6"
+      ]
+    },
+    {
+      "row": 1184,
+      "ids": [
+        "https://doi.org/10.1109/QUATIC.2010.60"
+      ]
+    },
+    {
+      "row": 1189,
+      "ids": [
+        "https://doi.org/10.1016/j.infsof.2017.09.011"
+      ]
+    },
+    {
+      "row": 1214,
+      "ids": [
+        "https://doi.org/10.1109/TENCON.2019.8929628"
+      ]
+    },
+    {
+      "row": 1216,
+      "ids": [
+        "https://doi.org/10.1109/SANER.2018.8330265"
+      ]
+    },
+    {
+      "row": 1236,
+      "ids": [
+        "https://doi.org/10.1109/ICSM.2013.56"
+      ]
+    },
+    {
+      "row": 1239,
+      "ids": [
+        "https://doi.org/10.1109/ESEM.2015.7321194"
+      ]
+    },
+    {
+      "row": 1240,
+      "ids": [
+        "https://doi.org/10.1109/ICSE.2013.6606670"
+      ]
+    },
+    {
+      "row": 1254,
+      "ids": [
+        "https://doi.org/10.1007/s11219-020-09498-y"
+      ]
+    },
+    {
+      "row": 1264,
+      "ids": [
+        "https://doi.org/10.1145/3361242.3361257"
+      ]
+    },
+    {
+      "row": 1302,
+      "ids": [
+        "https://doi.org/10.1109/IEMECONX.2019.8877082"
+      ]
+    },
+    {
+      "row": 1315,
+      "ids": [
+        "https://doi.org/10.1109/IJCNN.2019.8851854"
+      ]
+    },
+    {
+      "row": 1346,
+      "ids": []
+    },
+    {
+      "row": 1347,
+      "ids": [
+        "https://doi.org/10.1007/978-3-030-34706-2_8"
+      ]
+    },
+    {
+      "row": 1357,
+      "ids": [
+        "https://doi.org/10.1109/QUATIC.2010.61"
+      ]
+    },
+    {
+      "row": 1360,
+      "ids": [
+        "https://doi.org/10.5220/0006338804740482"
+      ]
+    },
+    {
+      "row": 1437,
+      "ids": []
+    },
+    {
+      "row": 1439,
+      "ids": [
+        "https://doi.org/10.1007/s00521-019-04175-z"
+      ]
+    },
+    {
+      "row": 1470,
+      "ids": [
+        "https://doi.org/10.1109/MLDS.2017.8"
+      ]
+    },
+    {
+      "row": 1514,
+      "ids": [
+        "https://doi.org/10.1109/MOBILESoft.2017.29"
+      ]
+    },
+    {
+      "row": 1539,
+      "ids": [
+        "https://doi.org/10.1109/TSE.2014.2331057"
+      ]
+    },
+    {
+      "row": 1550,
+      "ids": [
+        "https://doi.org/10.1109/QSIC.2009.47"
+      ]
+    },
+    {
+      "row": 1564,
+      "ids": [
+        "https://doi.org/10.11591/ijece.v7i6.pp3613-3621"
+      ]
+    },
+    {
+      "row": 1567,
+      "ids": [
+        "https://doi.org/10.1109/ISMSIT.2019.8932855"
+      ]
+    },
+    {
+      "row": 1569,
+      "ids": [
+        "https://doi.org/10.1016/j.entcs.2005.02.059"
+      ]
+    },
+    {
+      "row": 1571,
+      "ids": [
+        "https://doi.org/10.1109/TSE.2019.2936376"
+      ]
+    },
+    {
+      "row": 1581,
+      "ids": [
+        "https://doi.org/10.1145/3238147.3238166"
+      ]
+    },
+    {
+      "row": 1594,
+      "ids": [
+        "https://doi.org/10.1109/TSE.2015.2503740"
+      ]
+    },
+    {
+      "row": 1596,
+      "ids": [
+        "https://doi.org/10.1109/WCRE.2012.56"
+      ]
+    },
+    {
+      "row": 1600,
+      "ids": [
+        "https://doi.org/10.1007/s11219-016-9309-7"
+      ]
+    },
+    {
+      "row": 1604,
+      "ids": [
+        "https://doi.org/10.1109/ICOIACT46704.2019.8938487"
+      ]
+    },
+    {
+      "row": 1621,
+      "ids": [
+        "https://doi.org/10.1007/978-3-319-47106-8_24"
+      ]
+    },
+    {
+      "row": 1623,
+      "ids": [
+        "https://doi.org/10.1109/ASE.2017.8115667"
+      ]
+    },
+    {
+      "row": 1637,
+      "ids": [
+        "https://doi.org/10.1109/ICSE.2015.244"
+      ]
+    },
+    {
+      "row": 1647,
+      "ids": [
+        "https://doi.org/10.1109/ASE.2013.6693086"
+      ]
+    },
+    {
+      "row": 1657,
+      "ids": [
+        "https://doi.org/10.1145/04000800.2336785"
+      ]
+    },
+    {
+      "row": 1658,
+      "ids": [
+        "https://doi.org/10.1109/MOBILESoft.2019.00025"
+      ]
+    },
+    {
+      "row": 1685,
+      "ids": [
+        "https://doi.org/10.1145/2675067"
+      ]
+    },
+    {
+      "row": 1699,
+      "ids": []
+    },
+    {
+      "row": 1720,
+      "ids": []
+    }
+  ],
+  "notes": "Non-biomedical SYNERGY dataset (0 PMIDs in source CSV) using DOIs and/or OpenAlex Work IDs directly."
+}

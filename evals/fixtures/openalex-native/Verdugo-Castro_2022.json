@@ -1,0 +1,173 @@
+{
+  "id": "Verdugo-Castro_2022",
+  "suite": "openalex-native",
+  "question": "What factors explain and influence the gender gap in higher education STEM studies?",
+  "eligibility": [
+    "• Population: Gender gap in the STEM sector.\n• Intervention: Studies conducted, and proposals related to the gender gap in the STEM education sector\n• Comparison: No comparison.\n• Outcomes: Results of studies conducted in relation to the gender gap in the STEM education sector.\n• Context: Students integrated in the European educational field, especially in the STEM sector, with a special focus on EQF levels 5, 6, 7, and 8 (European Qualifications Framework for Lifelong Learning)."
+  ],
+  "to_date": "2021-12-31",
+  "to_date_source": "December 31 of the year preceding review publication (2022).",
+  "review": "https://doi.org/10.1016/j.heliyon.2022.e10300",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Verdugo-Castro_2022/Verdugo-Castro_2022_ids.csv",
+  "baseline": null,
+  "seeds": [],
+  "gold": [
+    {
+      "row": 2,
+      "ids": [
+        "https://doi.org/10.1007/978-94-007-7793-4"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://doi.org/10.1080/03043797.2015.1121466"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://doi.org/10.1145/3196839.3196857"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://doi.org/10.3390/e21010030"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://doi.org/10.1016/j.sbspro.2015.04.569"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://doi.org/10.1177/0162353217734374"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://doi.org/10.1177/0016986217702215"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://doi.org/10.1016/j.ijer.2016.11.004"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://doi.org/10.1145/3196839.3196879"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://doi.org/10.1080/02680513.2018.1554475"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://doi.org/10.1103/PhysRevPhysEducRes.14.020113"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://doi.org/10.1145/3183377.3183390"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://doi.org/10.1109/EDUCON.2018.8363496"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://doi.org/10.1109/EDUCON.2018.8363494"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://doi.org/10.1080/09645292.2018.1426731"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://doi.org/10.1145/2909824.3020242"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://doi.org/10.1109/FIE.2015.7344113"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://doi.org/10.1080/02635143.2017.1285760"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://doi.org/10.1080/09500693.2018.1534021"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://doi.org/10.1109/TE.2018.2820643"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://doi.org/10.3389/fpsyg.2017.00703"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://doi.org/10.1109/FIE.2016.7757680"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://doi.org/10.1080/00131946.2017.1369085"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://doi.org/10.1109/RITA.2020.3008114"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://doi.org/10.1109/RITA.2020.3033231"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://doi.org/10.1080/09589236.2021.1922272"
+      ]
+    }
+  ],
+  "notes": "Non-biomedical SYNERGY dataset (0 PMIDs in source CSV) using DOIs and/or OpenAlex Work IDs directly."
+}

@@ -1,0 +1,257 @@
+{
+  "id": "Ruggeri_2019",
+  "suite": "openalex-native",
+  "question": "What are the effects of motor and physical activity interventions on motor outcomes in children with autism spectrum disorder?",
+  "eligibility": [
+    "Studies were included based on the following criteria: (1) group study designs included cohort studies and clinical trials; (2) participants included were children with ASD from birth to 21 years, and if other diagnoses were included, the results of participants with ASD were statistically analyzed separately; (3) all types of motor and physical activity interventions; (4) motor outcome of body structure and function, activity, or societal participation was measured using an objective outcome measure and statistically analyzed; (5) published in English; and (6) the study investigated either (a) the effects of a motor intervention on a motor outcome or (b) the effects of a motor learning variable on motor skill acquisition, transfer, and/or retention. Studies were excluded based on the following criteria: abstracts, conference proceedings, and dissertations. In addition, we did not include studies published before 2000, in order to focus on current research that used contemporary methods to diagnose ASD, such as the Autism Diagnosis Observation Schedule (ADOS), Diagnostic and Statistical Manual of Mental Disorders-IV (DSM-IV), or Diagnostic and Statistical Manual of Mental Disorders-V (DSM-V)."
+  ],
+  "to_date": "2018-12-31",
+  "to_date_source": "December 31 of the year preceding review publication (2019).",
+  "review": "https://doi.org/10.1177/1362361319885215",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Ruggeri_2019/Ruggeri_2019_ids.csv",
+  "baseline": null,
+  "seeds": [],
+  "gold": [
+    {
+      "row": 2,
+      "ids": [
+        "https://openalex.org/W1977133181"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://openalex.org/W2752729050"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://openalex.org/W259030452"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://openalex.org/W944598631"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://openalex.org/W1931540373"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://openalex.org/W2154832193"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://openalex.org/W2782842766"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://openalex.org/W2102444793"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://openalex.org/W2076889518"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://openalex.org/W2156153856"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://openalex.org/W2558339434"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://openalex.org/W2885707393"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://openalex.org/W2145206707"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://openalex.org/W1998278697"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://openalex.org/W1591614276"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://openalex.org/W2621357550"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://openalex.org/W2904972163"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://openalex.org/W2905934621"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://openalex.org/W2026180203"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://openalex.org/W2470286367"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://openalex.org/W2905570243"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://openalex.org/W1983674500"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://openalex.org/W2218777236"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://openalex.org/W2782449692"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://openalex.org/W2796897582"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://openalex.org/W2050993877"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://openalex.org/W2010418015"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://openalex.org/W2317407615"
+      ]
+    },
+    {
+      "row": 30,
+      "ids": [
+        "https://openalex.org/W2414335335"
+      ]
+    },
+    {
+      "row": 31,
+      "ids": [
+        "https://openalex.org/W2787701773"
+      ]
+    },
+    {
+      "row": 32,
+      "ids": [
+        "https://openalex.org/W2912629270"
+      ]
+    },
+    {
+      "row": 33,
+      "ids": [
+        "https://openalex.org/W2549333693"
+      ]
+    },
+    {
+      "row": 34,
+      "ids": [
+        "https://openalex.org/W2792687493"
+      ]
+    },
+    {
+      "row": 35,
+      "ids": [
+        "https://openalex.org/W2793105605"
+      ]
+    },
+    {
+      "row": 36,
+      "ids": [
+        "https://openalex.org/W2771250504"
+      ]
+    },
+    {
+      "row": 37,
+      "ids": [
+        "https://openalex.org/W2756098962"
+      ]
+    },
+    {
+      "row": 38,
+      "ids": [
+        "https://openalex.org/W2772689875"
+      ]
+    },
+    {
+      "row": 39,
+      "ids": [
+        "https://openalex.org/W2902973428"
+      ]
+    },
+    {
+      "row": 40,
+      "ids": [
+        "https://openalex.org/W2141980396"
+      ]
+    },
+    {
+      "row": 41,
+      "ids": [
+        "https://openalex.org/W2775330789"
+      ]
+    }
+  ],
+  "notes": "Non-biomedical SYNERGY dataset (0 PMIDs in source CSV) using DOIs and/or OpenAlex Work IDs directly."
+}

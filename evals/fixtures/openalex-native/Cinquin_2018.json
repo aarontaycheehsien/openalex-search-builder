@@ -1,0 +1,179 @@
+{
+  "id": "Cinquin_2018",
+  "suite": "openalex-native",
+  "question": "How accessible and effective is online e-learning for learners with cognitive disabilities?",
+  "eligibility": [
+    "Only studies that focused on online e-learning accessibility for individuals with cognitive impairment were included in the review. No publication period nor participant age limitations were specified. Following Clark and Mayer (2016), we defined e-learning as instruction delivered via a digital device intended to support learning. As we wanted to focus on online e-learning, we only included studies that explicitly refer to client/server architecture such as the web. To be as descriptive as possible, we only included studies that proposed guidelines or a framework, and those with a purpose of intervention instead of instruction if they explicitly expected a possible transfer for learning. Finally, we only included studies that explicitly refer to people with cognitive impairments exclusively (for instance, studies focusing on people with attention disorders) or people with cognitive impairments along with other impairments (studies not focusing on a specific disability but considering cognitive impairments)."
+  ],
+  "to_date": "2017-12-31",
+  "to_date_source": "December 31 of the year preceding review publication (2018).",
+  "review": "https://doi.org/10.1016/j.compedu.2018.12.004",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Cinquin_2018/Cinquin_2018_ids.csv",
+  "baseline": null,
+  "seeds": [],
+  "gold": [
+    {
+      "row": 2,
+      "ids": [
+        "https://openalex.org/W2612866199"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://openalex.org/W2044842795"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://openalex.org/W2154739415"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://openalex.org/W1812868705"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://openalex.org/W2054575423"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://openalex.org/W2494948277"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://openalex.org/W2003645097"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://openalex.org/W1964069484"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://openalex.org/W1565440654"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://openalex.org/W2064975883"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://openalex.org/W2028535010"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://openalex.org/W2106262139"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://openalex.org/W2165189772"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://openalex.org/W2484185914"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://openalex.org/W2005166570"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://openalex.org/W2577028479"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://openalex.org/W1567766206"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://openalex.org/W2109732433"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://openalex.org/W2023476219"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://openalex.org/W1977551932"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://openalex.org/W2501957138"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://openalex.org/W2098611145"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://openalex.org/W2034345673"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://openalex.org/W1994839612"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://openalex.org/W1986170737"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://openalex.org/W2534340424"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://openalex.org/W2559337190"
+      ]
+    }
+  ],
+  "notes": "Non-biomedical SYNERGY dataset (0 PMIDs in source CSV) using DOIs and/or OpenAlex Work IDs directly."
+}

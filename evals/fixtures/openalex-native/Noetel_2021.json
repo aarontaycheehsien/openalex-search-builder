@@ -1,0 +1,191 @@
+{
+  "id": "Noetel_2021",
+  "suite": "openalex-native",
+  "question": "How do multimedia design principles affect learning outcomes in educational settings?",
+  "eligibility": [
+    "1.\nDesign: We included systematic reviews, meta-analyses, or similar reviews characterized by Grant and Booth (2009), which includes rapid reviews, scoping reviews, state-of-the-art reviews, systematic searches with review, systematized reviews, mapping reviews, or systematic maps. All these methods have focused research questions and reproducible methods for sourcing and evaluating research, so are less likely to be subject to biases like selective reporting. For these reasons, we excluded non–systematic reviews, primary studies, theory papers, or narrative reviews (e.g., Sweller, 2010).\n2.\nInterventions: We included any modification to a multimedia intervention designed to influence learning or cognitive load. We excluded reviews only comparing the effects of multimedia against other instructional technologies (e.g., multimedia vs. nothing, multimedia vs. tutoring; e.g., Baker et al., 2018; Noetel et al., 2021).\n3.\nComparisons: We included reviews that compared multimedia with and without a multimedia design feature (e.g., with and without signaling). To be eligible, the participants did not need to be randomized in all primary studies (e.g., we included reviews that contained pre-post or quasi-experimental primary studies).\n4.\nOutcome: We only included reviews that reported learning, achievement, or cognitive load. We excluded reviews that only reported effects on other outcomes (e.g., health; Hirschey et al., 2020; or enjoyment), but extracted all outcomes from reviews that met criteria.\n5.\nParticipants/context: Reviews on any participants were eligible for inclusion. Similarly, reviews on learning in any context (e.g., schools, universities, adult learning, public health) were eligible for inclusion; as presented below, results were moderated by the context in which they were observed (where reported).\n6.\nFinally, reviews published in any language were eligible, but searches were limited to post-1989 when systematic forms of review were introduced (Smith et al., 2011)."
+  ],
+  "to_date": "2020-12-31",
+  "to_date_source": "December 31 of the year preceding review publication (2021).",
+  "review": "https://doi.org/10.3102/00346543211052329",
+  "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Noetel_2021/Noetel_2021_ids.csv",
+  "baseline": null,
+  "seeds": [],
+  "gold": [
+    {
+      "row": 2,
+      "ids": [
+        "https://doi.org/10.1037/a0026147"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://doi.org/10.1016/j.compedu.2018.06.023"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://doi.org/10.1007/s11423-020-09748-7"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://openalex.org/W2590206292"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://doi.org/10.1016/j.compedu.2016.06.005"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://doi.org/10.1016/j.edurev.2018.09.004"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://doi.org/10.1007/s10648-020-09587-1"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://openalex.org/W2903037897"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://doi.org/10.1016/j.edurev.2018.05.002"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://doi.org/10.1016/j.learninstruc.2005.07.001"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://doi.org/10.1016/j.learninstruc.2006.10.001"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://doi.org/10.1007/s10648-013-9228-0"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://doi.org/10.1007/s10648-010-9126-7"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://doi.org/10.4018/978-1-5225-7663-1.ch028"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://doi.org/10.32890/mjli2019.16.1.6"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://openalex.org/W106736675"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://doi.org/10.1016/j.system.2013.07.013"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://doi.org/10.5539/ies.v8n13p73"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://doi.org/10.1007/s10936-011-9180-4"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://doi.org/10.1016/j.edurev.2012.05.003"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://doi.org/10.1007/s10648-018-9456-4"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://doi.org/10.1016/j.edurev.2015.12.003"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://doi.org/10.1016/j.edurev.2017.11.001"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://doi.org/10.2190/EC.49.1.a"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://doi.org/10.1007/s10648-018-9435-9"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://doi.org/10.1037/edu0000372"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://doi.org/10.1007/s10648-020-09522-4"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://doi.org/10.3724/sp.j.1041.2016.00540"
+      ]
+    },
+    {
+      "row": 30,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0183884"
+      ]
+    }
+  ],
+  "notes": "Non-biomedical SYNERGY dataset (0 PMIDs in source CSV) using DOIs and/or OpenAlex Work IDs directly."
+}
