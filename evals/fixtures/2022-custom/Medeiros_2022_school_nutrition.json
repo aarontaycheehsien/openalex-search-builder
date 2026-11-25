@@ -1,0 +1,78 @@
+{
+  "id": "Medeiros_2022_school_nutrition",
+  "suite": "2022-custom",
+  "question": "School-based food and nutrition education interventions for adolescent food consumption",
+  "eligibility": [
+    "School-based food or nutrition education intervention.",
+    "Adolescents or school students.",
+    "Delivered through a school.",
+    "Reports eligible food-consumption outcome."
+  ],
+  "to_date": "2017-12-14",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "custom fixture; gold from a local DOI list; 9/10 resolved via [AID]",
+  "upstream_fixture": "evals/fixtures/2022-custom/Medeiros-2022-School-based food and nutrition education interventions for adolescent food consumption.json",
+  "baseline": "get works where title-abstract has (\"nutrition education\" OR \"food education\" OR \"dietary education\") and title-abstract has (school OR \"school-based\")",
+  "seeds": [
+    "pmid:12137237",
+    "pmid:17605839",
+    "pmid:22625222"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17535489"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17411463"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17605839"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19781127"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/29228946"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22625222"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12137237"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25797051"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23451237"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

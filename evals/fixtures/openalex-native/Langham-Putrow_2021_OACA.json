@@ -1,0 +1,818 @@
+{
+  "id": "Langham-Putrow_2021_OACA",
+  "suite": "openalex-native",
+  "question": "Is there an open access citation advantage?",
+  "eligibility": [
+    "Direct empirical or bibliometric comparison between open access (any route: gold, green, hybrid, bronze, preprint) and non-open-access scholarly works.",
+    "Reports article-level citation count or citation impact as an outcome.",
+    "Published since 2001, any discipline, language, or study design (randomized or non-randomized)."
+  ],
+  "to_date": "2020-11-30",
+  "to_date_source": "Review search rerun date (November 2020).",
+  "review": "https://doi.org/10.1371/journal.pone.0253129",
+  "source": "Langham-Putrow A, Bakker C, Riegelman A (2021). Is the open access citation advantage real? A systematic review of the citation of open access and subscription-based articles. PLOS ONE 16(6): e0253129. Included studies are references [11, 25-157] (n=134); 93 have DOI/PMID in PMC8221498 XML and 23 additional studies were matched by strict title+author+year to OpenAlex Work IDs (18 unmatched conference/thesis/working-paper entries have empty ids).",
+  "baseline": "get works with (\"open access\" AND citation) in the title or abstract",
+  "seeds": [],
+  "gold": [
+    {
+      "row": 11,
+      "ids": [
+        "https://doi.org/10.7717/peerj.4375",
+        "https://pubmed.ncbi.nlm.nih.gov/29456894"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://openalex.org/W2917461057"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": []
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://doi.org/10.1007/s00330-019-06389-0",
+        "https://pubmed.ncbi.nlm.nih.gov/31428826"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://openalex.org/W1501535390"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://doi.org/10.3998/3336451.0006.303"
+      ]
+    },
+    {
+      "row": 30,
+      "ids": [
+        "https://doi.org/10.5860/crl.65.5.372"
+      ]
+    },
+    {
+      "row": 31,
+      "ids": [
+        "https://doi.org/10.1016/j.avsg.2014.09.017",
+        "https://pubmed.ncbi.nlm.nih.gov/25462541"
+      ]
+    },
+    {
+      "row": 32,
+      "ids": [
+        "https://openalex.org/W2299516731"
+      ]
+    },
+    {
+      "row": 33,
+      "ids": []
+    },
+    {
+      "row": 34,
+      "ids": [
+        "https://doi.org/10.5860/crl.80.3.303"
+      ]
+    },
+    {
+      "row": 35,
+      "ids": [
+        "https://doi.org/10.1017/S1049096514001668"
+      ]
+    },
+    {
+      "row": 36,
+      "ids": [
+        "https://doi.org/10.1017/S1049096517000014"
+      ]
+    },
+    {
+      "row": 37,
+      "ids": [
+        "https://openalex.org/W3176846782"
+      ]
+    },
+    {
+      "row": 38,
+      "ids": [
+        "https://doi.org/10.1186/1741-7015-10-73",
+        "https://pubmed.ncbi.nlm.nih.gov/22805105"
+      ]
+    },
+    {
+      "row": 39,
+      "ids": [
+        "https://doi.org/10.3325/cmj.2016.57.71",
+        "https://pubmed.ncbi.nlm.nih.gov/26935617"
+      ]
+    },
+    {
+      "row": 40,
+      "ids": []
+    },
+    {
+      "row": 41,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0203156",
+        "https://pubmed.ncbi.nlm.nih.gov/30231044"
+      ]
+    },
+    {
+      "row": 42,
+      "ids": []
+    },
+    {
+      "row": 43,
+      "ids": [
+        "https://openalex.org/W118378920"
+      ]
+    },
+    {
+      "row": 44,
+      "ids": [
+        "https://doi.org/10.1111/j.1523-1739.2010.01509.x",
+        "https://pubmed.ncbi.nlm.nih.gov/20455909"
+      ]
+    },
+    {
+      "row": 45,
+      "ids": [
+        "https://doi.org/10.1007/s11192-016-2067-2"
+      ]
+    },
+    {
+      "row": 46,
+      "ids": [
+        "https://doi.org/10.1016/j.jclinepi.2020.07.013",
+        "https://pubmed.ncbi.nlm.nih.gov/32712175"
+      ]
+    },
+    {
+      "row": 47,
+      "ids": [
+        "https://openalex.org/W3021268972"
+      ]
+    },
+    {
+      "row": 48,
+      "ids": [
+        "https://doi.org/10.4275/KSLIS.2020.54.1.325"
+      ]
+    },
+    {
+      "row": 49,
+      "ids": [
+        "https://doi.org/10.22201/iibi.24488321xe.2018.77.57874"
+      ]
+    },
+    {
+      "row": 50,
+      "ids": [
+        "https://doi.org/10.1139/facets-2016-0032"
+      ]
+    },
+    {
+      "row": 51,
+      "ids": []
+    },
+    {
+      "row": 52,
+      "ids": [
+        "https://doi.org/10.1002/asi.20965"
+      ]
+    },
+    {
+      "row": 53,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/21473414"
+      ]
+    },
+    {
+      "row": 54,
+      "ids": [
+        "https://doi.org/10.1007/s11192-007-1661-8"
+      ]
+    },
+    {
+      "row": 55,
+      "ids": [
+        "https://doi.org/10.1136/bmj.a568",
+        "https://pubmed.ncbi.nlm.nih.gov/18669565"
+      ]
+    },
+    {
+      "row": 56,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0139951",
+        "https://pubmed.ncbi.nlm.nih.gov/26448551"
+      ]
+    },
+    {
+      "row": 57,
+      "ids": [
+        "https://doi.org/10.1155/2020/4821950",
+        "https://pubmed.ncbi.nlm.nih.gov/33082824"
+      ]
+    },
+    {
+      "row": 58,
+      "ids": [
+        "https://openalex.org/W3122965249"
+      ]
+    },
+    {
+      "row": 59,
+      "ids": [
+        "https://openalex.org/W3126034035"
+      ]
+    },
+    {
+      "row": 60,
+      "ids": [
+        "https://doi.org/10.1007/s11192-017-2422-y"
+      ]
+    },
+    {
+      "row": 61,
+      "ids": [
+        "https://doi.org/10.1093/reseval/rvx035"
+      ]
+    },
+    {
+      "row": 62,
+      "ids": [
+        "https://doi.org/10.1371/journal.pbio.0040157",
+        "https://pubmed.ncbi.nlm.nih.gov/16683865"
+      ]
+    },
+    {
+      "row": 63,
+      "ids": [
+        "https://doi.org/10.1108/EL-11-2016-02454275/KSLIS.2020.54.1.325"
+      ]
+    },
+    {
+      "row": 64,
+      "ids": [
+        "https://doi.org/10.1007/s10341-018-0394-6"
+      ]
+    },
+    {
+      "row": 65,
+      "ids": [
+        "https://doi.org/10.4103/1742-6413.131739",
+        "https://pubmed.ncbi.nlm.nih.gov/24987441"
+      ]
+    },
+    {
+      "row": 66,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0013636",
+        "https://pubmed.ncbi.nlm.nih.gov/20976155"
+      ]
+    },
+    {
+      "row": 67,
+      "ids": [
+        "https://doi.org/10.1016/j.respol.2011.05.025"
+      ]
+    },
+    {
+      "row": 68,
+      "ids": [
+        "https://doi.org/10.1007/s11192-009-0111-1"
+      ]
+    },
+    {
+      "row": 69,
+      "ids": [
+        "https://doi.org/10.1007/s11192-019-03156-2"
+      ]
+    },
+    {
+      "row": 70,
+      "ids": []
+    },
+    {
+      "row": 71,
+      "ids": [
+        "https://doi.org/10.1016/j.jpsychires.2018.07.010",
+        "https://pubmed.ncbi.nlm.nih.gov/30049529"
+      ]
+    },
+    {
+      "row": 72,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0013636",
+        "https://pubmed.ncbi.nlm.nih.gov/20976155"
+      ]
+    },
+    {
+      "row": 73,
+      "ids": [
+        "https://openalex.org/W1931854307"
+      ]
+    },
+    {
+      "row": 74,
+      "ids": []
+    },
+    {
+      "row": 75,
+      "ids": [
+        "https://openalex.org/W2047089384"
+      ]
+    },
+    {
+      "row": 76,
+      "ids": [
+        "https://doi.org/10.1007/s11192-019-03301-x"
+      ]
+    },
+    {
+      "row": 77,
+      "ids": [
+        "https://doi.org/10.1093/annonc/mdx398",
+        "https://pubmed.ncbi.nlm.nih.gov/28961842"
+      ]
+    },
+    {
+      "row": 78,
+      "ids": [
+        "https://doi.org/10.1016/j.jdent.2016.02.005",
+        "https://pubmed.ncbi.nlm.nih.gov/26875610"
+      ]
+    },
+    {
+      "row": 79,
+      "ids": [
+        "https://doi.org/10.1002/pra2.2017.14505401126"
+      ]
+    },
+    {
+      "row": 80,
+      "ids": [
+        "https://doi.org/10.1080/03007995.2019.1583496"
+      ]
+    },
+    {
+      "row": 81,
+      "ids": [
+        "https://openalex.org/W2774267912"
+      ]
+    },
+    {
+      "row": 82,
+      "ids": [
+        "https://doi.org/10.1021/acsenergylett.8b00061"
+      ]
+    },
+    {
+      "row": 83,
+      "ids": [
+        "https://doi.org/10.1136/amiajnl-2011-000706",
+        "https://pubmed.ncbi.nlm.nih.gov/22180873"
+      ]
+    },
+    {
+      "row": 84,
+      "ids": []
+    },
+    {
+      "row": 85,
+      "ids": [
+        "https://doi.org/10.1007/s11192-013-1101-x"
+      ]
+    },
+    {
+      "row": 86,
+      "ids": [
+        "https://doi.org/10.1097/CORR.0000000000000727",
+        "https://pubmed.ncbi.nlm.nih.gov/31135548"
+      ]
+    },
+    {
+      "row": 87,
+      "ids": [
+        "https://doi.org/10.1108/14684521011084618"
+      ]
+    },
+    {
+      "row": 88,
+      "ids": [
+        "https://openalex.org/W193381605"
+      ]
+    },
+    {
+      "row": 89,
+      "ids": [
+        "https://doi.org/10.1016/j.ipm.2005.03.010"
+      ]
+    },
+    {
+      "row": 90,
+      "ids": [
+        "https://openalex.org/W1782003150"
+      ]
+    },
+    {
+      "row": 91,
+      "ids": [
+        "https://doi.org/10.1016/j.ophtha.2008.12.052",
+        "https://pubmed.ncbi.nlm.nih.gov/19545905"
+      ]
+    },
+    {
+      "row": 92,
+      "ids": []
+    },
+    {
+      "row": 93,
+      "ids": [
+        "https://doi.org/10.3390/i8070686"
+      ]
+    },
+    {
+      "row": 94,
+      "ids": [
+        "https://doi.org/10.30547/vestnik.journ.5.2018.326"
+      ]
+    },
+    {
+      "row": 95,
+      "ids": [
+        "https://doi.org/10.1111/ecin.12064"
+      ]
+    },
+    {
+      "row": 96,
+      "ids": [
+        "https://openalex.org/W1651221766"
+      ]
+    },
+    {
+      "row": 97,
+      "ids": [
+        "https://doi.org/10.1007/s11207-006-0262-7"
+      ]
+    },
+    {
+      "row": 98,
+      "ids": [
+        "https://doi.org/10.1007/s11192-017-2554-0"
+      ]
+    },
+    {
+      "row": 99,
+      "ids": [
+        "https://doi.org/10.3390/publications6040046"
+      ]
+    },
+    {
+      "row": 100,
+      "ids": [
+        "https://doi.org/10.1108/LHT-03-2017-0052"
+      ]
+    },
+    {
+      "row": 101,
+      "ids": [
+        "https://doi.org/10.1002/ca.23580",
+        "https://pubmed.ncbi.nlm.nih.gov/32065677"
+      ]
+    },
+    {
+      "row": 102,
+      "ids": [
+        "https://openalex.org/W2740933538"
+      ]
+    },
+    {
+      "row": 103,
+      "ids": [
+        "https://doi.org/10.1002/asi.20663"
+      ]
+    },
+    {
+      "row": 104,
+      "ids": []
+    },
+    {
+      "row": 105,
+      "ids": []
+    },
+    {
+      "row": 106,
+      "ids": [
+        "https://doi.org/10.1111/ecin.12545"
+      ]
+    },
+    {
+      "row": 107,
+      "ids": [
+        "https://doi.org/10.2139/ssrn.2391692"
+      ]
+    },
+    {
+      "row": 108,
+      "ids": [
+        "https://doi.org/10.1080/15424065.2018.1554464"
+      ]
+    },
+    {
+      "row": 109,
+      "ids": [
+        "https://doi.org/10.1002/asi.23897"
+      ]
+    },
+    {
+      "row": 110,
+      "ids": [
+        "https://openalex.org/W4214836368"
+      ]
+    },
+    {
+      "row": 111,
+      "ids": [
+        "https://doi.org/10.1016/j.jpurol.2018.08.019",
+        "https://pubmed.ncbi.nlm.nih.gov/30867116"
+      ]
+    },
+    {
+      "row": 112,
+      "ids": [
+        "https://doi.org/10.1371/journal.pone.0159614",
+        "https://pubmed.ncbi.nlm.nih.gov/27548723"
+      ]
+    },
+    {
+      "row": 113,
+      "ids": [
+        "https://openalex.org/W2901653445"
+      ]
+    },
+    {
+      "row": 114,
+      "ids": [
+        "https://doi.org/10.1016/j.amjmed.2019.02.009",
+        "https://pubmed.ncbi.nlm.nih.gov/30851265"
+      ]
+    },
+    {
+      "row": 115,
+      "ids": [
+        "https://doi.org/10.5530/jscires.9.1.8"
+      ]
+    },
+    {
+      "row": 116,
+      "ids": [
+        "https://doi.org/10.1108/LHT-05-2014-0039"
+      ]
+    },
+    {
+      "row": 117,
+      "ids": [
+        "https://openalex.org/W2612040922"
+      ]
+    },
+    {
+      "row": 118,
+      "ids": [
+        "https://doi.org/10.1633/JISTaP.2019.7.2.2"
+      ]
+    },
+    {
+      "row": 119,
+      "ids": [
+        "https://doi.org/10.1016/j.medin.2012.04.002",
+        "https://pubmed.ncbi.nlm.nih.gov/22683044"
+      ]
+    },
+    {
+      "row": 120,
+      "ids": [
+        "https://doi.org/10.13130/2282-5398/7997"
+      ]
+    },
+    {
+      "row": 121,
+      "ids": []
+    },
+    {
+      "row": 122,
+      "ids": [
+        "https://doi.org/10.1080/0194262X.2016.1273815"
+      ]
+    },
+    {
+      "row": 123,
+      "ids": [
+        "https://doi.org/10.1080/01462679.2020.1725705"
+      ]
+    },
+    {
+      "row": 124,
+      "ids": []
+    },
+    {
+      "row": 125,
+      "ids": []
+    },
+    {
+      "row": 126,
+      "ids": [
+        "https://doi.org/10.2214/AJR.17.18077",
+        "https://pubmed.ncbi.nlm.nih.gov/29064759"
+      ]
+    },
+    {
+      "row": 127,
+      "ids": [
+        "https://doi.org/10.12688/f1000research.10892.1",
+        "https://pubmed.ncbi.nlm.nih.gov/28649365"
+      ]
+    },
+    {
+      "row": 128,
+      "ids": [
+        "https://doi.org/10.1177/0165551519865489"
+      ]
+    },
+    {
+      "row": 129,
+      "ids": [
+        "https://doi.org/10.1007/s11192-007-1890-x"
+      ]
+    },
+    {
+      "row": 130,
+      "ids": [
+        "https://doi.org/10.1016/j.acalib.2019.05.004"
+      ]
+    },
+    {
+      "row": 131,
+      "ids": [
+        "https://doi.org/10.1016/j.acalib.2019.05.004"
+      ]
+    },
+    {
+      "row": 132,
+      "ids": [
+        "https://doi.org/10.1007/s11192-015-1607-5"
+      ]
+    },
+    {
+      "row": 133,
+      "ids": [
+        "https://doi.org/10.1080/10496505.2017.1363653"
+      ]
+    },
+    {
+      "row": 134,
+      "ids": []
+    },
+    {
+      "row": 135,
+      "ids": [
+        "https://doi.org/10.1007/s12663-016-0898-2",
+        "https://pubmed.ncbi.nlm.nih.gov/27833346"
+      ]
+    },
+    {
+      "row": 136,
+      "ids": [
+        "https://doi.org/10.1002/ecs2.1887"
+      ]
+    },
+    {
+      "row": 137,
+      "ids": [
+        "https://doi.org/10.1007/s00038-016-0831-y",
+        "https://pubmed.ncbi.nlm.nih.gov/27193574"
+      ]
+    },
+    {
+      "row": 138,
+      "ids": [
+        "https://doi.org/10.1007/s11192-019-03175-z"
+      ]
+    },
+    {
+      "row": 139,
+      "ids": []
+    },
+    {
+      "row": 140,
+      "ids": [
+        "https://doi.org/10.1016/j.joi.2012.11.009"
+      ]
+    },
+    {
+      "row": 141,
+      "ids": [
+        "https://doi.org/10.1007/s11192-008-0220-2"
+      ]
+    },
+    {
+      "row": 142,
+      "ids": [
+        "https://doi.org/10.3390/publications5020007"
+      ]
+    },
+    {
+      "row": 143,
+      "ids": []
+    },
+    {
+      "row": 144,
+      "ids": [
+        "https://doi.org/10.1007/s11192-015-1547-0"
+      ]
+    },
+    {
+      "row": 145,
+      "ids": [
+        "https://doi.org/10.1016/j.joi.2020.101091",
+        "https://pubmed.ncbi.nlm.nih.gov/33072184"
+      ]
+    },
+    {
+      "row": 146,
+      "ids": [
+        "https://doi.org/10.1007/s11192-020-03612-4"
+      ]
+    },
+    {
+      "row": 147,
+      "ids": [
+        "https://doi.org/10.6120/JoEMLS.2013.512/0582.RS.AM"
+      ]
+    },
+    {
+      "row": 148,
+      "ids": []
+    },
+    {
+      "row": 149,
+      "ids": [
+        "https://doi.org/10.1177/0165551510389358"
+      ]
+    },
+    {
+      "row": 150,
+      "ids": [
+        "https://doi.org/10.1108/14684521211206953"
+      ]
+    },
+    {
+      "row": 151,
+      "ids": [
+        "https://openalex.org/W1994864579"
+      ]
+    },
+    {
+      "row": 152,
+      "ids": [
+        "https://openalex.org/W4249076940"
+      ]
+    },
+    {
+      "row": 153,
+      "ids": [
+        "https://doi.org/10.1016/j.acalib.2019.102105"
+      ]
+    },
+    {
+      "row": 154,
+      "ids": [
+        "https://openalex.org/W1599499876"
+      ]
+    },
+    {
+      "row": 155,
+      "ids": [
+        "https://doi.org/10.1007/s11192-018-2924-2"
+      ]
+    },
+    {
+      "row": 156,
+      "ids": [
+        "https://doi.org/10.1016/j.acalib.2017.06.004"
+      ]
+    },
+    {
+      "row": 157,
+      "ids": [
+        "https://openalex.org/W2062490671"
+      ]
+    }
+  ],
+  "notes": "Multidisciplinary OpenAlex-native benchmark spanning social sciences, natural sciences, medicine, and bibliometrics; 114 distinct works resolve in OpenAlex."
+}

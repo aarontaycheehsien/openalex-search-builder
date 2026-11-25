@@ -1,0 +1,121 @@
+{
+  "id": "Oud_2018",
+  "suite": "synergy",
+  "question": "Specialized psychotherapies for adults with borderline personality disorder",
+  "eligibility": [],
+  "to_date": "2015-03-27",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "SYNERGY dataset Oud_2018 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: psychology / psychiatry.",
+  "upstream_fixture": "evals/fixtures/synergy/Oud_2018.json",
+  "baseline": null,
+  "seeds": [
+    "pmid:7977884",
+    "pmid:20435966",
+    "pmid:25806661"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25806661"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/24562087"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23712109"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22897123"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22964561"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22574799"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20435966"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20113305"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19755574"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19833787"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19698939"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19176222"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16818865"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16754838"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16005708"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/7977884"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/1845222"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

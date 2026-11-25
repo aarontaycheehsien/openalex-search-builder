@@ -1,0 +1,114 @@
+{
+  "id": "Donners_2021",
+  "suite": "synergy",
+  "question": "In humans, what are the pharmacokinetics of emicizumab and their association with efficacy in haemophilia A?",
+  "eligibility": [
+    "The study concerns emicizumab (or its development names ACE910 / factor VIII-mimetic bispecific antibody).",
+    "Conducted in humans (persons with haemophilia A, including healthy-volunteer bridging studies).",
+    "Reports pharmacokinetics/exposure and/or associated efficacy (bleeding-rate) data.",
+    "A clinical trial, pharmacokinetic, or pharmacometric study."
+  ],
+  "to_date": "2020-10-22",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "SYNERGY dataset Donners_2021; 'Pharmacokinetics and Associated Efficacy of Emicizumab in Humans' (Clin Pharmacokinet 2021, doi:10.1007/s40262-021-01042-w); gold = label_included==1 rows with DOI via [AID]",
+  "upstream_fixture": "evals/fixtures/synergy/Donners_2021.json",
+  "baseline": "get works where title-abstract has (emicizumab OR ACE910 OR \"ACE-910\" OR \"factor VIII-mimetic\" OR \"factor VIII mimetic\" OR \"FVIII-mimetic\" OR \"bispecific antibody\" OR Hemlibra)",
+  "seeds": [
+    "pmid:29214439",
+    "pmid:31697801",
+    "pmid:32433829"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32656767"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32297683"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30230257"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32433829"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30157389"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28691557"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31003963"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32504271"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/33086400"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/27223146"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/29296836"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31515851"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26626991"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/29214439"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31697801"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

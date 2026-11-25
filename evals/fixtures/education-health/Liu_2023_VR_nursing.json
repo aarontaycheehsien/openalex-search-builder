@@ -1,0 +1,57 @@
+{
+  "id": "Liu_2023_VR_nursing",
+  "suite": "education-health",
+  "question": "In nursing students, is virtual reality-based teaching more effective than traditional or alternative teaching methods for improving theoretical knowledge, practical skills, skill retention, satisfaction, and critical thinking?",
+  "eligibility": [
+    "Participants are nursing students in a nursing education programme (undergraduate/pre-registration or postgraduate).",
+    "The intervention delivers education or training through virtual reality, immersive simulation, or a virtual patient/environment.",
+    "Comparison against traditional/conventional teaching or an alternative (e.g. non-immersive) instructional method.",
+    "Reports at least one learning outcome: knowledge, practical/clinical skills, skill retention, satisfaction, self-efficacy, or critical thinking.",
+    "A randomized controlled trial or otherwise controlled comparative educational intervention."
+  ],
+  "to_date": "2023-03-31",
+  "to_date_source": "review search date",
+  "source": "Health-professions (nursing) education systematic review + meta-analysis: Liu et al., 'Effectiveness of virtual reality in nursing education', BMC Med Educ 2023;23:710 (PMID 37770884, doi 10.1186/s12909-023-04662-x). Education-adjacent-health topic chosen for PubMed reachability; gold = 6/12 included RCTs that are MEDLINE-indexed (6 Chinese-language included studies are PubMed-unreachable).",
+  "upstream_fixture": "evals/fixtures/education-health/Liu_2023_VR_nursing.json",
+  "baseline": "get works where title-abstract has (\"nursing students\" OR \"nursing student\" OR \"student nurses\" OR \"nursing education\" OR \"nurse education\" OR \"education, nursing\" OR \"baccalaureate nursing\" OR \"undergraduate nursing\" OR \"nursing curriculum\" OR \"nurse training\") and title-abstract has (\"virtual reality\" OR VR OR \"virtual simulation\" OR \"virtual patient\" OR \"virtual patients\" OR \"immersive virtual\" OR \"immersive technology\" OR \"head-mounted display\" OR \"augmented reality\" OR \"mixed reality\" OR \"computer simulation\" OR \"serious games\")",
+  "seeds": [],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30882355"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/36357886"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/36327261"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/35457689"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/33894407"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/33555626"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

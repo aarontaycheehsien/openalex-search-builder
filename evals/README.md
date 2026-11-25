@@ -1,13 +1,25 @@
 # Evaluate retrieval
 
-The benchmark adapts the seeded/seedless and unseen-recall design of [PubMed Search Builder](https://github.com/aarontaycheehsien/pubmed-search-builder-next/tree/main/evals). It uses included-study labels from two published reviews. Both fixtures come from the [SYNERGY dataset, pinned release tree](https://github.com/asreview/synergy-dataset/tree/7efde4a37bed9e8d71f19421b90eae3485184c4d). Each fixture includes the original row numbers, identifiers and a link to its source CSV. Label data are offered under the upstream [CC0 dedication](https://github.com/asreview/synergy-dataset/blob/7efde4a37bed9e8d71f19421b90eae3485184c4d/LICENSE).
+The benchmark adapts the seeded/seedless, unseen-recall, and held-out `frozen` suite design of [PubMed Search Builder](https://github.com/aarontaycheehsien/pubmed-search-builder-next/tree/main/evals/fixtures) for OpenAlex. It includes **32 fixtures** spanning medicine, pharmacology, diagnostic accuracy, psychiatry, nursing education, reading/education, social policy, criminal justice, behavioural science, and bibliometrics:
 
-| Case | Domain | Included source rows |
-|---|---|---:|
-| [Bos et al.](https://doi.org/10.1016/j.jalz.2018.04.007) | Cerebral small vessel disease and dementia | 10 |
-| [Anmarkrud et al.](https://doi.org/10.1007/s10648-021-09640-7) | Individual differences in readers' use of source information | 64 |
+| Suite | Count | Role | Highlights |
+|---|---:|---|---|
+| Core (`evals/fixtures/*.json`) | 2 | Comparator baselines & references | `Bos_2018` (dementia), `Anmarkrud_2021` (reading/sourcing) |
+| `synergy` | 13 | Development / calibration (SYNERGY) | `Appenzeller-Herzog_2019`, `Brouwer_2019`, `Donners_2021`, `Jeyaraman_2020`, `Kwok_2020`, `Meijboom_2021`, `Menon_2022`, `Muthu_2022`, `Oud_2018`, `Smid_2020`, `Welling_2021`, `van_Dis_2020`, `van_de_Schoot_2018` |
+| `frozen` | 10 | **Held-out evaluation only** | 5 Cohen drug reviews + 5 non-clinical/policy reviews (`housing-first-criminal-justice`, `social-prescribing-older-adults`, `work-directed-return-to-work`, `school-restorative-practice`, `healthcare-nudging`). See [frozen/README.md](fixtures/frozen/README.md). |
+| `clef-tar-2018` | 3 | Diagnostic test accuracy (Cochrane) | `CD010657`, `CD011431`, `CD011926` |
+| `education-health` | 1 | Health-professions education | `Liu_2023_VR_nursing` |
+| `2022-custom` / `2026-custom` | 2 | Recent custom reviews | `Medeiros_2022_school_nutrition`, `Gao_2026_immune_checkpoint` |
+| `openalex-native` | 1 | Multidisciplinary non-biomedical | `Langham-Putrow_2021_OACA` (134 included studies; 114 OpenAlex-resolved) |
 
-The benchmark uses December 31 of the year preceding each review's publication year as an explicit comparison cutoff. This is a benchmark convention. Retrospective runs use today's OpenAlex index and current metadata. Resolve gold works afresh, report unidentifiable rows, collapse duplicate work IDs, and report out-of-window works separately.
+List all fixtures (or filter by suite):
+
+```sh
+python evals/bench.py list
+python evals/bench.py list --suite frozen
+```
+
+Each fixture defines an explicit `to_date` comparison cutoff. Retrospective runs use today's OpenAlex index and current metadata. Resolve gold works afresh, report unidentifiable rows, collapse duplicate work IDs, and report out-of-window works separately.
 
 ## Blind build
 

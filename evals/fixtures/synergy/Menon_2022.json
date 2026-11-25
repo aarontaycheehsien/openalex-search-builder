@@ -1,0 +1,463 @@
+{
+  "id": "Menon_2022",
+  "suite": "synergy",
+  "question": "Methodological rigour of systematic reviews in environmental health",
+  "eligibility": [],
+  "to_date": "2020-07-20",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "SYNERGY dataset Menon_2022 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: social science / research methodology.",
+  "upstream_fixture": "evals/fixtures/synergy/Menon_2022.json",
+  "baseline": null,
+  "seeds": [
+    "pmid:32048436",
+    "pmid:32283742",
+    "pmid:32422434"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31734383"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31692109"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31711095"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32246781"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32003024"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32342888"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31401745"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32252671"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32320481"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31767045"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32169997"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32278917"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32679627"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32398147"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32666031"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32313524"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32430062"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32357902"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32006883"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32443219"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31884209"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32276169"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32438096"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32497902"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32135359"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32113025"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32460093"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32668538"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32244108"
+      ]
+    },
+    {
+      "row": 30,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32516633"
+      ]
+    },
+    {
+      "row": 31,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32445942"
+      ]
+    },
+    {
+      "row": 32,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32356052"
+      ]
+    },
+    {
+      "row": 33,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32091510"
+      ]
+    },
+    {
+      "row": 34,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32143119"
+      ]
+    },
+    {
+      "row": 35,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30884495"
+      ]
+    },
+    {
+      "row": 36,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32343457"
+      ]
+    },
+    {
+      "row": 37,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32474653"
+      ]
+    },
+    {
+      "row": 38,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31925736"
+      ]
+    },
+    {
+      "row": 39,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32080892"
+      ]
+    },
+    {
+      "row": 40,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31932956"
+      ]
+    },
+    {
+      "row": 41,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32108942"
+      ]
+    },
+    {
+      "row": 42,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31070475"
+      ]
+    },
+    {
+      "row": 43,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32248699"
+      ]
+    },
+    {
+      "row": 44,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32344732"
+      ]
+    },
+    {
+      "row": 45,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32283742"
+      ]
+    },
+    {
+      "row": 46,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32316194"
+      ]
+    },
+    {
+      "row": 47,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32365627"
+      ]
+    },
+    {
+      "row": 48,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32272785"
+      ]
+    },
+    {
+      "row": 49,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32387882"
+      ]
+    },
+    {
+      "row": 50,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31541557"
+      ]
+    },
+    {
+      "row": 51,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32473798"
+      ]
+    },
+    {
+      "row": 52,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32167232"
+      ]
+    },
+    {
+      "row": 53,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30100164"
+      ]
+    },
+    {
+      "row": 54,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30696940"
+      ]
+    },
+    {
+      "row": 55,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31989413"
+      ]
+    },
+    {
+      "row": 56,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31727405"
+      ]
+    },
+    {
+      "row": 57,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32048436"
+      ]
+    },
+    {
+      "row": 58,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32026567"
+      ]
+    },
+    {
+      "row": 59,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32184210"
+      ]
+    },
+    {
+      "row": 60,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32361950"
+      ]
+    },
+    {
+      "row": 61,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31809833"
+      ]
+    },
+    {
+      "row": 62,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32059156"
+      ]
+    },
+    {
+      "row": 63,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31899558"
+      ]
+    },
+    {
+      "row": 64,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32349855"
+      ]
+    },
+    {
+      "row": 65,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31991162"
+      ]
+    },
+    {
+      "row": 66,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32044481"
+      ]
+    },
+    {
+      "row": 67,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32422434"
+      ]
+    },
+    {
+      "row": 68,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32325616"
+      ]
+    },
+    {
+      "row": 69,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32325560"
+      ]
+    },
+    {
+      "row": 70,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31761290"
+      ]
+    },
+    {
+      "row": 71,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32354630"
+      ]
+    },
+    {
+      "row": 72,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32446663"
+      ]
+    },
+    {
+      "row": 73,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32386510"
+      ]
+    },
+    {
+      "row": 74,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32240845"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

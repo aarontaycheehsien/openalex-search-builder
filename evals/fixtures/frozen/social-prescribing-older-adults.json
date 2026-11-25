@@ -1,0 +1,84 @@
+{
+  "id": "social-prescribing-older-adults",
+  "suite": "frozen",
+  "question": "What components of social prescribing programmes affect loneliness, health, or wellbeing among older adults?",
+  "eligibility": [
+    "Older-adult populations.",
+    "Social prescribing or link-worker referral to community activities.",
+    "Reports loneliness, health, or wellbeing outcomes.",
+    "Empirical studies of any design."
+  ],
+  "to_date": "2019-12-30",
+  "to_date_source": "Day after latest Entrez date among included PubMed records (lower bound; review search cutoff not independently confirmed).",
+  "source": "Rapo et al. 2023, Critical components of social prescribing programmes with a focus on older adults. PMID 37485982; PMCID PMC10478612. https://pmc.ncbi.nlm.nih.gov/articles/PMC10478612/",
+  "upstream_fixture": "evals/fixtures/frozen/social-prescribing-older-adults.json",
+  "baseline": null,
+  "seeds": [
+    "pmid:25744110",
+    "pmid:28389486",
+    "pmid:29268802"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25744110"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28389486"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/29268802"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30081874"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30670001"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31199436"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31547895"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31727668"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31740455"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31883018"
+      ]
+    }
+  ],
+  "notes": "Gold contains 10 of 12 included articles with PubMed records; 2 table references had no exact PubMed title record."
+}

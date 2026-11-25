@@ -1,0 +1,180 @@
+{
+  "id": "CD011431",
+  "suite": "clef-tar-2018",
+  "question": "Rapid diagnostic tests for diagnosing uncomplicated non-falciparum or Plasmodium vivax malaria in endemic countries (a diagnostic-test-accuracy review: in people with suspected non-falciparum / P. vivax malaria, what is the accuracy of rapid diagnostic tests?)",
+  "eligibility": [
+    "Suspected or confirmed uncomplicated non-falciparum or P. vivax malaria.",
+    "Evaluates a malaria rapid diagnostic test.",
+    "Reports diagnostic performance against an eligible reference standard.",
+    "Conducted in a malaria-endemic setting."
+  ],
+  "to_date": "2013-06-09",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "CLEF TAR 2018 Task 2 (Testing), content-level qrels — finally-included studies of Cochrane review CD011431.",
+  "upstream_fixture": "evals/fixtures/clef-tar-2018/CD011431.json",
+  "baseline": "get works where title-abstract has (malaria OR Plasmodium) and title-abstract has (\"rapid diagnostic test\" OR \"rapid test\" OR RDT OR \"immunochromatographic test\")",
+  "seeds": [
+    "pmid:10405377",
+    "pmid:16711337",
+    "pmid:20979601"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/10405377"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/11123823"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/11693975"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12932092"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15000726"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15228812"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15255320"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16117960"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16711337"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17172395"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17360871"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/18256418"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/18620560"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/18981501"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20005196"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20046179"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20529273"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20602766"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20979601"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/21376357"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/21703009"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22536317"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22818643"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23234579"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23294729"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23742633"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

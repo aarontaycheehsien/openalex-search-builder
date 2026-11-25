@@ -1,0 +1,247 @@
+{
+  "id": "van_de_Schoot_2018",
+  "suite": "synergy",
+  "question": "Post-traumatic stress disorder symptom trajectories after a traumatic event",
+  "eligibility": [],
+  "to_date": "2016-01-24",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "SYNERGY dataset van_de_Schoot_2018 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: social science (quantitative methodology) / psychology.",
+  "upstream_fixture": "evals/fixtures/synergy/van_de_Schoot_2018.json",
+  "baseline": null,
+  "seeds": [
+    "pmid:21440348",
+    "pmid:23290559",
+    "pmid:26268244"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25657356"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25029224"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22361018"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/24683300"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20836603"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25255912"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25419860"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26401968"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25188895"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26268244"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25630586"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25990986"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26625353"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26799823"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25451407"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23206321"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20061839"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/24786564"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20421202"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23290559"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20564365"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/21898602"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/21594899"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/24819209"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15253091"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22807251"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26681368"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20307934"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23990895"
+      ]
+    },
+    {
+      "row": 30,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22911810"
+      ]
+    },
+    {
+      "row": 31,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23551932"
+      ]
+    },
+    {
+      "row": 32,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23129059"
+      ]
+    },
+    {
+      "row": 33,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20175629"
+      ]
+    },
+    {
+      "row": 34,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/21440348"
+      ]
+    },
+    {
+      "row": 35,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25461873"
+      ]
+    },
+    {
+      "row": 36,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19403217"
+      ]
+    },
+    {
+      "row": 37,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26412244"
+      ]
+    },
+    {
+      "row": 38,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22661909"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

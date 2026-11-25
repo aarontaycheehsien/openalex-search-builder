@@ -7,16 +7,42 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+FIXTURES_DIR = ROOT / "evals/fixtures"
 sys.path.insert(0, str(ROOT / "scripts"))
 from oasb.api import API, Error, identifier, normalize_query, now, work_id
 from oasb.store import Run, digest, write
 
+
+def fixture_index():
+    """Map fixture ID -> Path across evals/fixtures/**/*.json."""
+    index = {}
+    for path in sorted(FIXTURES_DIR.rglob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        cid = data.get("id") or path.stem
+        if cid in index:
+            raise Error(f"Duplicate fixture ID {cid!r}: {index[cid]} and {path}")
+        index[cid] = path
+    return index
+
+
+def load_case(case_id):
+    index = fixture_index()
+    if case_id not in index:
+        raise Error(f"Unknown fixture {case_id!r}. Run `python evals/bench.py list` to see available cases.")
+    return json.loads(index[case_id].read_text(encoding="utf-8"))
+
+
+# Preserved for backward compatibility with reference_runs.py; all fixtures are discovered dynamically.
 CASES = ("Bos_2018", "Anmarkrud_2021")
 
 
 def assignment(case, condition):
+    if condition != "seeded":
+        return []
+    if case.get("seeds"):
+        return sorted({identifier(s) for s in case["seeds"]})
     ids = sorted({identifier(row["ids"][0]) for row in case["gold"] if row["ids"]})
-    return sorted(random.Random(42).sample(ids, min(3, len(ids)))) if condition == "seeded" else []
+    return sorted(random.Random(42).sample(ids, min(3, len(ids))))
 
 
 def prepare(case, condition, folder):
@@ -28,14 +54,18 @@ def prepare(case, condition, folder):
     shutil.copy2(ROOT / "SKILL.md", folder / "skill/SKILL.md")
     shutil.copytree(ROOT / "examples", folder / "skill/examples")
     given = assignment(case, condition)
-    prompt = {k: case[k] for k in ("question", "eligibility", "to_date")}
-    prompt.update(condition=condition, seeds=given, fixture_hash=digest(case))
+    elig = case.get("eligibility") or []
+    elig_list = [elig] if isinstance(elig, str) else list(elig)
+    prompt = {"question": case["question"], "eligibility": case.get("eligibility", ""),
+              "to_date": case["to_date"], "condition": condition, "seeds": given,
+              "fixture_hash": digest(case)}
     write(folder / "intake.json", prompt)
     run = Run(folder / "run")
     with run.locked():
-        run.init(case["question"], [case["eligibility"]], "standard")
+        run.init(case["question"], elig_list, "standard")
         run.put("strategy", {"blocks": [], "limits": {"to_date": case["to_date"]}})
-    return {"directory": str(folder), "supplied_seeds": given, "task": "Use skill/SKILL.md and intake.json. Preserve the publication cutoff. Avoid looking up the source review or its included list in benchmark mode."}
+    return {"directory": str(folder), "supplied_seeds": given,
+            "task": "Use skill/SKILL.md and intake.json. Preserve the publication cutoff. Avoid looking up the source review or its included list in benchmark mode."}
 
 
 def check_limit(oqo, cutoff):
@@ -64,9 +94,10 @@ def score(case, folder, api, report_dir=None, reference=False):
         obj = frozen["oqo"]
         mined = {k for k, r in archive["records"].items() if r["role"] in {"seed", "relevant"}}
     else:
-        candidate = case["baseline"]
-        if reference:
-            candidate = case["reference"]
+        key = "reference" if reference else "baseline"
+        candidate = case.get(key)
+        if not candidate:
+            raise Error(f"Fixture {case['id']!r} does not define a {key} query.")
         obj = api.validate(candidate)["oqo"]
         obj = dict(obj, filter_rows=[*obj["filter_rows"], {"column_id": "to_publication_date", "value": case["to_date"]}])
     check_limit(obj, case["to_date"])
@@ -97,7 +128,8 @@ def score(case, folder, api, report_dir=None, reference=False):
     log = run.root / "requests.jsonl"
     if report_dir and log.exists():
         costs = [json.loads(s) for s in log.read_text().splitlines() if s]
-    return {"case": case["id"], "condition": intake["condition"], "mode": "delivered" if report_dir else ("reference" if reference else "baseline"),
+    return {"case": case["id"], "suite": case.get("suite", "core"), "condition": intake["condition"],
+            "mode": "delivered" if report_dir else ("reference" if reference else "baseline"),
             "at": now(), "oql": result["oql"], "cutoff": case["to_date"], "gold_rows": len(case["gold"]),
             "distinct_resolved": len(known), "unresolved_source_rows": unresolved,
             "outside_date_bound": len(excluded), "resolved_seed_works_excluded": len(dated & seed_works),
@@ -109,15 +141,38 @@ def score(case, folder, api, report_dir=None, reference=False):
             "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced}
 
 
+def list_cases(suite=None):
+    rows = []
+    for cid, path in sorted(fixture_index().items()):
+        c = json.loads(path.read_text(encoding="utf-8"))
+        s = c.get("suite", "core")
+        if suite and s != suite:
+            continue
+        rows.append({
+            "id": cid, "suite": s, "to_date": c["to_date"],
+            "gold_rows": len(c["gold"]),
+            "gold_with_ids": sum(bool(r["ids"]) for r in c["gold"]),
+            "explicit_seeds": len(c.get("seeds") or []),
+            "has_baseline": bool(c.get("baseline")),
+            "has_reference": bool(c.get("reference")),
+        })
+    return {"count": len(rows), "fixtures": rows}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=["prepare", "baseline", "reference", "score"])
-    p.add_argument("case", choices=CASES)
-    p.add_argument("directory", type=Path)
+    p.add_argument("action", choices=["list", "prepare", "baseline", "reference", "score"])
+    p.add_argument("case", nargs="?")
+    p.add_argument("directory", nargs="?", type=Path)
+    p.add_argument("--suite", help="Filter `list` by fixture suite (e.g. frozen, synergy, clef-tar-2018).")
     p.add_argument("--condition", choices=["seeded", "seedless"], default="seedless")
     p.add_argument("--report", type=Path)
     args = p.parse_args()
-    case = json.loads((ROOT / "evals/fixtures" / (args.case + ".json")).read_text())
+    if args.action == "list":
+        return list_cases(args.suite)
+    if not args.case or not args.directory:
+        p.error(f"{args.action} requires <case> and <directory>")
+    case = load_case(args.case)
     if args.action == "prepare":
         return prepare(case, args.condition, args.directory)
     if args.action == "score" and not args.report:

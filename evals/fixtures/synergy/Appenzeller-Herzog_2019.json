@@ -1,0 +1,151 @@
+{
+  "id": "Appenzeller-Herzog_2019",
+  "suite": "synergy",
+  "question": "Comparative effectiveness of common therapies for Wilson disease",
+  "eligibility": [],
+  "to_date": "2018-12-23",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "SYNERGY dataset Appenzeller-Herzog_2019 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: biomedical (hepatology).",
+  "upstream_fixture": "evals/fixtures/synergy/Appenzeller-Herzog_2019.json",
+  "baseline": null,
+  "seeds": [
+    "pmid:5635646",
+    "pmid:16606763",
+    "pmid:20333789"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26067812"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26071888"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/24661374"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/24447648"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23011036"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15742108"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/8936358"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20958917"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20333789"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19473354"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16709660"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17063115"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15622480"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/11358907"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/5635646"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23542331"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/21185835"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16606763"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15448420"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/11819363"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30576569"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28578978"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

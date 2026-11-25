@@ -1,0 +1,57 @@
+{
+  "id": "Muthu_2022",
+  "suite": "synergy",
+  "question": "In patients with rotator cuff tears, is cellular therapy (e.g. mesenchymal stem cells, bone marrow aspirate, platelet-rich plasma) beneficial compared with controls for healing and clinical outcomes?",
+  "eligibility": [
+    "Patients with a rotator cuff tear (partial- or full-thickness) or undergoing rotator cuff repair.",
+    "The intervention delivers a cellular therapy (MSCs, bone marrow aspirate concentrate, PRP, adipose- or tendon-derived cells) as biologic augmentation.",
+    "Comparison against a control or standard repair without cellular augmentation.",
+    "Reports a healing/retear, pain, or functional outcome.",
+    "A randomized or otherwise comparative clinical study in humans."
+  ],
+  "to_date": "2020-05-15",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "SYNERGY dataset Muthu_2022; 'Is cellular therapy beneficial in management of rotator cuff tears?' (World J Meta-Anal 2022, doi:10.13105/wjma.v10.i3.162); gold = label_included==1 rows with DOI via [AID]",
+  "upstream_fixture": "evals/fixtures/synergy/Muthu_2022.json",
+  "baseline": "get works where title-abstract has (\"rotator cuff\" OR \"rotator-cuff\" OR \"rotator cuff tear\" OR \"rotator cuff repair\" OR supraspinatus OR \"rotator cuff injury\") and title-abstract has (\"stem cells\" OR \"mesenchymal stem cells\" OR mesenchymal OR MSC OR \"bone marrow\" OR \"bone marrow aspirate\" OR \"bone marrow aspirate concentrate\" OR \"cellular therapy\" OR \"cell therapy\" OR \"platelet-rich plasma\" OR PRP OR \"adipose-derived\" OR \"tendon-derived\" OR \"biologic augmentation\")",
+  "seeds": [],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/24913770"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28448728"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31262366"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32399045"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32238172"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28105983"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

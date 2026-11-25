@@ -1,0 +1,234 @@
+{
+  "id": "CD010657",
+  "suite": "clef-tar-2018",
+  "question": "Dimercaptosuccinic acid (DMSA) scan or ultrasound in screening for vesicoureteral reflux among children with urinary tract infections (a diagnostic-test-accuracy review: in children with urinary tract infection, what is the accuracy of DMSA renal scan or ultrasound for detecting vesicoureteral reflux?)",
+  "eligibility": [
+    "Addresses detection of vesicoureteral reflux.",
+    "Evaluates DMSA renal scan or renal/urinary ultrasound.",
+    "Children with urinary tract infection.",
+    "Reports eligible diagnostic evaluation."
+  ],
+  "to_date": "2013-01-30",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "CLEF TAR 2018 Task 2 (Testing), content-level qrels — finally-included studies of Cochrane review CD010657.",
+  "upstream_fixture": "evals/fixtures/clef-tar-2018/CD010657.json",
+  "baseline": "get works where title-abstract has (\"vesicoureteral reflux\" OR VUR) and title-abstract has (DMSA OR \"dimercaptosuccinic acid\" OR \"renal ultrasound\" OR ultrasonography)",
+  "seeds": [
+    "pmid:12023172",
+    "pmid:19593590",
+    "pmid:22089774"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/1327798"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/1343562"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/3523415"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/8935409"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/9028852"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/9924638"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/10353409"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/10835062"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/11793131"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12023172"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12172762"
+      ]
+    },
+    {
+      "row": 12,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12529459"
+      ]
+    },
+    {
+      "row": 13,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12650294"
+      ]
+    },
+    {
+      "row": 14,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/12883980"
+      ]
+    },
+    {
+      "row": 15,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/14758509"
+      ]
+    },
+    {
+      "row": 16,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15378148"
+      ]
+    },
+    {
+      "row": 17,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/15379054"
+      ]
+    },
+    {
+      "row": 18,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16082551"
+      ]
+    },
+    {
+      "row": 19,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/16205610"
+      ]
+    },
+    {
+      "row": 20,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17188624"
+      ]
+    },
+    {
+      "row": 21,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17273861"
+      ]
+    },
+    {
+      "row": 22,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17626605"
+      ]
+    },
+    {
+      "row": 23,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17665222"
+      ]
+    },
+    {
+      "row": 24,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/17875650"
+      ]
+    },
+    {
+      "row": 25,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/18035134"
+      ]
+    },
+    {
+      "row": 26,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19397555"
+      ]
+    },
+    {
+      "row": 27,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19593590"
+      ]
+    },
+    {
+      "row": 28,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/19798584"
+      ]
+    },
+    {
+      "row": 29,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20708748"
+      ]
+    },
+    {
+      "row": 30,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22040289"
+      ]
+    },
+    {
+      "row": 31,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22048628"
+      ]
+    },
+    {
+      "row": 32,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22089774"
+      ]
+    },
+    {
+      "row": 33,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/22374404"
+      ]
+    },
+    {
+      "row": 34,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23203209"
+      ]
+    },
+    {
+      "row": 35,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/23354031"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}

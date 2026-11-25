@@ -1,0 +1,90 @@
+{
+  "id": "work-directed-return-to-work",
+  "suite": "frozen",
+  "question": "For working-age adults on sick leave due to common mental disorders, how do work-directed interventions affect return to work and related outcomes?",
+  "eligibility": [
+    "Working-age adults (18-64) on sick leave because of mild to moderate depression, anxiety, adjustment disorders, or reactions to severe stress.",
+    "Interventions involving the workplace or employer representative.",
+    "Comparator may be absent, usual care, or another intervention.",
+    "Outcomes include return to work, sick-leave days, or income."
+  ],
+  "to_date": "2021-12-18",
+  "to_date_source": "Day after latest Entrez date among included PubMed records (lower bound; source review covered records published 2015-2021).",
+  "source": "Fisker et al. 2024, Effects of work-directed interventions on return-to-work in people on sick-leave for common mental disorders. PMID 38710801; PMCID PMC11245426. https://pmc.ncbi.nlm.nih.gov/articles/PMC11245426/",
+  "upstream_fixture": "evals/fixtures/frozen/work-directed-return-to-work.json",
+  "baseline": null,
+  "seeds": [
+    "pmid:26251065",
+    "pmid:27571387",
+    "pmid:27723546"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/26251065"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/27571387"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/27723546"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28546319"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28650513"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28756415"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28830555"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28956942"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30032103"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31691305"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/34916330"
+      ]
+    }
+  ],
+  "notes": "All 11 included articles (8 RCTs) resolved to PubMed PMIDs."
+}

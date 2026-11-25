@@ -622,6 +622,34 @@ class ClientTests(unittest.TestCase):
                     self.assertFalse((folder/"skill/evals").exists())
                     self.assertEqual(given["seeds"], bench.assignment(case, cond))
 
+    def test_all_benchmark_fixtures_valid_and_leak_free(self):
+        from datetime import date
+        idx = bench.fixture_index()
+        self.assertGreaterEqual(len(idx), 32)
+        listing = bench.list_cases()
+        self.assertEqual(listing["count"], len(idx))
+        self.assertEqual(bench.list_cases("frozen")["count"], 10)
+        with tempfile.TemporaryDirectory() as temp:
+            for cid, path in idx.items():
+                case = bench.load_case(cid)
+                self.assertEqual(case["id"], cid)
+                date.fromisoformat(case["to_date"])
+                self.assertTrue(case["question"].strip())
+                self.assertTrue(case["gold"])
+                # Every non-empty identifier in gold and seeds must parse cleanly
+                for row in case["gold"]:
+                    for raw in row["ids"]:
+                        identifier(raw)
+                for s in case.get("seeds") or []:
+                    identifier(s)
+                # Spot-check prepare isolation on one fixture per suite
+                folder = Path(temp) / cid
+                bench.prepare(case, "seeded", folder)
+                given = json.loads((folder / "intake.json").read_text())
+                self.assertNotIn("gold", given)
+                self.assertFalse((folder / "skill/evals").exists())
+                self.assertEqual(given["seeds"], bench.assignment(case, "seeded"))
+
 
 if __name__ == "__main__":
     unittest.main()

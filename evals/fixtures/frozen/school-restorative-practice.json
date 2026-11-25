@@ -1,0 +1,59 @@
+{
+  "id": "school-restorative-practice",
+  "suite": "frozen",
+  "question": "What effects do restorative justice and restorative practices have in school settings?",
+  "eligibility": [
+    "School-aged students and school settings.",
+    "Restorative justice or restorative practices.",
+    "Empirical studies of any design, including evaluations and implementation studies."
+  ],
+  "to_date": "2020-06-03",
+  "to_date_source": "Day after latest Entrez date among included PubMed records (lower bound; source review covered literature through 2021).",
+  "source": "Graziano et al. 2022, Use of restorative justice and restorative practices at school: a systematic literature review. PMID 35010355; PMCID PMC8751228. https://pmc.ncbi.nlm.nih.gov/articles/PMC8751228/",
+  "upstream_fixture": "evals/fixtures/frozen/school-restorative-practice.json",
+  "baseline": null,
+  "seeds": [
+    "pmid:20639403",
+    "pmid:25269491",
+    "pmid:28545574"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/20639403"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/25269491"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/28545574"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30473366"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/30900083"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32479366"
+      ]
+    }
+  ],
+  "notes": "Gold contains 6 PubMed-indexed records among 34 included-study table entries; non-indexed records are outside this PubMed-retrieval fixture."
+}

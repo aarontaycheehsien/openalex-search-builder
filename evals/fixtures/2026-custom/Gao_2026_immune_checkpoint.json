@@ -1,0 +1,88 @@
+{
+  "id": "Gao_2026_immune_checkpoint",
+  "suite": "2026-custom",
+  "question": "Immune checkpoint inhibitors plus chemotherapy for early triple-negative breast cancer",
+  "eligibility": [
+    "Early triple-negative breast cancer.",
+    "Immune checkpoint inhibitor given with chemotherapy."
+  ],
+  "to_date": "2025-01-31",
+  "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
+  "source": "custom fixture; gold from PMIDs (CLI)",
+  "upstream_fixture": "evals/fixtures/2026-custom/gao-2026-Immune checkpoint inhibitors.json",
+  "baseline": "get works where title-abstract has (\"triple negative breast cancer\" OR TNBC) and title-abstract has (\"immune checkpoint inhibitor\" OR \"PD-1\" OR \"PD-L1\" OR pembrolizumab)",
+  "seeds": [
+    "pmid:32053137",
+    "pmid:35139274",
+    "pmid:35182721"
+  ],
+  "gold": [
+    {
+      "row": 1,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/39883436"
+      ]
+    },
+    {
+      "row": 2,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/31095287"
+      ]
+    },
+    {
+      "row": 3,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/35961599"
+      ]
+    },
+    {
+      "row": 4,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32966830"
+      ]
+    },
+    {
+      "row": 5,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/36123366"
+      ]
+    },
+    {
+      "row": 6,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32053137"
+      ]
+    },
+    {
+      "row": 7,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/32101663"
+      ]
+    },
+    {
+      "row": 8,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/35139274"
+      ]
+    },
+    {
+      "row": 9,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/39282906"
+      ]
+    },
+    {
+      "row": 10,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/36585404"
+      ]
+    },
+    {
+      "row": 11,
+      "ids": [
+        "https://pubmed.ncbi.nlm.nih.gov/35182721"
+      ]
+    }
+  ],
+  "notes": "Converted from the protocol-first branch. naive_blocks come from protocols written by the fixture author, some tightened while looking at the gold set, so the naive floor may be optimistic."
+}
