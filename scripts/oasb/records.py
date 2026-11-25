@@ -1,12 +1,25 @@
 """Known-work identity, eligibility, provenance and development-only vocabulary."""
+import math
 import re
 from collections import Counter
 
-from .api import Error, work_id, now
-from .strategy import CORPORA
+from .api import PULLED_VIEWS, Error, work_id, now
+from .strategy import CORPORA, pulled_view
 
 ROLES = ("seed", "relevant", "validation", "benchmark")
 DEVELOPMENT = {"seed", "relevant"}
+PROTECTED = ("validation", "benchmark")
+
+
+def exposure(run):
+    """Earlier deliveries whose audit showed validation or benchmark results."""
+    return run.get("exposure")["events"] if (run.root / "exposure.json").is_file() else []
+
+
+def exposed_holdouts(run, records):
+    """Protected records whose retrieval an earlier report already revealed."""
+    protected = {k for k, r in records.items() if r["role"] in PROTECTED}
+    return sorted(protected & {i for e in exposure(run) for i in e["ids"]})
 
 
 def add(api, records, raw, role, source):
@@ -29,6 +42,24 @@ def add(api, records, raw, role, source):
     return {"identifier": alias, "work_id": key if item else None, "role": role}
 
 
+def wilson(hits, n, z=1.959964):
+    """95% Wilson score interval for a proportion (Wilson, 1927). Known-work sets are small:
+    3 of 3 retrieved is compatible with a true relative recall of about 44%."""
+    if not n:
+        return None
+    p = hits / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return [round(max(0.0, centre - half), 4), round(min(1.0, centre + half), 4)]
+
+
+def interval_text(s):
+    ci = s.get("relative_recall_ci95")
+    if s.get("relative_recall") is None or not ci:
+        return "no estimate"
+    return f"{100 * s['relative_recall']:.0f}% (95% CI {100 * ci[0]:.0f}–{100 * ci[1]:.0f}%)"
+
+
 def summary(records, hits):
     result = {}
     for role in ROLES:
@@ -38,6 +69,7 @@ def summary(records, hits):
         result[role] = {"eligible": len(group), "resolved": len(resolved), "retrieved": len(found),
                         "coverage": len(resolved) / len(group) if group else None,
                         "relative_recall": len(found) / len(resolved) if resolved else None,
+                        "relative_recall_ci95": wilson(len(found), len(resolved)),
                         "unresolved": sorted(set(group) - resolved), "missed": sorted(resolved - hits),
                         "hits": found}
     return result
@@ -76,6 +108,7 @@ DISCOVERY_FIELDS = "id,display_name,publication_year,abstract_inverted_index"
 
 def discover(run, api, args):
     protected = {k for k, v in run.get("records").items() if v["role"] not in DEVELOPMENT}
+    api.include_pulled = PULLED_VIEWS[pulled_view(run.get("strategy"))]
     if args.action == "neighbors":
         records = run.get("records")
         wid = args.work_id.upper()

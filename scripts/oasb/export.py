@@ -2,15 +2,17 @@
 import csv
 import hashlib
 import json
+import math
 import sqlite3
 from pathlib import Path
 
-from .api import Error, normalize_query, now, work_id
+from .api import PULLED_VIEWS, Error, normalize_query, now, subquery, work_id
 from .records import abstract
 from .store import write
+from .strategy import pulled_view
 
 COLUMNS = ["id", "doi", "title", "authors", "year", "date", "type", "source", "volume", "issue",
-           "first_page", "last_page", "abstract", "url", "language", "pmid", "is_xpac"]
+           "first_page", "last_page", "abstract", "url", "language", "pmid", "is_xpac", "is_pulled", "is_retracted"]
 RIS_TYPES = {"article": "JOUR", "review": "JOUR", "letter": "JOUR", "editorial": "JOUR", "book": "BOOK",
              "book-chapter": "CHAP", "dissertation": "THES", "dataset": "DATA", "preprint": "UNPB",
              "report": "RPRT", "conference-paper": "CPAPER"}
@@ -30,6 +32,7 @@ def row(record):
         "first_page": biblio.get("first_page") or "", "last_page": biblio.get("last_page") or "",
         "abstract": abstract(record), "url": location.get("landing_page_url") or record.get("doi") or record.get("id"),
         "language": record.get("language") or "", "pmid": pmid, "is_xpac": record.get("is_xpac", ""),
+        "is_pulled": record.get("is_pulled", ""), "is_retracted": record.get("is_retracted", ""),
     }
 
 
@@ -100,7 +103,34 @@ def delivered(run, report_id=None):
     return dest, archive, oqo
 
 
-def export(run, api, report_id=None, max_pages=None, rescue=False):
+PAGE_SIZE = 100
+USD_PER_CREDIT = 0.0001  # https://help.openalex.org/access/example-costs/
+
+
+def columns(obj):
+    """Column IDs of every leaf, including those inside nested citation sets."""
+    if isinstance(obj, list):
+        return [c for v in obj for c in columns(v)]
+    if not isinstance(obj, dict):
+        return []
+    if "column_id" in obj:
+        nested = subquery(obj)
+        return [obj["column_id"], *(columns(nested.get("filter_rows", [])) if nested else [])]
+    return [c for k in ("filter_rows", "filters") for c in columns(obj.get(k))]
+
+
+def request_cost(oqo, check):
+    """Credits for one page. OpenAlex prices per request, not per record."""
+    credits = ((check or {}).get("cost") or {}).get("credits")
+    if type(credits) is int and credits >= 0:
+        return credits, "OpenAlex's cost check for this query (one execution)"
+    if any(".search" in c for c in columns(oqo.get("filter_rows", []))):
+        return 10, "documented price of a request that searches text (10 credits)"
+    return 1, "documented price of a filter-only request (1 credit)"
+
+
+def target(run, report_id=None, rescue=False):
+    """The delivered (or rescue) query to export, its folder and its validated count."""
     dest, archive, oqo = delivered(run, report_id)
     if rescue:
         rdir = dest / "rescue"
@@ -118,6 +148,47 @@ def export(run, api, report_id=None, max_pages=None, rescue=False):
         folder = run.root / "exports" / dest.name
         validated = archive["evaluation"]["final"]["count"]
         oql_text = archive["evaluation"]["final"]["oql"]
+    return dest, archive, oqo, folder, validated, oql_text
+
+
+def estimate(run, api, report_id=None, rescue=False):
+    """Expected export cost without paging. Query translation is free; nothing is downloaded."""
+    dest, _, oqo, folder, validated, oql_text = target(run, report_id, rescue)
+    parsed = api.validate(oql_text)
+    # export pages the stored query object, so a changed translation of the text only
+    # makes OpenAlex's cost check describe a different query: fall back to the documented price.
+    changed = normalize_query(parsed["oqo"]) != normalize_query(oqo)
+    per_request, basis = request_cost(oqo, None if changed else parsed.get("check"))
+    pages = max(1, math.ceil(validated / PAGE_SIZE))
+    received, complete = 0, False
+    if (folder / "checkpoint.sqlite3").is_file():
+        db = sqlite3.connect(folder / "checkpoint.sqlite3")
+        try:
+            saved = db.execute("select value from state where key='checkpoint'").fetchone()
+        except sqlite3.Error:
+            saved = None
+        db.close()
+        if saved:
+            state = json.loads(saved[0])
+            received, complete = state["received"], state["complete"]
+    remaining = 0 if complete else max(1, math.ceil(max(validated - received, 0) / PAGE_SIZE))
+    return {
+        "report": dest.name, "rescue": rescue, "oql": oql_text, "validated_count": validated,
+        "page_size": PAGE_SIZE, "pages": pages, "credits_per_page": per_request, "basis": basis,
+        "estimated_credits": pages * per_request,
+        "estimated_usd": round(pages * per_request * USD_PER_CREDIT, 4),
+        "translation_changed_since_report": changed,
+        "already_received": received, "remaining_pages": remaining,
+        "remaining_credits": remaining * per_request,
+        "remaining_usd": round(remaining * per_request * USD_PER_CREDIT, 4),
+        "note": "Estimate from the count validated at delivery; the live index may hold more or fewer works. "
+                "Actual credits are recorded in export-manifest.json.",
+    }
+
+
+def export(run, api, report_id=None, max_pages=None, rescue=False):
+    dest, archive, oqo, folder, validated, oql_text = target(run, report_id, rescue)
+    api.include_pulled = PULLED_VIEWS[pulled_view(archive["evaluation"]["strategy"])]
     folder.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(folder / "checkpoint.sqlite3")
     db.execute("create table if not exists records (id text primary key, body text not null)")
@@ -155,7 +226,8 @@ def export(run, api, report_id=None, max_pages=None, rescue=False):
         files = render(db, folder, state["complete"])
         db.close()
     manifest = {
-        "at": now(), "report": dest.name, "rescue": rescue, "oql": oql_text, "complete": state["complete"],
+        "at": now(), "report": dest.name, "rescue": rescue, "oql": oql_text, "include_pulled": api.include_pulled,
+        "complete": state["complete"],
         "error": error, "pages": state["pages"], "received": state["received"], "unique_records": unique,
         "validated_count": validated, "counts_seen_while_paging": state["counts"],
         "count_discrepancy": any(c != unique for c in [validated, *state["counts"]]) if state["complete"] else None,

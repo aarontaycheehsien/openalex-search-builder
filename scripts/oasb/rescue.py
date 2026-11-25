@@ -1,9 +1,9 @@
 """Optional post-delivery citation-set rescue for works lacking abstracts in OpenAlex."""
-from .api import Error, normalize_query, now
+from .api import PULLED_VIEWS, Error, check_translation, normalize_query, now
 from .export import delivered
 from .records import DEVELOPMENT
 from .store import write
-from .strategy import rescue_oql
+from .strategy import pulled_view, rescue_expectation, rescue_oql
 
 MAX_SET_WORKS = 450_000
 
@@ -17,6 +17,7 @@ def rescue(run, api, report_id=None, direction="both", topics=None):
     dest, archive, final_oqo = delivered(run, report_id)
     ev = archive["evaluation"]
     strategy = ev["strategy"]
+    api.include_pulled = PULLED_VIEWS[pulled_view(strategy)]   # the delivered search's view
     final_count = ev["final"]["count"]
     if final_count > MAX_SET_WORKS:
         raise Error(f"Delivered query has {final_count:,} works, exceeding OpenAlex's {MAX_SET_WORKS:,}-work set limit.")
@@ -31,8 +32,9 @@ def rescue(run, api, report_id=None, direction="both", topics=None):
     # Compile, validate, and execute the conditional no-abstract citation-set rescue query
     query = rescue_oql(strategy, direction=direction, topics=topics)
     parsed = api.validate(query)
-    if (parsed["oqo"].get("corpus") or "core") != strategy.get("corpus", "core"):
-        raise Error("OpenAlex changed the corpus when translating the rescue query.")
+    # Same guard as the primary search, applied inside the nested citation sets too.
+    check_translation(parsed["oqo"], strategy.get("corpus", "core"),
+                      *rescue_expectation(strategy, direction=direction, topics=topics))
     result = api.run(parsed["oql"])
     if normalize_query(result["oqo"]) != normalize_query(parsed["oqo"]):
         raise Error("The executed rescue query differs from the validated query object.")
@@ -58,6 +60,7 @@ def rescue(run, api, report_id=None, direction="both", topics=None):
         "gate": gate,
         "topics": list(topics or []),
         "corpus": strategy.get("corpus", "core"),
+        "include_pulled": api.include_pulled,
         "final_count": final_count,
         "final_without_abstract": final_no_abs,
         "final_without_abstract_pct": final_no_abs_pct,

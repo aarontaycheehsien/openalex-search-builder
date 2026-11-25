@@ -4,10 +4,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from .api import Error, check_translation, normalize_query, normalize_warnings, now
-from .records import summary
+from .api import PULLED_VIEWS, Error, check_translation, normalize_query, normalize_warnings, now
+from .records import PROTECTED, exposed_holdouts, exposure, interval_text, summary
 from .store import digest, write
-from .strategy import check, core, excluded, expected_leaves, failing, oql, parse_combine
+from .strategy import check, core, excluded, expected_leaves, expected_tokens, failing, oql, parse_combine, pulled_view
 
 
 def evaluate(run, api, abstract_stats=False):
@@ -20,13 +20,17 @@ def evaluate(run, api, abstract_stats=False):
     corpus = strategy.get("corpus", "core")
     tree = parse_combine(strategy["combine"], [b["id"] for b in blocks]) if "combine" in strategy else None
     ids = {k for k, v in records.items() if v["work"]}
+    view = pulled_view(strategy)
+    api.include_pulled = PULLED_VIEWS[view]
+    # Pulled status changes nightly, so ask OpenAlex now rather than trusting stored records.
+    pulled_known = api.pulled(ids)
     cache = {}
 
     def measure(use=(), lims=None, ex=(), combine=None):
         query = oql(list(use), lims, corpus, list(ex), combine)
         if query not in cache:
             parsed = api.validate(query)
-            check_translation(parsed["oqo"], corpus, expected_leaves(use, lims, ex))
+            check_translation(parsed["oqo"], corpus, expected_leaves(use, lims, ex), expected_tokens(use, lims, ex))
             result = api.run(parsed["oql"])
             if normalize_query(result["oqo"]) != normalize_query(parsed["oqo"]):
                 raise Error("The executed query differs from the validated query object.")
@@ -59,6 +63,8 @@ def evaluate(run, api, abstract_stats=False):
                 lines["with/" + b["id"]] = measure([*blocks, b], limits, excludes, ("and", [tree, b["id"]]))
 
     def explain(wid):
+        if wid in pulled_known and view == "exclude":
+            return ["pulled"]   # left out by OpenAlex's default view, whatever the blocks match
         values = {b["id"]: wid in lines["block/" + b["id"]]["hits"] for b in blocks}
         reasons = ["block/" + x for x in (failing(tree, values) if tree else [k for k, v in values.items() if not v])]
         reasons += ["exclude/" + b["id"] for b in excludes if wid in lines["exclude/" + b["id"]]["hits"]]
@@ -72,9 +78,13 @@ def evaluate(run, api, abstract_stats=False):
         raise Error("A retrieved work failed a required clause in its own line. Repeat against the current index.")
     if start_hash != run.fingerprint():
         raise Error("Inputs changed during evaluation. Rerun with the current files.")
+    other = api.run(final["oql"], include_pulled=not PULLED_VIEWS[view])["count"]
+    matching = (other - final["count"]) if view == "exclude" else (final["count"] - other)
     out = {"at": now(), "input_hash": start_hash, "final": final, "lines": lines, "misses": missed,
            "sets": summary(records, hits), "strategy": strategy, "corpus": corpus,
-           "ablation": "assessed" if tree is None else "not assessed for a custom combine expression"}
+           "ablation": "assessed" if tree is None else "not assessed for a custom combine expression",
+           "pulled": {"view": view, "include_pulled": PULLED_VIEWS[view], "final_pulled_works": matching,
+                      "known_pulled": sorted(pulled_known)}}
     if abstract_stats:
         def no_abs(line):
             total = line["count"]
@@ -130,6 +140,15 @@ def review(run, path):
     return run.snapshot("reviews", {"at": now(), "evaluation": uid, "evidence": evidence(current), "critique": document})
 
 
+def pulled_text(p):
+    if p["view"] == "exclude":
+        return (f"Pulled works: excluded (request parameter include_pulled=false, OpenAlex's default view since "
+                f"2026-11-19). {p['final_pulled_works']} retracted, withdrawn or removed works matching this search are "
+                "left out of the count and the export.")
+    return (f"Pulled works: included (request parameter include_pulled=true). {p['final_pulled_works']} of the "
+            "retrieved works are retracted, withdrawn or removed; check their pull notices before screening.")
+
+
 def report(run, api):
     review_id, critic = run.latest("reviews")
     _, last = run.latest("evaluations")
@@ -144,6 +163,7 @@ def report(run, api):
     audit = ["# OpenAlex search audit", "", scope["protocol"]["question"], "",
              f"Executed {fresh['at']} via the OpenAlex OQL API. Works retrieved: {query['count']}.",
              f"Corpus: {fresh['corpus']}. Block ablation: {fresh['ablation']}.",
+             pulled_text(fresh["pulled"]),
              "", "## Search as executed", "", "```text", query["oql"], "```", "",
              "## Scope and eligibility", "", json.dumps(scope, ensure_ascii=False, indent=2),
              "", "## Counts and known records", "", "| Line | Works | Known works retrieved |",
@@ -160,13 +180,38 @@ def report(run, api):
             audit.append(f"| {name} | {row['without_abstract']} | {row['total']} | {row['pct_without_abstract']}% |")
         if st.get("attrition_note"):
             audit.extend(["", st["attrition_note"]])
-    audit.extend(["", "| Set | Eligible | Resolved | Retrieved |", "|---|---:|---:|---:|"])
+    audit.extend(["", "| Set | Eligible | Resolved | Retrieved | Relative recall (95% CI) |", "|---|---:|---:|---:|---|"])
     for role, s in fresh["sets"].items():
-        audit.append(f"| {role} | {s['eligible']} | {s['resolved']} | {s['retrieved']} |")
+        audit.append(f"| {role} | {s['eligible']} | {s['resolved']} | {s['retrieved']} | {interval_text(s)} |")
     audit += ["", "Coverage uses all eligible records. Relative recall uses resolved records within each set.",
-              "A set with zero resolved works supplies no recall estimate.", "", "## Missed works", ""]
+              "A set with zero resolved works supplies no recall estimate. Intervals are 95% Wilson score",
+              "intervals; with only a few known works they are wide, and they describe the known works only.",
+              ""]
+    records = run.get("records")
+    exposed = exposed_holdouts(run, records)
+    post = None
+    if exposed:
+        earlier = [e for e in exposure(run) if set(e["ids"]) & set(exposed)]
+        unexposed = summary({k: v for k, v in records.items() if k not in exposed}, set(query["hits"]))
+        post = {"exposed": exposed, "first_exposed_at": min(e["at"] for e in earlier),
+                "earlier_reports": sorted({e["report"] for e in earlier}),
+                "unexposed_sets": {role: unexposed[role] for role in PROTECTED}}
+        audit += ["## Holdout exposure", "",
+                  f"**Post-exposure delivery.** {len(exposed)} validation or benchmark work(s) had their retrieval "
+                  f"shown in earlier report(s) {', '.join(post['earlier_reports'])} (first at {post['first_exposed_at']}). "
+                  "Any revision since then may have been informed by those results, so their relative recall is no "
+                  "longer an independent estimate.", "",
+                  "| Set, excluding exposed works | Resolved | Retrieved | Relative recall (95% CI) |", "|---|---:|---:|---|"]
+        audit += [f"| {role} | {s['resolved']} | {s['retrieved']} | {interval_text(s)} |"
+                  for role, s in post["unexposed_sets"].items()]
+        audit += ["", "Exposed works: " + ", ".join(exposed), ""]
+    else:
+        audit += ["## Holdout exposure", "", "No validation or benchmark result had been shown in an earlier delivery.", ""]
+    audit += ["## Missed works", ""]
     audit += [f"- {wid} — {', '.join(reasons)}" for wid, reasons in fresh["misses"].items()] or ["No resolved known works missed."]
     audit += [f"- Unresolved ({role}) — {alias}" for role, s in fresh["sets"].items() for alias in s["unresolved"]]
+    if fresh["pulled"]["known_pulled"]:
+        audit += ["", "Known works OpenAlex marks as pulled: " + ", ".join(fresh["pulled"]["known_pulled"]) + "."]
     audit += ["", "## Search lines as executed", ""]
     for name, line in fresh["lines"].items():
         audit.extend([f"### {name}", "", "```text", line["oql"], "```", ""])
@@ -193,8 +238,14 @@ def report(run, api):
         write(stage / "validation.json", {"evaluation_id": uid, "review_id": review_id, "evaluation": fresh,
                                           "records": run.get("records"), "scope": scope, "review": critic,
                                           "history": history, "scope_approval": run.get("scope"),
-                                          "screening": run.get("screening") if (run.root / "screening.json").is_file() else {}})
+                                          "screening": run.get("screening") if (run.root / "screening.json").is_file() else {},
+                                          "post_exposure": post})
         if run.fingerprint() != fresh["input_hash"]:
             raise Error("Inputs changed before delivery.")
         os.replace(stage, dest)
-    return {"report": str(dest), "validated_at": fresh["at"], "count": query["count"]}
+    # This audit reveals holdout retrieval. Record it outside the input fingerprint, so the
+    # delivered evidence stays valid while later deliveries are labelled post-exposure.
+    shown = sorted(k for k, r in records.items() if r["role"] in PROTECTED and r["work"])
+    run.put("exposure", {"events": [*exposure(run), {"at": fresh["at"], "report": uid, "ids": shown}]})
+    return {"report": str(dest), "validated_at": fresh["at"], "count": query["count"],
+            "post_exposure": bool(post), "exposed_holdouts": exposed}

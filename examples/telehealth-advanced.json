@@ -1,5 +1,6 @@
 {
   "corpus": "all",
+  "pulled": "exclude",
   "combine": "(delivery or apps) and setting",
   "blocks": [
     {"id": "delivery", "role": "search", "field": "title-abstract", "terms": ["telemedicine", "telehealth", "\"remote consultation\"", {"near": ["video", "consultation"], "within": 3}], "rationale": "Remote clinical care delivered at a distance."},
