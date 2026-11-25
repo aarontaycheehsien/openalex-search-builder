@@ -13,14 +13,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "evals"))
 import bench
 from oasb import cli
-from oasb.api import API, Error, identifier, normalize_query
+from oasb.api import API, Error, identifier, leaves, normalize_query, normalize_warnings
 from oasb.store import Run, write
 from oasb.strategy import check
-
-
 import re
-
-from oasb.api import leaves
 from oasb.export import export
 from oasb.strategy import final_query, parse_combine, failing
 
@@ -132,6 +128,19 @@ class WorkspaceTests(unittest.TestCase):
             with self.assertRaisesRegex(Error, "changed"):
                 self.call("report")
         self.assertFalse((self.run.root / "reports").exists())
+
+    def test_report_tolerates_warning_field_order_flip(self):
+        real = self.api.validate
+        w_eval = [{"type": "url_not_representable", "location": None,
+                   "message": "OR across different fields cannot be expressed in URL format. Fields involved: a.search, a.search.exact"}]
+        w_report = [{"type": "url_not_representable", "location": None,
+                     "message": "OR across different fields cannot be expressed in URL format. Fields involved: a.search.exact, a.search"}]
+        with patch.object(self.api, "validate", side_effect=lambda q: {**real(q), "validation": {"valid": True, "warnings": w_eval}}):
+            self.call("eval")
+        self.attach_critique()
+        with patch.object(self.api, "validate", side_effect=lambda q: {**real(q), "validation": {"valid": True, "warnings": w_report}}):
+            deliver = self.call("report")
+        self.assertTrue((Path(deliver["report"]) / "validation.json").is_file())
 
     def test_protected_works_stay_out_of_mining_and_screening(self):
         self.assertEqual({r["id"] for r in self.call("terms")["records"]}, {"W1", "W2"})
@@ -324,6 +333,17 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(normalize_query({"filter_rows": [a, b]}), normalize_query({"filter_rows": [b, a]}))
         self.assertNotEqual(normalize_query({"sort_by": [a, b]}), normalize_query({"sort_by": [b, a]}))
         self.assertNotEqual(normalize_query({"join": "and", "filters": [a,b]}), normalize_query({"join": "or", "filters": [a,b]}))
+
+    def test_warning_field_order_is_canonicalized(self):
+        w1 = {"type": "url_not_representable", "location": None,
+              "message": "OR across different fields cannot be expressed in URL format. Fields involved: a.search.exact, a.search"}
+        w2 = {"type": "url_not_representable", "location": None,
+              "message": "OR across different fields cannot be expressed in URL format. Fields involved: a.search, a.search.exact"}
+        w3 = {"type": "url_not_representable", "location": None,
+              "message": "OR across different fields cannot be expressed in URL format. Fields involved: b.search, a.search"}
+        self.assertEqual(normalize_warnings([w1]), normalize_warnings([w2]))
+        self.assertNotEqual(normalize_warnings([w1]), normalize_warnings([w3]))
+        self.assertEqual(normalize_warnings([w1, w3]), normalize_warnings([w3, w2]))
 
     def test_identifiers(self):
         for raw, key in [("https://doi.org/10.1234/A(B)", "doi:10.1234/a(b)"),

@@ -55,6 +55,18 @@ def normalize_query(obj):
     return result
 
 
+def normalize_warnings(warnings):
+    """Canonicalize warning order and OpenAlex's set-ordered 'Fields involved:' lists."""
+    out = []
+    for w in warnings or []:
+        if isinstance(w, dict) and isinstance(w.get("message"), str) and "Fields involved: " in w["message"]:
+            head, _, tail = w["message"].partition("Fields involved: ")
+            fields = ", ".join(sorted(f.strip() for f in tail.split(",") if f.strip()))
+            w = dict(w, message=f"{head}Fields involved: {fields}")
+        out.append(w)
+    return sorted(out, key=lambda v: json.dumps(v, sort_keys=True))
+
+
 class API:
     def __init__(self, log=lambda event: None):
         self.log = log

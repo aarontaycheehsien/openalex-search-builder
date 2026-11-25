@@ -4,7 +4,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from .api import Error, check_translation, normalize_query, now
+from .api import Error, check_translation, normalize_query, normalize_warnings, now
 from .records import summary
 from .store import digest, write
 from .strategy import check, core, excluded, expected_leaves, failing, oql, parse_combine
@@ -81,7 +81,8 @@ def evaluate(run, api):
 
 def evidence(result):
     def signature(line):
-        return {"oqo": normalize_query(line["oqo"]), "hits": line["hits"], "warnings": line["warnings"]}
+        return {"oqo": normalize_query(line["oqo"]), "hits": line["hits"],
+                "warnings": normalize_warnings(line["warnings"])}
     return digest({"inputs": result["input_hash"], "final": signature(result["final"]),
                    "lines": {k: signature(v) for k, v in result["lines"].items()}})
 
