@@ -288,6 +288,11 @@ class WorkspaceTests(unittest.TestCase):
         self.assertIn("max-pages", out["error"])
         self.assertTrue(self.call("export")["complete"])
 
+    def test_vocab_cli_dispatch(self):
+        self.api.vocabulary = lambda entity, query, size=10: {"entity": entity, "query": query, "size": size, "results": []}
+        out = self.call("vocab", "keywords", "telemedicine", "--size", "3")
+        self.assertEqual(out, {"entity": "keywords", "query": "telemedicine", "size": 3, "results": []})
+
 
 class StrategyTests(unittest.TestCase):
     def block(self, terms, role="search", field="title-abstract", id="a"):
@@ -344,6 +349,36 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(normalize_warnings([w1]), normalize_warnings([w2]))
         self.assertNotEqual(normalize_warnings([w1]), normalize_warnings([w3]))
         self.assertEqual(normalize_warnings([w1, w3]), normalize_warnings([w3, w2]))
+
+    def test_vocabulary_keywords_and_topics(self):
+        api = API()
+        kw_reply = {"meta": {"count": 1}, "results": [{
+            "id": "https://openalex.org/keywords/telemedicine", "display_name": "telemedicine",
+            "description": "Remote care", "display_name_alternatives": ["telehealth", "remote clinical care"],
+            "works_count": 1234, "primary_topic": {"display_name": "Telemedicine and Telehealth Implementation"},
+        }]}
+        topic_reply = {"meta": {"count": 1}, "results": [{
+            "id": "https://openalex.org/T10912", "display_name": "Telemedicine and Telehealth Implementation",
+            "description": "Cluster", "keywords": [{"id": "https://openalex.org/keywords/telemedicine", "display_name": "Telemedicine", "score": 0.5}, "Virtual Care"],
+            "domain": {"display_name": "Health Sciences"}, "field": {"display_name": "Medicine"},
+            "subfield": {"display_name": "Health Informatics"}, "works_count": 5678,
+        }]}
+        with patch.object(api, "request", return_value=kw_reply) as req:
+            out = api.vocabulary("keywords", "telemedicine", size=5)
+            self.assertEqual(req.call_args.args[0], "/keywords")
+            self.assertEqual(req.call_args.kwargs["params"]["per-page"], 5)
+            self.assertEqual(out["results"][0]["id"], "keywords/telemedicine")
+            self.assertEqual(out["results"][0]["alternatives"], ["telehealth", "remote clinical care"])
+            self.assertEqual(out["results"][0]["primary_topic"], "Telemedicine and Telehealth Implementation")
+        with patch.object(api, "request", return_value=topic_reply) as req:
+            out = api.vocabulary("topics", "telemedicine")
+            self.assertEqual(req.call_args.args[0], "/topics")
+            self.assertEqual(out["results"][0]["id"], "T10912")
+            self.assertEqual(out["results"][0]["keywords"], ["Telemedicine", "Virtual Care"])
+            self.assertEqual(out["results"][0]["subfield"], "Health Informatics")
+        for bad in (("concepts", "telemedicine", 10), ("keywords", "   ", 10), ("keywords", "telemedicine", 0), ("keywords", "telemedicine", 51)):
+            with self.assertRaises(Error):
+                api.vocabulary(*bad)
 
     def test_identifiers(self):
         for raw, key in [("https://doi.org/10.1234/A(B)", "doi:10.1234/a(b)"),

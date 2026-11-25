@@ -31,6 +31,7 @@ Edit the vocabulary and rerun `eval` to see gained or lost known works and the c
 | Task | Command after the workspace argument |
 |---|---|
 | Mine terminology from development papers | `terms` |
+| Look up OpenAlex keywords or topics | `vocab keywords "telemedicine" --size 10` · `vocab topics "telemedicine"` |
 | Find works that cite a seed | `neighbors W2618851878 --direction citing --size 10` |
 | Follow its reference list | `neighbors W2618851878 --direction references` |
 | Save a random screening pilot | `sample --oql "get works about telemedicine" --seed 42 --size 10` |

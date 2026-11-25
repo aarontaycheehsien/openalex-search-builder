@@ -52,6 +52,10 @@ def parser():
     c = cmds.add_parser("export", help="Page the delivered query into resumable CSV, RIS and JSONL files.")
     c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
     c.add_argument("--max-pages", type=int, help="Stop after this many 100-record pages; rerun to resume.")
+    c = cmds.add_parser("vocab", help="Look up OpenAlex keywords or topics for vocabulary development.")
+    c.add_argument("entity", choices=["keywords", "topics"])
+    c.add_argument("query")
+    c.add_argument("--size", type=int, default=10)
     return p
 
 
@@ -129,6 +133,8 @@ def dispatch(run, api, a):
         return {"role": "relevant", "key": a.key}
     if a.action == "terms":
         return mining(records)
+    if a.action == "vocab":
+        return api.vocabulary(a.entity, a.query, a.size)
     if a.action in ("sample", "neighbors"):
         if not 1 <= a.size <= 100:
             raise Error("--size must be between 1 and 100.")

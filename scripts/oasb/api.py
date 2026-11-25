@@ -175,6 +175,54 @@ class API:
             raise Error("OpenAlex executed a different query object during export.")
         return {"count": meta["count"], "rows": rows, "next_cursor": meta["next_cursor"]}
 
+    def vocabulary(self, entity, query, size=10):
+        """Look up OpenAlex keywords or topics for vocabulary brainstorming."""
+        select = {
+            "keywords": "id,display_name,description,display_name_alternatives,works_count,primary_topic",
+            "topics": "id,display_name,description,keywords,domain,field,subfield,works_count",
+        }
+        if entity not in select:
+            raise Error("Vocabulary entity must be keywords or topics.")
+        q = (query or "").strip()
+        if not q:
+            raise Error("Provide a nonempty search query for vocab.")
+        if type(size) is not int or not 1 <= size <= 50:
+            raise Error("--size must be between 1 and 50.")
+        reply = self.request(f"/{entity}", params={"search": q, "per-page": size, "select": select[entity]})
+        meta, raw = reply.get("meta") or {}, reply.get("results")
+        if not isinstance(raw, list):
+            raise Error("Incomplete vocabulary response from OpenAlex.")
+        rows = []
+        for item in raw:
+            short_id = re.sub(r"^https?://openalex\.org/", "", str(item.get("id") or ""))
+            if entity == "keywords":
+                rows.append({
+                    "id": short_id,
+                    "display_name": item.get("display_name"),
+                    "description": item.get("description"),
+                    "alternatives": item.get("display_name_alternatives") or [],
+                    "works_count": item.get("works_count"),
+                    "primary_topic": (item.get("primary_topic") or {}).get("display_name"),
+                })
+            else:
+                rows.append({
+                    "id": short_id,
+                    "display_name": item.get("display_name"),
+                    "description": item.get("description"),
+                    "keywords": [k["display_name"] if isinstance(k, dict) and k.get("display_name") else k
+                                 for k in item.get("keywords") or []],
+                    "domain": (item.get("domain") or {}).get("display_name"),
+                    "field": (item.get("field") or {}).get("display_name"),
+                    "subfield": (item.get("subfield") or {}).get("display_name"),
+                    "works_count": item.get("works_count"),
+                })
+        return {
+            "entity": entity, "query": q, "count": meta.get("count"), "results": rows,
+            "usage": {"credits_reported": self.credits, "usd_reported": round(self.cost_usd, 6)},
+            "note": "OpenAlex keywords and topics are algorithmically assigned labels, not a controlled "
+                    "thesaurus like MeSH. Test candidate terms empirically with eval.",
+        }
+
 
 def leaves(obj):
     """Count condition leaves in an OQO filter tree (one per term, value or date bound)."""
