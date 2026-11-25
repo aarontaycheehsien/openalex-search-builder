@@ -206,7 +206,7 @@ def dispatch(run, api, a):
         records = run.get("records")
         dev = {k for k, v in records.items() if v["role"] in DEVELOPMENT}
         out = {"evaluation": uid, "oql": data["final"]["oql"], "count": data["final"]["count"],
-               "corpus": data["corpus"], "ablation": data["ablation"],
+               "corpus": data["corpus"], "ablation": data["ablation"], "ablation_notes": data["ablation_notes"],
                "warnings": data["final"]["warnings"],
                "lines": {k: {"count": v["count"], "development_hits": sorted(dev.intersection(v["hits"])),
                              "warnings": v["warnings"]} for k, v in data["lines"].items()},

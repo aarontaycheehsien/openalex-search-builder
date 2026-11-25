@@ -193,6 +193,36 @@ def truth(tree, values):
     return all(results) if op == "and" else any(results)
 
 
+def assign(tree, name, value):
+    """Fix one block to True or False in a monotone and/or tree and simplify.
+
+    Returns True, False, a block ID or a smaller tree. True means no search block constrains
+    the result any more; False means nothing can match."""
+    if isinstance(tree, str):
+        return value if tree == name else tree
+    op, parts = tree
+    out = [assign(p, name, value) for p in parts]
+    if op == "and":
+        if any(p is False for p in out):
+            return False
+        out = [p for p in out if p is not True]
+        if not out:
+            return True
+    else:
+        if any(p is True for p in out):
+            return True
+        out = [p for p in out if p is not False]
+        if not out:
+            return False
+    return out[0] if len(out) == 1 else (op, out)
+
+
+def tree_ids(tree):
+    if isinstance(tree, str):
+        return {tree}
+    return set().union(*(tree_ids(p) for p in tree[1]))
+
+
 def failing(tree, values):
     """Block IDs that make a monotone expression false (a sufficient explanation)."""
     if truth(tree, values):

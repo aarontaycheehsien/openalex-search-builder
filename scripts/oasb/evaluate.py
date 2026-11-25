@@ -5,10 +5,11 @@ import tempfile
 from pathlib import Path
 
 from .api import PULLED_VIEWS, Error, check_translation, normalize_query, normalize_warnings, now
+from . import prisma
 from .records import PROTECTED, exposed_holdouts, exposure, interval_text, summary
 from .store import digest, write
-from .strategy import (BARE_WORD, HYPHEN_PHRASE, check, core, excluded, expected_leaves, expected_tokens, failing, oql,
-                       parse_combine, pulled_view, spaced_phrase, term_text)
+from .strategy import (BARE_WORD, HYPHEN_PHRASE, assign, check, core, excluded, expected_leaves, expected_tokens, failing,
+                       oql, parse_combine, pulled_view, spaced_phrase, term_text, tree_ids)
 
 
 def evaluate(run, api, abstract_stats=False):
@@ -51,9 +52,21 @@ def evaluate(run, api, abstract_stats=False):
         lines["exclude/" + b["id"]] = measure([b])
     for key in limits:
         lines["limit/" + key] = measure((), {key: limits[key]})
+    notes = []
     if tree is None and len(blocks) > 1:
         for b in blocks:
             lines["without/" + b["id"]] = measure([x for x in blocks if x != b], limits, excludes)
+    elif tree is not None:
+        # without/X: X relaxed (always satisfied), what X costs. drop-route/X: X removed as an
+        # entry route (never satisfied), what X adds; only meaningful for a block under an OR.
+        for b in blocks:
+            for prefix, value in (("without/", True), ("drop-route/", False)):
+                rest = assign(tree, b["id"], value)
+                if rest is True:
+                    notes.append(f"without/{b['id']} not assessed: relaxing it leaves no search block.")
+                elif rest is not False:
+                    use = [x for x in blocks if x["id"] in tree_ids(rest)]
+                    lines[prefix + b["id"]] = measure(use, limits, excludes, rest)
     for b in excludes:
         lines["without/" + b["id"]] = measure(blocks, limits, [x for x in excludes if x != b], tree)
     for b in strategy["blocks"]:
@@ -83,7 +96,7 @@ def evaluate(run, api, abstract_stats=False):
     matching = (other - final["count"]) if view == "exclude" else (final["count"] - other)
     out = {"at": now(), "input_hash": start_hash, "final": final, "lines": lines, "misses": missed,
            "sets": summary(records, hits), "strategy": strategy, "corpus": corpus,
-           "ablation": "assessed" if tree is None else "not assessed for a custom combine expression",
+           "ablation": "assessed", "ablation_notes": notes,
            "pulled": {"view": view, "include_pulled": PULLED_VIEWS[view], "final_pulled_works": matching,
                       "known_pulled": sorted(pulled_known)}}
     if abstract_stats:
@@ -222,7 +235,8 @@ def report(run, api):
     scope = run.scope_data()
     audit = ["# OpenAlex search audit", "", scope["protocol"]["question"], "",
              f"Executed {fresh['at']} via the OpenAlex OQL API. Works retrieved: {query['count']}.",
-             f"Corpus: {fresh['corpus']}. Block ablation: {fresh['ablation']}.",
+             f"Corpus: {fresh['corpus']}. Block ablation: {fresh['ablation']}"
+             + ("".join(" " + n for n in fresh.get("ablation_notes", [])) or "."),
              pulled_text(fresh["pulled"]),
              "", "## Search as executed", "", "```text", query["oql"], "```", "",
              "## Scope and eligibility", "", json.dumps(scope, ensure_ascii=False, indent=2),
@@ -287,6 +301,8 @@ def report(run, api):
                      f"Lost: {', '.join(change.get('lost', [])) or 'none'}.")
     audit += ["", "## PRESS-structured internal critique", ""]
     audit += [f"- **{k}** — {v}" for k, v in critic["critique"].items() if k != "decision"]
+    checklist = prisma.items(run, fresh, critic, run.get("scope")["decision"])
+    audit += [""] + prisma.section(checklist)
     audit += ["", "Draft for human peer review. OpenAlex metadata and counts can change.", ""]
     target = run.root / "reports"
     target.mkdir(exist_ok=True)
@@ -296,6 +312,7 @@ def report(run, api):
         stage.mkdir()
         (stage / "final-query.oql").write_text(query["oql"] + "\n", encoding="utf-8")
         write(stage / "final-query.json", query["oqo"])
+        write(stage / "prisma-s.json", {"guideline": prisma.CITATION, "items": checklist})
         (stage / "audit.md").write_text("\n".join(audit), encoding="utf-8")
         write(stage / "validation.json", {"evaluation_id": uid, "review_id": review_id, "evaluation": fresh,
                                           "records": run.get("records"), "scope": scope, "review": critic,

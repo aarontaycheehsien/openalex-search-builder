@@ -55,9 +55,9 @@ Running record of implemented fixes/features and open improvements surfaced duri
 - Run blind builds across the remaining `openalex-native` fixtures (`Walker_2018`, `Kapuka_2021`, `Filges_2022`, `Noetel_2021`, `Verdugo-Castro_2022`, `Cinquin_2018`, `Ruggeri_2019`) and the 10 `frozen` held-out fixtures (with strict filesystem isolation and 2–3 repeats per condition to measure variance).
 - Add a `bench.py score --with-rescue` option to automatically score `final-query.json` + `rescue/rescue-query.json` union recall and deduplicated volume.
 
-### 6. Medium — Ablation and reporting gaps
-- **Ablation for `combine` strategies:** `without/BLOCK` lines are skipped when `combine` is used. Because the expression is monotone (and/or only), dropping a block is equivalent to setting it true and simplifying the tree, so ablation can be computed.
-- **PRISMA-S mapping in `audit.md`:** Map existing `validation.json` fields to PRISMA-S items (database/platform, date searched, full strategy, limits, peer review, deduplication) (Rethlefsen et al., 2021, https://doi.org/10.1186/s13643-020-01542-z).
+### 6. Medium — Ablation and reporting gaps (two of three done)
+- **Done — ablation for `combine` strategies:** `without/ID` relaxes a block (sets it true and simplifies the and/or expression) to show what it costs; `drop-route/ID` removes a block under an OR (sets it false) to show what that route adds. A relaxation that leaves no search block is listed in `ablation_notes`. Live on `examples/telehealth-advanced.json` (40,622 works): dropping the mobile-health route leaves 34,011 and keeps the seed; dropping the telemedicine route leaves 8,402 and loses it.
+- **Done — PRISMA-S mapping:** `report` appends a draft checklist of the 16 PRISMA-S items to `audit.md` and saves `prisma-s.json`, wording checked against Table 1 of Rethlefsen et al. (2021), https://doi.org/10.1186/s13643-020-01542-z. The tool fills what its record supports (database and platform, corpus, strategy as run, limits, pulled view, date, total, development citation searching) and marks the rest for the reviewer.
 - **Agent-built benchmark results:** `RESULTS.md` should report blind agent-built strategies with workload (`works_per_test_hit`, `workload_ratio`) and recall intervals beside recall, and keep the 12 OpenAlex-native fixtures separate from the 29 PubMed-subset fixtures.
 
 ### 7. Done — Small fixes

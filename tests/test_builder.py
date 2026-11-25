@@ -18,7 +18,7 @@ from oasb.store import Run, write
 from oasb.strategy import check, lint
 import re
 from oasb.export import export
-from oasb.strategy import core, excluded, expected_tokens, final_query, parse_combine, failing, rescue_expectation, rescue_oql
+from oasb.strategy import assign, core, excluded, expected_tokens, final_query, parse_combine, failing, rescue_expectation, rescue_oql
 from oasb.records import wilson
 
 TERMS = {"telemedicine": {"W1", "W2"}, "rural": {"W1", "W3"}, "hospital": {"W2"}}
@@ -223,8 +223,22 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(data["count"], 2)                         # W1, W3; W2 removed by the exclusion
         self.assertEqual(data["misses"], {"W2": ["exclude/hosp"]})
         self.assertEqual(data["lines"]["without/hosp"]["development_hits"], ["W1", "W2"])
-        self.assertNotIn("without/delivery", data["lines"])
-        self.assertIn("not assessed", data["ablation"])
+        self.assertNotIn("without/delivery", data["lines"])     # relaxing an OR member drops the whole OR
+        self.assertEqual(data["ablation_notes"], ["without/delivery not assessed: relaxing it leaves no search block.",
+                                                  "without/setting not assessed: relaxing it leaves no search block."])
+        self.assertEqual(data["lines"]["drop-route/delivery"]["development_hits"], ["W1"])   # setting alone, minus hospital
+        self.assertEqual(data["lines"]["drop-route/setting"]["development_hits"], ["W1"])
+
+    def test_combine_ablation_simplifies_the_expression(self):
+        tree = parse_combine("(delivery or apps) and setting", ["delivery", "apps", "setting"])
+        self.assertEqual(assign(tree, "delivery", True), "setting")                       # without/delivery
+        self.assertEqual(assign(tree, "delivery", False), ("and", ["apps", "setting"]))   # drop-route/delivery
+        self.assertEqual(assign(tree, "setting", True), ("or", ["delivery", "apps"]))     # without/setting
+        self.assertIs(assign(tree, "setting", False), False)                             # no drop-route for AND blocks
+        self.assertIs(assign("a", "a", True), True)
+        deep = parse_combine("(a and (b or c)) or d", ["a", "b", "c", "d"])
+        self.assertEqual(assign(deep, "b", False), ("or", [("and", ["a", "c"]), "d"]))
+        self.assertIs(assign(deep, "d", True), True)
 
     def test_combine_miss_explanation(self):
         tree = parse_combine("(a and b) or c", ["a", "b", "c"])
@@ -692,6 +706,32 @@ class WorkspaceTests(unittest.TestCase):
                 patch.object(cli, "dispatch", side_effect=KeyError("hits")), patch.object(sys, "stderr", err):
             self.assertEqual(cli.main(), 1)
         self.assertIn("lint: a workspace file or OpenAlex response lacks the expected field 'hits'", err.getvalue())
+
+    def test_report_drafts_prisma_s_items(self):
+        self.strategy["limits"] = {"from_date": "2010-01-01", "language": ["en"]}
+        self.reconfirm(self.strategy)
+        self.call("neighbors", "W1", "--direction", "citing", "--size", "2")
+        self.call("neighbors", "W1", "--direction", "references", "--size", "2")
+        report = self.deliver()
+        data = json.loads((report / "prisma-s.json").read_text())
+        self.assertIn("10.1186/s13643-020-01542-z", data["guideline"])
+        topics = ["Database name", "Multi-database searching", "Study registries", "Online resources and browsing",
+                  "Citation searching", "Contacts", "Other methods", "Full search strategies", "Limits and restrictions",
+                  "Search filters", "Prior work", "Updates", "Dates of searches", "Peer review", "Total records",
+                  "Deduplication"]
+        self.assertEqual([(i["item"], i["topic"]) for i in data["items"]], list(enumerate(topics, 1)))
+        by = {i["topic"]: i for i in data["items"]}
+        self.assertIn("2 batch(es) of OpenAlex citation links (1 citing, 1 references)", by["Citation searching"]["text"])
+        self.assertEqual(by["Limits and restrictions"]["status"], "partly filled")
+        self.assertIn("publication date 2010-01-01 to any; language in (en)", by["Limits and restrictions"]["text"])
+        self.assertIn('"revised fixture"', by["Limits and restrictions"]["text"])
+        self.assertEqual(by["Study registries"]["status"], "reviewer to complete")
+        count = json.loads((report / "validation.json").read_text())["evaluation"]["final"]["count"]
+        self.assertIn(f"OpenAlex: {count:,} records", by["Total records"]["text"])
+        audit = (report / "audit.md").read_text()
+        self.assertIn("## PRISMA-S search reporting checklist (draft)", audit)
+        self.assertEqual(audit.count("\n| 1 | Database name | filled |"), 1)
+        self.assertRegex(audit, r"last searched on \d{4}-\d\d-\d\d \(at \d\d:\d\d:\d\d UTC\)")
 
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
