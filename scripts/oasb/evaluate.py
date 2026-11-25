@@ -118,6 +118,17 @@ def evaluate(run, api, abstract_stats=False):
                 "disproportionately dropping abstract-less records. Consider `rescue` or a no-abstract fallback branch."
             )
         out["abstract_stats"] = stats
+    if (run.root / "screening.json").is_file():
+        decisions = run.get("screening")
+        irrel_ids = sorted({e["work_id"] for e in decisions.values() if e.get("decision") == "exclude"} - set(records))
+        if irrel_ids:
+            irrel_hits = sorted(api.members(final["oqo"], set(irrel_ids))) if final["count"] else []
+            out["irrelevant"] = {
+                "screened_excluded": len(irrel_ids),
+                "matched": len(irrel_hits),
+                "match_rate": round(len(irrel_hits) / len(irrel_ids), 4),
+                "hits": irrel_hits,
+            }
     out["usage"] = {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6),
                     "responses_without_cost_header": api.unpriced}
     return out

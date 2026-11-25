@@ -392,6 +392,58 @@ class WorkspaceTests(unittest.TestCase):
         with self.assertRaisesRegex(Error, "Repeated cursor"):
             self.call("neighbors", "W1", "--direction", "citing", "--all")
 
+    def test_multi_seed_neighbors_sample_from_strategy_and_eval_irrelevant(self):
+        # 1. Multi-seed neighbors ranks co-linked candidates first, excludes seeds & protected W3
+        per_seed = {
+            "W1": [{"id": "W50", "display_name": "Shared", "publication_year": 2018},
+                   {"id": "W51", "display_name": "Only W1", "publication_year": 2020},
+                   {"id": "W3", "display_name": "Protected", "publication_year": 2020},
+                   {"id": "W2", "display_name": "Other seed", "publication_year": 2020}],
+            "W2": [{"id": "W50", "display_name": "Shared", "publication_year": 2018},
+                   {"id": "W52", "display_name": "Only W2", "publication_year": 2019}],
+        }
+        order = ["W1", "W2"]
+        def fake_page(oqo, cursor="*", size=100, select=None):
+            rows = per_seed[order.pop(0)]
+            return {"count": len(rows), "rows": rows[:size], "next_cursor": None, "oqo": oqo, "oql": "neighbors"}
+        self.api.page = fake_page
+        ms = self.call("neighbors", "W1", "W2", "--direction", "references", "--size", "5")
+        self.assertEqual(ms["seeds"], ["W1", "W2"])
+        self.assertEqual(ms["candidates"][0]["id"], "W50")
+        self.assertEqual(ms["candidates"][0]["seed_count"], 2)
+        self.assertEqual(ms["candidates"][0]["matched_seeds"], ["W1", "W2"])
+        cids = {c["id"] for c in ms["candidates"]}
+        self.assertNotIn("W3", cids)
+        self.assertNotIn("W2", cids)
+        with self.assertRaisesRegex(Error, "--cursor"):
+            self.call("neighbors", "W1", "W2", "--direction", "references", "--cursor", "c1")
+
+        # 2. sample --from-strategy compiles strategy.json and refuses invalid flag combos
+        samp = self.call("sample", "--from-strategy", "--size", "5")
+        self.assertTrue(samp["discovery"])
+        self.assertIsInstance(samp["candidates"], list)
+        with self.assertRaisesRegex(Error, "either --oql or --from-strategy"):
+            self.call("sample", "--size", "5")
+        with self.assertRaisesRegex(Error, "either --oql or --from-strategy"):
+            self.call("sample", "--oql", "get works", "--from-strategy", "--size", "5")
+
+        # 3. eval reports matched screened-out irrelevant works from screening.json
+        self.call("screen", ms["discovery"], "W50", "exclude", "--reason", "off-topic")
+        self.call("screen", ms["discovery"], "W51", "exclude", "--reason", "wrong population")
+        real_members = self.api.members
+        def fake_members(obj, ids, include_pulled=None):
+            if set(ids) == {"W50", "W51"}:
+                return {"W50"}
+            return real_members(obj, ids, include_pulled)
+        with patch.object(self.api, "members", side_effect=fake_members):
+            ev = self.call("eval")
+        self.assertEqual(ev["irrelevant"], {
+            "screened_excluded": 2,
+            "matched": 1,
+            "match_rate": 0.5,
+            "hits": ["W50"],
+        })
+
     def test_lint_and_draft_offline(self):
         # Strategy exercising every local lint heuristic
         s = {
