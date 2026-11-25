@@ -302,6 +302,15 @@ def main():
             result = dispatch(run, api, a)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
-    except (ValueError, TypeError, KeyError, OSError) as exc:
+    except KeyError as exc:
+        message = (f"{a.action}: a workspace file or OpenAlex response lacks the expected field {exc.args[0]!r}. "
+                   "If a workspace file was edited by hand, restore it; otherwise rerun the previous step.")
+        print(json.dumps({"error": message}, ensure_ascii=False), file=sys.stderr)
+        return 1
+    except FileNotFoundError as exc:
+        message = f"{a.action}: {exc.filename} does not exist. Run the step that creates it first."
+        print(json.dumps({"error": message}, ensure_ascii=False), file=sys.stderr)
+        return 1
+    except (ValueError, TypeError, OSError) as exc:
         print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)
         return 1

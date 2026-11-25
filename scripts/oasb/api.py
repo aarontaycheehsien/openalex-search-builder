@@ -23,8 +23,14 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+PMCID = re.compile(r"(?:(?:https?://(?:www\.)?ncbi\.nlm\.nih\.gov/pmc/articles/|https?://pmc\.ncbi\.nlm\.nih\.gov/articles/"
+                   r"|pmcid:\s*)(?:PMC)?|PMC)([1-9]\d*)", re.I)
+
+
 def identifier(raw):
     raw = unquote(raw.strip()).rstrip("/")
+    if m := PMCID.fullmatch(raw):
+        return "pmcid:PMC" + m[1]   # OpenAlex resolves pmcid:PMC123 (and the bare digits)
     value = re.sub(r"^https?://(?:api\.)?openalex\.org/(?:works/)?", "", raw, flags=re.I)
     if WORK.fullmatch(value):
         return value.upper()
@@ -34,7 +40,7 @@ def identifier(raw):
     value = re.sub(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", "", raw, flags=re.I)
     if re.fullmatch(r"10\.\d{4,9}/\S+", value, flags=re.I):
         return "doi:" + value.lower()
-    raise Error(f"Expected an OpenAlex Work ID, DOI or PMID: {raw!r}")
+    raise Error(f"Expected an OpenAlex Work ID, DOI, PMID or PMCID: {raw!r}")
 
 
 def work_id(record):

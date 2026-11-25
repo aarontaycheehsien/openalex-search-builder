@@ -275,8 +275,10 @@ def report(run, api):
     audit += ["", "## Search lines as executed", ""]
     for name, line in fresh["lines"].items():
         audit.extend([f"### {name}", "", "```text", line["oql"], "```", ""])
-    history = [json.loads(p.read_text(encoding="utf-8")) for p in
-               sorted((run.root / "evaluations").glob("*.json"), key=lambda p: p.stat().st_mtime_ns)]
+    # Order by each evaluation's own timestamp; file times change when a workspace is copied or cloned.
+    stamped = [(json.loads(p.read_text(encoding="utf-8")), p.stat().st_mtime_ns)
+               for p in (run.root / "evaluations").glob("*.json")]
+    history = [item for item, _ in sorted(stamped, key=lambda x: (x[0]["at"], x[1]))]
     audit += ["## Revision history", ""]
     for item in history:
         change = item.get("change", {})

@@ -33,12 +33,29 @@ def read(path):
     return Path(path).read_text(encoding="utf-8")
 
 
+MISSING = {
+    "protocol": "Initialize this workspace first.",
+    "strategy": "strategy.json is missing. Initialize the workspace or restore the file.",
+    "records": "records.json is missing. Initialize the workspace or restore the file.",
+    "scope": "Confirm the scope with the scope command first.",
+    "latest-evaluations": "Run eval first.",
+    "latest-reviews": "Attach a critique with the review command first.",
+    "latest-discovery": "Run sample or neighbors first.",
+}
+
+
 class Run:
     def __init__(self, root):
         self.root = Path(root)
 
     def get(self, name):
-        return json.loads(read(self.root / (name + ".json")))
+        path = self.root / (name + ".json")
+        if not path.is_file() and name in MISSING:
+            raise Error(MISSING[name])
+        try:
+            return json.loads(read(path))
+        except json.JSONDecodeError as exc:
+            raise Error(f"{path} is not valid JSON (line {exc.lineno}, column {exc.colno}). Fix or restore it.") from exc
 
     def put(self, name, value):
         write(self.root / (name + ".json"), value)

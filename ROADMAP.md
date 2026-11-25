@@ -57,9 +57,9 @@ Running record of implemented fixes/features and open improvements surfaced duri
 - **PRISMA-S mapping in `audit.md`:** Map existing `validation.json` fields to PRISMA-S items (database/platform, date searched, full strategy, limits, peer review, deduplication) (Rethlefsen et al., 2021, https://doi.org/10.1186/s13643-020-01542-z).
 - **Agent-built benchmark results:** `RESULTS.md` should report blind agent-built strategies with workload (`works_per_test_hit`, `workload_ratio`) and recall intervals beside recall, and keep the 12 OpenAlex-native fixtures separate from the 29 PubMed-subset fixtures.
 
-### 7. Low — Small fixes
-- Sort the audit's revision history by each evaluation's stored `at`, not file modification time (`evaluate.py`), which copying or cloning a workspace resets.
-- Make `check()` refuse wildcards with fewer than three leading characters, as `lint` warns and OpenAlex rejects (today only offline `draft` output is affected).
-- Replace bare `KeyError` messages from the CLI (for example `"'hits'"`) with readable errors.
-- Accept PMCIDs in `resolve` (OpenAlex supports them).
-- RIS export: add `SN` (ISSN), `PB` (publisher) and `KW` (keywords), and consider `Last, First` author names.
+### 7. Done — Small fixes
+- The audit's revision history is ordered by each evaluation's stored `at` (file time only breaks ties), so copying or cloning a workspace no longer reorders it.
+- `check()` refuses, offline, the wildcard forms OpenAlex rejects (verified 2026-11-25): fewer than three leading characters, also inside phrases (`"te* care"`), and wildcards in a stemmed phrase. `lint` and `draft` now report these as errors rather than warnings.
+- Readable errors: a missing step names the command to run (`Run eval first.`, `Attach a critique with the review command first.`), a corrupted workspace file names the file and position, and a missing field names the command and field instead of printing a bare `KeyError`.
+- `resolve` accepts PMCIDs (`PMC123`, `pmcid:123`, PMC article URLs), normalised to `pmcid:PMC123`; bare digits stay PMIDs.
+- RIS export adds `SN` (each ISSN), `PB` (publisher) and `KW` (OpenAlex keywords); the CSV gains `issn`, `publisher` and `keywords`. Author names stay as OpenAlex displays them: reversing them to `Last, First` would guess wrongly for many names, and reference managers parse either order.

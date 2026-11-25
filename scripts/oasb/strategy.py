@@ -13,13 +13,27 @@ TOKEN = re.compile(r"[\w][\w*?'-]*", re.UNICODE)
 WORD = re.compile(r"[\w][\w'-]*", re.UNICODE)
 
 
+SHORT_WILDCARD = re.compile(r'(?:^|[\s"])[^\s"*]{0,2}\*')
+
+
+def wildcards(term):
+    """Refuse the wildcard forms OpenAlex rejects (verified 2026-11-25), before any API call."""
+    if "*" not in term:
+        return term
+    if SHORT_WILDCARD.search(term):
+        raise Error(f"A wildcard needs at least three leading characters, as OpenAlex requires: {term!r}")
+    if term.startswith("stemmed "):
+        raise Error(f"Wildcards run on exact text, so OpenAlex rejects them in a stemmed phrase. Drop \"stemmed\": {term!r}")
+    return term
+
+
 def word_term(term):
     if not isinstance(term, str) or not term.strip():
         raise Error("Terms must be nonempty strings.")
     if TOKEN.fullmatch(term) and term.upper() not in {"AND", "OR", "NOT"}:
-        return term
+        return wildcards(term)
     if re.fullmatch(r'(?:stemmed )?"[^"\n]+"', term):
-        return term
+        return wildcards(term)
     raise Error(f"Quote multiword phrases (or use stemmed quotes): {term!r}")
 
 
@@ -374,12 +388,6 @@ def lint(strategy):
                                                 f"the field, not as a phrase (2026-11-25: \"open-field\" matched 10,487 titles, "
                                                 f"the phrase \"open field\" 4,872). Write {spaced_phrase(t)} for the phrase; it "
                                                 "also matches the hyphenated spelling. Check with term-counts."})
-                if "*" in t and re.search(r'(?:^|[\s"])[^\s"*]{0,2}\*', t):
-                    warnings.append({"code": "short_wildcard", "block": bid, "term": t,
-                                     "message": f"Wildcard {t!r} in {bid!r} has fewer than 3 leading characters; OpenAlex will reject it."})
-                if t.startswith("stemmed ") and ("*" in t or "?" in t):
-                    warnings.append({"code": "stemmed_wildcard", "block": bid, "term": t,
-                                     "message": f"Stemmed phrase with wildcard {t!r} in {bid!r} is rejected by OpenAlex; drop stemmed."})
     if "combine" not in strategy and len(blocks) >= 4:
         warnings.append({"code": "many_and_blocks", "block": None,
                          "message": f"{len(blocks)} search blocks are ANDed together; consider moving outcomes/settings/designs to role='screen' to protect recall."})

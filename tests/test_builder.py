@@ -277,6 +277,9 @@ class WorkspaceTests(unittest.TestCase):
         records = [{"id": f"https://openalex.org/W{i}", "display_name": t, "doi": f"https://doi.org/10.1/{i}",
                     "publication_year": 2020, "type": "article", "ids": {"pmid": f"https://pubmed.ncbi.nlm.nih.gov/{i}"},
                     "authorships": [{"author": {"display_name": "Ada Lovelace"}}],
+                    "primary_location": {"source": {"display_name": "AJN", "issn_l": "0002-936X", "issn": ["0002-936X", "1538-7488"],
+                                                    "host_organization_name": "Lippincott Williams & Wilkins"}},
+                    "keywords": [{"display_name": "telemedicine"}, {"display_name": "rural health care"}],
                     "abstract_inverted_index": {"Remote": [0], "care": [1]}}
                    for i, t in [(1, "=HYPERLINK(evil)"), (2, "Second"), (3, "Third")]]
         pages = {"*": (records[:2], "c2"), "c2": (records[1:], None)}   # overlap tests de-duplication
@@ -306,6 +309,12 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(ris.count("ER  - "), 3)
         self.assertIn("AN  - PMID:1", ris)
         self.assertIn("AB  - Remote care", ris)
+        for line in ("SN  - 0002-936X", "SN  - 1538-7488", "PB  - Lippincott Williams & Wilkins",
+                     "KW  - telemedicine", "KW  - rural health care", "AU  - Ada Lovelace"):
+            self.assertIn(line + "\n", ris)
+        row = next(__import__("csv").DictReader(open(folder / "results.csv", encoding="utf-8")))
+        self.assertEqual((row["issn"], row["publisher"], row["keywords"]),
+                         ("0002-936X; 1538-7488", "Lippincott Williams & Wilkins", "telemedicine; rural health care"))
         self.assertEqual(json.loads((folder / "export-manifest.json").read_text())["report"], report.name)
         (report / "final-query.oql").write_text("get works\n")
         with self.assertRaisesRegex(Error, "differ"):
@@ -375,7 +384,7 @@ class WorkspaceTests(unittest.TestCase):
             "corpus": "all",
             "blocks": [
                 {"id": "a", "role": "search", "field": "title-abstract",
-                 "terms": ["source-content", "telemedicine", "Telemedicine", "ab*", 'stemmed "bar*"'], "rationale": ""},
+                 "terms": ["source-content", "telemedicine", "Telemedicine"], "rationale": ""},
                 {"id": "b", "role": "search", "field": "title-abstract", "terms": ["rural"], "rationale": "r"},
                 {"id": "c", "role": "search", "field": "title-abstract", "terms": ["clinic"], "rationale": "r"},
                 {"id": "d", "role": "search", "field": "title-abstract", "terms": ["care"], "rationale": "r"},
@@ -391,7 +400,12 @@ class WorkspaceTests(unittest.TestCase):
             self.assertFalse(checked["validated_against_openalex"])
             codes = {w["code"] for w in checked["warnings"]}
             self.assertEqual(codes, {"missing_rationale", "duplicate_term", "unquoted_hyphen",
-                                     "short_wildcard", "stemmed_wildcard", "many_and_blocks", "exclude_blocks"})
+                                     "many_and_blocks", "exclude_blocks"})
+            for bad, reason in [("ab*", "three leading characters"), ('"te* care"', "three leading characters"),
+                                ('stemmed "tele* care"', 'Drop "stemmed"')]:
+                with self.assertRaisesRegex(Error, reason):
+                    lint({"blocks": [{"id": "a", "role": "search", "terms": [bad], "rationale": "r"}]})
+            lint({"blocks": [{"id": "a", "role": "search", "terms": ["tel*", '"tele* care"'], "rationale": "r"}]})
             out = self.call("draft")
         self.assertFalse(out["validated_against_openalex"])
         folder = Path(out["draft"])
@@ -643,6 +657,42 @@ class WorkspaceTests(unittest.TestCase):
                 self.call("term-counts", "--block", "notes")
         self.assertTrue(list((self.run.root / "term-counts").glob("*.json")))
 
+    def test_revision_history_follows_timestamps_not_file_times(self):
+        self.call("eval")
+        self.strategy["blocks"][1]["terms"].append("hospital")
+        self.run.put("strategy", self.strategy)
+        self.call("scope", "--confirm", "--note", "added hospital")
+        self.call("eval")
+        files = list((self.run.root / "evaluations").glob("*.json"))
+        first = next(p for p in files if "change" not in json.loads(p.read_text()))
+        second = next(p for p in files if p != first)
+        for path, at in [(first, "2000-01-01T00:00:00+00:00"), (second, "2000-01-02T00:00:00+00:00")]:
+            data = json.loads(path.read_text()); data["at"] = at; write(path, data)
+        os.utime(first, ns=(4 * 10**18, 4 * 10**18))   # a copy can give the older file the newer time
+        os.utime(second, ns=(10**18, 10**18))
+        self.attach_critique()
+        audit = (Path(self.call("report")["report"]) / "audit.md").read_text()
+        history = audit.split("## Revision history")[1].split("##")[0]
+        lines = [l for l in history.splitlines() if l.startswith("- ")]
+        self.assertEqual(len(lines), 3)
+        self.assertTrue(lines[0].startswith("- 2000-01-01") and "Known works gained: none" in lines[0])
+        self.assertTrue(lines[1].startswith("- 2000-01-02") and "Known works gained: W2" in lines[1])
+
+    def test_readable_errors(self):
+        with self.assertRaisesRegex(Error, "Run eval first"):
+            self.call("review", str(self.run.root / "critique.json"))
+        self.call("eval")
+        with self.assertRaisesRegex(Error, "Attach a critique with the review command first"):
+            self.call("report")
+        (self.run.root / "records.json").write_text("{broken")
+        with self.assertRaisesRegex(Error, "records.json is not valid JSON"):
+            self.call("eval")
+        err = io.StringIO()
+        with patch.object(sys, "argv", ["oasb", "-w", str(self.run.root), "lint"]), \
+                patch.object(cli, "dispatch", side_effect=KeyError("hits")), patch.object(sys, "stderr", err):
+            self.assertEqual(cli.main(), 1)
+        self.assertIn("lint: a workspace file or OpenAlex response lacks the expected field 'hits'", err.getvalue())
+
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
         real_run = self.api.run
@@ -843,7 +893,12 @@ class ClientTests(unittest.TestCase):
     def test_identifiers(self):
         for raw, key in [("https://doi.org/10.1234/A(B)", "doi:10.1234/a(b)"),
                          ("https://pubmed.ncbi.nlm.nih.gov/1234/", "pmid:1234"),
-                         ("https://openalex.org/w123", "W123")]:
+                         ("https://openalex.org/w123", "W123"),
+                         ("PMC1420376", "pmcid:PMC1420376"), ("pmc1420376", "pmcid:PMC1420376"),
+                         ("pmcid: 1420376", "pmcid:PMC1420376"),
+                         ("https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1420376/", "pmcid:PMC1420376"),
+                         ("https://pmc.ncbi.nlm.nih.gov/articles/PMC1420376/", "pmcid:PMC1420376"),
+                         ("1420376", "pmid:1420376")]:                  # bare digits stay a PMID
             self.assertEqual(identifier(raw), key)
         with self.assertRaises(Error):
             identifier("unknown")

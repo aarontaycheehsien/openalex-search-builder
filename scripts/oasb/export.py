@@ -12,7 +12,8 @@ from .store import digest, write
 from .strategy import pulled_view
 
 COLUMNS = ["id", "doi", "title", "authors", "year", "date", "type", "source", "volume", "issue",
-           "first_page", "last_page", "abstract", "url", "language", "pmid", "is_xpac", "is_pulled", "is_retracted"]
+           "first_page", "last_page", "abstract", "url", "language", "pmid", "issn", "publisher", "keywords",
+           "is_xpac", "is_pulled", "is_retracted"]
 RIS_TYPES = {"article": "JOUR", "review": "JOUR", "letter": "JOUR", "editorial": "JOUR", "book": "BOOK",
              "book-chapter": "CHAP", "dissertation": "THES", "dataset": "DATA", "preprint": "UNPB",
              "report": "RPRT", "conference-paper": "CPAPER"}
@@ -31,7 +32,11 @@ def row(record):
         "volume": biblio.get("volume") or "", "issue": biblio.get("issue") or "",
         "first_page": biblio.get("first_page") or "", "last_page": biblio.get("last_page") or "",
         "abstract": abstract(record), "url": location.get("landing_page_url") or record.get("doi") or record.get("id"),
-        "language": record.get("language") or "", "pmid": pmid, "is_xpac": record.get("is_xpac", ""),
+        "language": record.get("language") or "", "pmid": pmid,
+        "issn": "; ".join(source.get("issn") or ([source["issn_l"]] if source.get("issn_l") else [])),
+        "publisher": source.get("host_organization_name") or "",
+        "keywords": "; ".join(k.get("display_name") or "" for k in record.get("keywords") or [] if k.get("display_name")),
+        "is_xpac": record.get("is_xpac", ""),
         "is_pulled": record.get("is_pulled", ""), "is_retracted": record.get("is_retracted", ""),
     }
 
@@ -79,7 +84,14 @@ def render(db, folder, complete):
             if r["pmid"]:
                 rf.write(ris("AN", "PMID:" + r["pmid"]))
             for author in r["authors"].split("; ") if r["authors"] else []:
+                # Display names as OpenAlex gives them: reversing to "Last, First" would guess wrongly for
+                # many names, and reference managers parse either order.
                 rf.write(ris("AU", author))
+            for tag, key in [("SN", "issn"), ("KW", "keywords")]:
+                for value in r[key].split("; ") if r[key] else []:
+                    rf.write(ris(tag, value))
+            if r["publisher"]:
+                rf.write(ris("PB", r["publisher"]))
             rf.write("ER  - \n\n")
     return {p.name: sha256(p) for p in paths}
 
