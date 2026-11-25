@@ -1039,6 +1039,46 @@ class ClientTests(unittest.TestCase):
                     self.assertFalse((folder/"skill/evals").exists())
                     self.assertEqual(given["seeds"], bench.assignment(case, cond))
 
+    def test_benchmark_scores_rescue_union(self):
+        import zlib
+        case = bench.load_case("Bos_2018")
+        bound = {"column_id": "to_publication_date", "value": case["to_date"]}
+        final = {"get_rows": "works", "filter_rows": [bound], "tag": "final"}
+        rq = {"get_rows": "works", "filter_rows": [bound], "tag": "rescue"}
+        class FakeBench:
+            include_pulled, cost_usd, unpriced = False, 0.0, 0
+            def validate(self, q): return {"oqo": final}
+            def run(self, obj, *a, **k): return {"count": 100 if obj.get("tag") == "final" else 7, "oql": "q"}
+            def resolve(self, raw): return identifier(raw), {"id": f"https://openalex.org/W{zlib.crc32(raw.encode()) + 1}"}
+            def pulled(self, ids): return set()
+            def members(self, obj, ids, include_pulled=None):
+                ordered = sorted(ids)
+                return {"final": set(ordered[:3]), "rescue": set(ordered[2:5])}.get(obj.get("tag"), set(ids))
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / "bos"
+            bench.prepare(case, "seedless", folder)
+            report = folder / "run/reports/R1"
+            (report / "rescue").mkdir(parents=True)
+            write(report / "validation.json", {"evaluation": {"final": {"oql": "FINAL", "oqo": final},
+                                                              "strategy": {"blocks": [], "limits": {}}}, "records": {}})
+            (report / "final-query.oql").write_text("FINAL\n")
+            write(report / "rescue/rescue-manifest.json", {"queries": [{"direction": "cited-by", "oql": "RQ", "oqo": rq, "count": 7}]})
+            (report / "rescue/rescue-query-cited-by.oql").write_text("RQ\n")
+            write(report / "rescue/rescue-query-cited-by.json", rq)
+            plain = bench.score(case, folder, FakeBench(), report)
+            self.assertNotIn("rescue", plain)
+            row = bench.score(case, folder, FakeBench(), report, with_rescue=True)
+            r = row["rescue"]
+            self.assertEqual((row["hits"], r["rescue_hits"], r["added_hits"], r["union_hits"]), (3, 3, 2, 5))
+            self.assertEqual(r["union_relative_recall"], 5 / row["tested"])
+            self.assertEqual(r["union_relative_recall_ci95"], wilson(5, row["tested"]))
+            self.assertEqual((r["counts"], r["combined_screening_upper_bound"]), ({"cited-by": 7}, 107))
+            with self.assertRaisesRegex(Error, "pass --report"):
+                bench.score(case, folder, FakeBench(), None, with_rescue=True)
+            write(report / "rescue/rescue-query-cited-by.json", final)        # tampered rescue file
+            with self.assertRaisesRegex(Error, "differ from the rescue manifest"):
+                bench.score(case, folder, FakeBench(), report, with_rescue=True)
+
     def test_all_benchmark_fixtures_valid_and_leak_free(self):
         from datetime import date
         idx = bench.fixture_index()

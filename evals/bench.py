@@ -11,6 +11,7 @@ FIXTURES_DIR = ROOT / "evals/fixtures"
 sys.path.insert(0, str(ROOT / "scripts"))
 from oasb.api import API, PULLED_VIEWS, Error, identifier, normalize_query, now, work_id
 from oasb.store import Run, digest, write
+from oasb.export import rescue_queries
 from oasb.records import wilson
 from oasb.strategy import pulled_view
 
@@ -76,7 +77,7 @@ def check_limit(oqo, cutoff):
         raise Error("The reported strategy must apply the fixture publication cutoff.")
 
 
-def score(case, folder, api, report_dir=None, reference=False):
+def score(case, folder, api, report_dir=None, reference=False, with_rescue=False):
     intake = json.loads((folder / "intake.json").read_text())
     given = assignment(case, intake["condition"])
     if intake["fixture_hash"] != digest(case) or given != intake["seeds"]:
@@ -132,6 +133,27 @@ def score(case, folder, api, report_dir=None, reference=False):
     test = dated - seed_works - unretrievable
     hits = api.members(obj, test)
     unseen = test - mined
+    rescue = None
+    if with_rescue:
+        if not report_dir:
+            raise Error("--with-rescue scores a delivered report's saved rescue queries; pass --report.")
+        parts = rescue_queries(report_dir)   # checked against the rescue manifest
+        found, counts = set(), {}
+        for q in parts:
+            check_limit(q["oqo"], case["to_date"])
+            counts[q["label"]] = api.run(q["oqo"])["count"]
+            found |= api.members(q["oqo"], test)
+        union = hits | found
+        rescue = {"directions": [q["label"] for q in parts], "counts": counts,
+                  "rescue_hits": len(found), "added_hits": len(found - hits), "union_hits": len(union),
+                  "union_relative_recall": len(union) / len(test) if test else None,
+                  "union_relative_recall_ci95": wilson(len(union), len(test)),
+                  "unseen_union_hits": len(union & unseen),
+                  "unseen_union_recall": len(union & unseen) / len(unseen) if unseen else None,
+                  "unseen_union_recall_ci95": wilson(len(union & unseen), len(unseen)),
+                  "combined_screening_upper_bound": result["count"] + sum(counts.values()),
+                  "note": "Screening volume is an upper bound: rescue records can overlap the delivered search and "
+                          "each other. export --rescue gives the deduplicated count."}
     costs = []
     log = run.root / "requests.jsonl"
     if report_dir and log.exists():
@@ -154,7 +176,8 @@ def score(case, folder, api, report_dir=None, reference=False):
             "workload_ratio": round(result["count"] / orig_load, 3) if orig_load else None,
             "works_per_test_hit": result["count"]/len(hits) if hits else None,
             "build_usd_reported": round(sum(float(e.get("cost_usd") or 0) for e in costs), 6),
-            "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced}
+            "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced,
+            **({"rescue": rescue} if rescue is not None else {})}
 
 
 def list_cases(suite=None):
@@ -184,6 +207,8 @@ def main():
     p.add_argument("--suite", help="Filter `list` by fixture suite (e.g. frozen, synergy, clef-tar-2018).")
     p.add_argument("--condition", choices=["seeded", "seedless"], default="seedless")
     p.add_argument("--report", type=Path)
+    p.add_argument("--with-rescue", action="store_true",
+                   help="With score: also score the report's saved rescue queries (union recall, volume upper bound).")
     args = p.parse_args()
     if args.action == "list":
         return list_cases(args.suite)
@@ -194,7 +219,8 @@ def main():
         return prepare(case, args.condition, args.directory)
     if args.action == "score" and not args.report:
         p.error("score requires --report pointing to the delivered report directory")
-    return score(case, args.directory, API(), args.report if args.action == "score" else None, reference=args.action == "reference")
+    return score(case, args.directory, API(), args.report if args.action == "score" else None,
+                 reference=args.action == "reference", with_rescue=args.with_rescue)
 
 
 if __name__ == "__main__":

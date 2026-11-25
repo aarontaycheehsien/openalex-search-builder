@@ -52,13 +52,13 @@ Running record of implemented fixes/features and open improvements surfaced duri
 - **`SKILL.md` `sample --oql` syntax example:** Add a 1-line canonical `sample --oql` example (`get works where title-abstract has (...) and publication_date <= ...`) to prevent initial HTTP 400 syntax trial-and-error during seedless discovery (surfaced in blind `Langham-Putrow_2021_OACA` run).
 
 ### 5. Medium — Benchmark expansion & rigor
-- Run blind builds across the remaining `openalex-native` fixtures (`Walker_2018`, `Kapuka_2021`, `Filges_2022`, `Noetel_2021`, `Verdugo-Castro_2022`, `Cinquin_2018`, `Ruggeri_2019`) and the 10 `frozen` held-out fixtures (with strict filesystem isolation and 2–3 repeats per condition to measure variance).
-- Add a `bench.py score --with-rescue` option to automatically score `final-query.json` + `rescue/rescue-query.json` union recall and deduplicated volume.
+- Run blind builds across the remaining `openalex-native` fixtures (`Walker_2018` done 2026-11-25; still to run: `Kapuka_2021`, `Filges_2022`, `Noetel_2021`, `Verdugo-Castro_2022`, `Cinquin_2018`, `Ruggeri_2019`) and the 10 `frozen` held-out fixtures (with strict filesystem isolation and 2–3 repeats per condition to measure variance).
+- **Done:** `bench.py score --with-rescue` scores the delivered search with the report's saved rescue queries (union recall with intervals, added hits, combined screening volume as an upper bound; the deduplicated volume needs `export --rescue`, which currently times out on rescue walks, see item 1).
 
-### 6. Medium — Ablation and reporting gaps (two of three done)
+### 6. Done — Ablation and reporting gaps
 - **Done — ablation for `combine` strategies:** `without/ID` relaxes a block (sets it true and simplifies the and/or expression) to show what it costs; `drop-route/ID` removes a block under an OR (sets it false) to show what that route adds. A relaxation that leaves no search block is listed in `ablation_notes`. Live on `examples/telehealth-advanced.json` (40,622 works): dropping the mobile-health route leaves 34,011 and keeps the seed; dropping the telemedicine route leaves 8,402 and loses it.
 - **Done — PRISMA-S mapping:** `report` appends a draft checklist of the 16 PRISMA-S items to `audit.md` and saves `prisma-s.json`, wording checked against Table 1 of Rethlefsen et al. (2021), https://doi.org/10.1186/s13643-020-01542-z. The tool fills what its record supports (database and platform, corpus, strategy as run, limits, pulled view, date, total, development citation searching) and marks the rest for the reviewer.
-- **Agent-built benchmark results:** `RESULTS.md` should report blind agent-built strategies with workload (`works_per_test_hit`, `workload_ratio`) and recall intervals beside recall, and keep the 12 OpenAlex-native fixtures separate from the 29 PubMed-subset fixtures.
+- **Done — agent-built results reporting:** `RESULTS.md` has a derived table with 95% Wilson intervals for relative and unseen recall, the original review's screening load and the workload ratio for every agent-built run, and notes that all runs so far are on the OpenAlex-native layer (none yet on the 29 PubMed-subset fixtures).
 
 ### 7. Done — Small fixes
 - The audit's revision history is ordered by each evaluation's stored `at` (file time only breaks ties), so copying or cloning a workspace no longer reorders it.
