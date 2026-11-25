@@ -44,6 +44,7 @@ Single-run pilot evaluations built autonomously by an agent using `SKILL.md` and
 | Langham-Putrow 2021 (OACA) | `openalex-native` | `core` | Seedless (blind) | 113/134 | **105/113 (92.9%)** | **87/95 (91.6%)** | **3,590** (0.893× orig 4,019) | 34 | \$0.104 | — (baseline: 90/113 = 79.6%, 3,848 works, 0.957×) |
 | Lewowski 2021 | `openalex-native` | `core` | Seedless | 40/46 | 33/40 (82.5%) | 20/27 (74.1%) | 1,144 | 35 | \$0.130 | +1/1 no-abs miss → **34/40 (85.0%)** (+1,374 works) |
 | Moran 2020 | `openalex-native` | `core` | Seedless | 139/142 | 93/139 (66.9%) | 90/136 (66.2%) | 9,383 | 101 | \$0.073 | `query_too_slow` (>11s on 238-leaf subquery) |
+| Walker 2018 | `openalex-native` | `core` | Seedless (blind) | 148/148 | 70/148 (47.3%, CI [39.4%, 55.3%]) | 62/140 (44.3%, CI [36.3%, 52.6%]) | 9,124 (0.187× orig 48,786) | 130 | \$0.211 | — |
 
 ### Methodological notes
 - **Isolation caveat:** The `Bos_2018`, `Anmarkrud_2021`, `Lewowski_2021`, and `Moran_2020` runs used prompt-enforced subagent isolation inside prepared directories (`evals/bench.py prepare`) on the same VM rather than separate filesystems. `Langham-Putrow_2021_OACA` was built interactively in seedless mode before inspecting the review's 134 included studies (91 resolved by DOI/PMID + 23 matched by strict title+author+year; 18 unmatched conference/thesis/working-paper items).
