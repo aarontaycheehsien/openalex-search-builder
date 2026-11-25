@@ -32,8 +32,7 @@ Edit the vocabulary and rerun `eval` to see gained or lost known works and the c
 |---|---|
 | Mine terminology from development papers | `terms` |
 | Look up OpenAlex keywords or topics | `vocab keywords "telemedicine" --size 10` · `vocab topics "telemedicine"` |
-| Find works that cite a seed | `neighbors W2618851878 --direction citing --size 10` |
-| Follow its reference list | `neighbors W2618851878 --direction references` |
+| Find works citing, referenced by, or related to a seed (cursor-paged) | `neighbors W2618851878 --direction citing\|references\|related --size 200` (or `--all`, `--cursor`, `--max-pages`) |
 | Save a random screening pilot | `sample --oql "get works about telemedicine" --seed 42 --size 10` |
 | Record a candidate's eligibility | `screen BATCH WORK_ID include --reason "Meets population and delivery criteria"` |
 | Attach a completed internal critique | `review critique.json` |

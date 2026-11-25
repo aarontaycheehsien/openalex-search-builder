@@ -71,25 +71,78 @@ def mining(records):
     return {"records": docs, "words": top(words), "bigrams": top(phrases), "openalex_keywords": top(keywords)}
 
 
+DISCOVERY_FIELDS = "id,display_name,publication_year,abstract_inverted_index"
+
+
 def discover(run, api, args):
+    protected = {k for k, v in run.get("records").items() if v["role"] not in DEVELOPMENT}
     if args.action == "neighbors":
         records = run.get("records")
         wid = args.work_id.upper()
         if wid not in records or records[wid]["role"] not in DEVELOPMENT or not records[wid]["work"]:
             raise Error("Choose a resolved development record as the citation starting point.")
-        direction = "citing" if args.direction == "citing" else "cited by"
         corpus = run.get("strategy").get("corpus", "core")
-        query = f"get works{CORPORA.get(corpus, '')} {direction} []({wid})"
-    else:
-        query = args.oql
-    parsed = api.validate(query)
+        head = f"get works{CORPORA.get(corpus, '')}"
+        if args.direction == "citing":
+            query = f"{head} citing []({wid})"
+        elif args.direction == "references":
+            query = f"{head} cited by []({wid})"
+        else:
+            query = f"{head} where it's related to ([]({wid}))"
+        parsed = api.validate(query)
+        obj = dict(parsed["oqo"])
+        if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
+            raise Error("Discovery requires a query that lists works.")
+        fetch_all = bool(getattr(args, "all", False))
+        limit = None if fetch_all else args.size
+        max_pages = getattr(args, "max_pages", None)
+        cursor = getattr(args, "cursor", None) or "*"
+        seen_cursors, seen_ids, rows = set(), set(), []
+        pages, total, oql_echo, oqo_echo = 0, None, parsed["oql"], obj
+        while cursor is not None:
+            if max_pages is not None and pages >= max_pages:
+                break
+            if limit is not None and len(rows) >= limit:
+                break
+            per_page = 100 if limit is None else min(100, limit - len(rows))
+            page = api.page(obj, cursor=cursor, size=per_page, select=DISCOVERY_FIELDS)
+            nxt = page["next_cursor"]
+            if nxt and (nxt == cursor or nxt in seen_cursors):
+                raise Error("Repeated cursor; neighbor paging stopped to prevent an infinite loop.")
+            if not page["rows"] and nxt:
+                raise Error("Empty page with a continuation cursor; neighbor paging stopped.")
+            seen_cursors.add(cursor)
+            pages += 1
+            total = page["count"]
+            if page.get("oql"):
+                oql_echo = page["oql"]
+            if page.get("oqo"):
+                oqo_echo = page["oqo"]
+            for w in page["rows"]:
+                r_id = work_id(w)
+                if r_id in protected or r_id in seen_ids:
+                    continue
+                seen_ids.add(r_id)
+                rows.append({"id": r_id, "title": w.get("display_name"), "year": w.get("publication_year"),
+                             "abstract": abstract(w)})
+                if limit is not None and len(rows) >= limit:
+                    break
+            cursor = nxt
+        complete = cursor is None
+        data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wid,
+                "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages,
+                "complete": complete, "next_cursor": cursor, "rows": rows}
+        uid = run.snapshot("discovery", data)
+        return {"discovery": uid, "candidates": rows, "total": total, "pages": pages,
+                "complete": complete, "next_cursor": cursor,
+                "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
+
+    parsed = api.validate(args.oql)
     obj = dict(parsed["oqo"])
     if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
         raise Error("Discovery requires a query that lists works.")
-    if args.action == "sample":
-        obj.update(sample=args.size, seed=str(args.seed))
-    result = api.run(obj, args.size, "id,display_name,publication_year,abstract_inverted_index")
-    protected = {k for k, v in run.get("records").items() if v["role"] not in DEVELOPMENT}
+    obj.update(sample=args.size, seed=str(args.seed))
+    result = api.run(obj, args.size, DISCOVERY_FIELDS)
     rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
              "abstract": abstract(w)} for w in result["rows"] if work_id(w) not in protected]
     data = {"at": now(), "route": args.action, "oql": result["oql"], "oqo": result["oqo"], "rows": rows}

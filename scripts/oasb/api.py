@@ -164,16 +164,20 @@ class API:
             hits.update(found)
         return hits
 
-    def page(self, oqo, cursor="*", size=100):
-        """One cursor page of full work records for a validated query object."""
-        reply = self.request("/", body={"oqo": oqo, "per_page": size, "cursor": cursor})
+    def page(self, oqo, cursor="*", size=100, select=None):
+        """One cursor page of work records for a validated query object."""
+        body = {"oqo": oqo, "per_page": size, "cursor": cursor}
+        if select:
+            body["select"] = select
+        reply = self.request("/", body=body)
         meta, rows = reply.get("meta") or {}, reply.get("results")
         echo = meta.get("x_query") or {}
         if type(meta.get("count")) is not int or not isinstance(rows, list) or "next_cursor" not in meta:
             raise Error("Cursor response lacks a count, results or next_cursor; completion cannot be established.")
         if echo.get("oqo") and normalize_query(echo["oqo"]) != normalize_query(oqo):
-            raise Error("OpenAlex executed a different query object during export.")
-        return {"count": meta["count"], "rows": rows, "next_cursor": meta["next_cursor"]}
+            raise Error("OpenAlex executed a different query object during paging.")
+        return {"count": meta["count"], "rows": rows, "next_cursor": meta["next_cursor"],
+                "oql": echo.get("oql"), "oqo": echo.get("oqo") or oqo}
 
     def vocabulary(self, entity, query, size=10):
         """Look up OpenAlex keywords or topics for vocabulary brainstorming."""

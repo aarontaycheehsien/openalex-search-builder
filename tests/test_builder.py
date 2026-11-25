@@ -55,6 +55,10 @@ class Index:
         oq = self.validate(q)["oqo"]
         return {"oqo": oq, "oql": q, "rows": [], "count": len(self.members(oq, ["W1", "W2", "W3"]))}
 
+    def page(self, oqo, cursor="*", size=100, select=None):
+        rows = [{"id": f"W{i}", "display_name": f"title {i}"} for i in (1, 2, 3)][:size]
+        return {"count": 3, "rows": rows, "next_cursor": None, "oqo": oqo, "oql": "neighbors"}
+
     def members(self, obj, ids):
         where = self.source[json.dumps(obj, sort_keys=True)].partition(" where ")[2]
         hits = set()
@@ -292,6 +296,50 @@ class WorkspaceTests(unittest.TestCase):
         self.api.vocabulary = lambda entity, query, size=10: {"entity": entity, "query": query, "size": size, "results": []}
         out = self.call("vocab", "keywords", "telemedicine", "--size", "3")
         self.assertEqual(out, {"entity": "keywords", "query": "telemedicine", "size": 3, "results": []})
+
+    def test_neighbors_paging_all_cursor_and_related(self):
+        # 250 synthetic works split into 3 cursor pages (100, 100, 50), plus protected W3 on page 1.
+        pages = {
+            "*": ([{"id": "W3", "display_name": "Protected"}] + [{"id": f"W{i}", "display_name": f"N{i}"} for i in range(100, 199)], "c2"),
+            "c2": ([{"id": f"W{i}", "display_name": f"N{i}"} for i in range(199, 299)], "c3"),
+            "c3": ([{"id": f"W{i}", "display_name": f"N{i}"} for i in range(299, 349)], None),
+        }
+        seen = []
+        def fake_page(oqo, cursor="*", size=100, select=None):
+            seen.append((cursor, size, select))
+            rows, nxt = pages[cursor]
+            return {"count": 250, "rows": rows[:size], "next_cursor": nxt, "oqo": oqo, "oql": "neighbors"}
+        self.api.page = fake_page
+
+        # --size > 100 pages automatically and filters out protected W3
+        out = self.call("neighbors", "W1", "--direction", "citing", "--size", "150")
+        self.assertEqual(len(out["candidates"]), 150)
+        self.assertNotIn("W3", {c["id"] for c in out["candidates"]})
+        self.assertEqual(out["pages"], 2)
+        self.assertFalse(out["complete"])
+        self.assertEqual(out["next_cursor"], "c3")
+
+        # --cursor resumes from saved next_cursor to finish the remaining page
+        rest = self.call("neighbors", "W1", "--direction", "citing", "--all", "--cursor", out["next_cursor"])
+        self.assertEqual(len(rest["candidates"]), 50)
+        self.assertTrue(rest["complete"])
+        self.assertIsNone(rest["next_cursor"])
+
+        # --all with --max-pages bounds the number of pages fetched
+        bounded = self.call("neighbors", "W1", "--direction", "related", "--all", "--max-pages", "2")
+        self.assertEqual(bounded["pages"], 2)
+        self.assertFalse(bounded["complete"])
+        self.assertEqual(bounded["next_cursor"], "c3")
+
+        # --direction related emits the OQL related-to clause
+        with patch.object(self.api, "validate", wraps=self.api.validate) as v:
+            self.call("neighbors", "W1", "--direction", "related", "--max-pages", "1")
+            self.assertEqual(v.call_args.args[0], "get works where it's related to ([](W1))")
+
+        # Repeated cursor raises rather than looping forever
+        self.api.page = lambda oqo, cursor="*", size=100, select=None: {"count": 2, "rows": [{"id": "W99"}], "next_cursor": cursor}
+        with self.assertRaisesRegex(Error, "Repeated cursor"):
+            self.call("neighbors", "W1", "--direction", "citing", "--all")
 
 
 class StrategyTests(unittest.TestCase):

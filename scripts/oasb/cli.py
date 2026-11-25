@@ -40,10 +40,13 @@ def parser():
     c.add_argument("--oql", required=True)
     c.add_argument("--size", type=int, default=10)
     c.add_argument("--seed", type=int, default=42)
-    c = cmds.add_parser("neighbors")
+    c = cmds.add_parser("neighbors", help="Follow citing, referenced, or related works of a development record (cursor-paged).")
     c.add_argument("work_id")
-    c.add_argument("--direction", choices=["citing", "references"], required=True)
-    c.add_argument("--size", type=int, default=10)
+    c.add_argument("--direction", choices=["citing", "references", "related"], required=True)
+    c.add_argument("--size", type=int, default=10, help="Maximum candidates to return (pages automatically above 100).")
+    c.add_argument("--all", action="store_true", help="Page through all neighbors until exhausted (combine with --max-pages to bound cost).")
+    c.add_argument("--cursor", help="Start from a saved next_cursor returned by a previous neighbors call.")
+    c.add_argument("--max-pages", type=int, help="Stop after this many API pages.")
     c = cmds.add_parser("screen")
     c.add_argument("discovery")
     c.add_argument("work_id")
@@ -135,9 +138,15 @@ def dispatch(run, api, a):
         return mining(records)
     if a.action == "vocab":
         return api.vocabulary(a.entity, a.query, a.size)
-    if a.action in ("sample", "neighbors"):
+    if a.action == "sample":
         if not 1 <= a.size <= 100:
             raise Error("--size must be between 1 and 100.")
+        return discover(run, api, a)
+    if a.action == "neighbors":
+        if not a.all and a.size < 1:
+            raise Error("--size must be at least 1.")
+        if a.max_pages is not None and a.max_pages < 1:
+            raise Error("--max-pages must be at least 1.")
         return discover(run, api, a)
     if a.action == "screen":
         import re
