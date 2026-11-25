@@ -100,9 +100,24 @@ def delivered(run, report_id=None):
     return dest, archive, oqo
 
 
-def export(run, api, report_id=None, max_pages=None):
+def export(run, api, report_id=None, max_pages=None, rescue=False):
     dest, archive, oqo = delivered(run, report_id)
-    folder = run.root / "exports" / dest.name
+    if rescue:
+        rdir = dest / "rescue"
+        if not (rdir / "rescue-manifest.json").is_file():
+            raise Error("No rescue query found for this report. Run rescue first.")
+        rmanifest = json.loads((rdir / "rescue-manifest.json").read_text(encoding="utf-8"))
+        oqo = json.loads((rdir / "rescue-query.json").read_text(encoding="utf-8"))
+        roql = (rdir / "rescue-query.oql").read_text(encoding="utf-8").strip()
+        if normalize_query(oqo) != normalize_query(rmanifest["oqo"]) or roql != rmanifest["oql"]:
+            raise Error("The rescue query files differ from the rescue manifest. Rerun rescue.")
+        folder = run.root / "exports" / (dest.name + "-rescue")
+        validated = rmanifest["rescue_count"]
+        oql_text = rmanifest["oql"]
+    else:
+        folder = run.root / "exports" / dest.name
+        validated = archive["evaluation"]["final"]["count"]
+        oql_text = archive["evaluation"]["final"]["oql"]
     folder.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(folder / "checkpoint.sqlite3")
     db.execute("create table if not exists records (id text primary key, body text not null)")
@@ -139,9 +154,8 @@ def export(run, api, report_id=None, max_pages=None):
         unique = db.execute("select count(*) from records").fetchone()[0]
         files = render(db, folder, state["complete"])
         db.close()
-    validated = archive["evaluation"]["final"]["count"]
     manifest = {
-        "at": now(), "report": dest.name, "oql": archive["evaluation"]["final"]["oql"], "complete": state["complete"],
+        "at": now(), "report": dest.name, "rescue": rescue, "oql": oql_text, "complete": state["complete"],
         "error": error, "pages": state["pages"], "received": state["received"], "unique_records": unique,
         "validated_count": validated, "counts_seen_while_paging": state["counts"],
         "count_discrepancy": any(c != unique for c in [validated, *state["counts"]]) if state["complete"] else None,

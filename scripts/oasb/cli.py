@@ -8,6 +8,7 @@ from .api import API, Error, check_translation, now
 from .evaluate import evaluate, report, review, save_eval
 from .export import export
 from .records import DEVELOPMENT, ROLES, add, discover, mining
+from .rescue import rescue
 from .store import Run, digest, write
 from .strategy import check, final_query, lint
 
@@ -55,6 +56,13 @@ def parser():
     c = cmds.add_parser("export", help="Page the delivered query into resumable CSV, RIS and JSONL files.")
     c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
     c.add_argument("--max-pages", type=int, help="Stop after this many 100-record pages; rerun to resume.")
+    c.add_argument("--rescue", action="store_true", help="Export the report's saved no-abstract rescue query instead of the primary Boolean query.")
+    c = cmds.add_parser("rescue", help="Optional post-delivery citation-set rescue for works lacking abstracts in OpenAlex.")
+    c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
+    c.add_argument("--direction", choices=["both", "cited-by", "citing"], default="both",
+                   help="Citation link direction from the delivered Boolean set (default: both).")
+    c.add_argument("--topic", action="append", default=[],
+                   help="Optional OpenAlex Topic ID (e.g. T10102) to gate rescue instead of the default any-block text gate. Repeatable.")
     c = cmds.add_parser("vocab", help="Look up OpenAlex keywords or topics for vocabulary development.")
     c.add_argument("entity", choices=["keywords", "topics"])
     c.add_argument("query")
@@ -206,7 +214,9 @@ def dispatch(run, api, a):
     if a.action == "export":
         if a.max_pages is not None and a.max_pages < 1:
             raise Error("--max-pages must be at least 1.")
-        return export(run, api, a.report, a.max_pages)
+        return export(run, api, a.report, a.max_pages, rescue=a.rescue)
+    if a.action == "rescue":
+        return rescue(run, api, a.report, direction=a.direction, topics=a.topic or None)
     records = run.get("records")
     if a.action == "resolve":
         result = [add(api, records, i, a.role, a.source) for i in a.identifiers]

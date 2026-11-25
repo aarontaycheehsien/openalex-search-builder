@@ -39,7 +39,8 @@ Edit the vocabulary and rerun `eval` to see gained or lost known works and the c
 | Record a candidate's eligibility | `screen BATCH WORK_ID include --reason "Meets population and delivery criteria"` |
 | Attach a completed internal critique | `review critique.json` |
 | Revalidate and deliver | `report` |
-| Download every retrieved record (resumable) | `export` (optionally `--report ID`, `--max-pages N`) |
+| Optional citation-set rescue for works lacking abstracts | `rescue` (optionally `--direction both\|cited-by\|citing`, `--topic T...`) |
+| Download every retrieved record (resumable) | `export` (optionally `--report ID`, `--max-pages N`, `--rescue`) |
 
 See [SKILL.md](SKILL.md) for the workflow, strategy schema and critique format. Search terms are grouped inside concept blocks. The CLI supports explicit publication-date, language and work-type limits. Broader OQL queries can be used for discovery pilots.
 

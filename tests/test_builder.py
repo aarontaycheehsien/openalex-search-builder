@@ -18,7 +18,7 @@ from oasb.store import Run, write
 from oasb.strategy import check
 import re
 from oasb.export import export
-from oasb.strategy import final_query, parse_combine, failing
+from oasb.strategy import final_query, parse_combine, failing, rescue_oql
 
 TERMS = {"telemedicine": {"W1", "W2"}, "rural": {"W1", "W3"}, "hospital": {"W2"}}
 CLAUSE = re.compile(r'(not )?(?:full text|[\w-]+) has \(((?:[^()]|\([^()]*\))*)\)')
@@ -374,10 +374,68 @@ class WorkspaceTests(unittest.TestCase):
         with self.assertRaisesRegex(Error, "No delivered report"):
             self.call("export")
 
+    def test_rescue_and_rescue_export(self):
+        report = self.deliver()
+        # Mock rescue validation/run/members: rescue catches missed dev W2 and protected W3
+        real_val = self.api.validate
+        def fake_val(q):
+            if "doesn't have an abstract" in q:
+                return {"oqo": {"get_rows": "works", "filter_rows": [{"column_id": "has_abstract", "value": False}], "corpus": "core"},
+                        "oql": q, "validation": {"valid": True, "warnings": []}}
+            return real_val(q)
+        def fake_run(q, size=1, fields="id"):
+            if isinstance(q, dict):
+                return {"oqo": q, "oql": "no_abs", "rows": [], "count": 1}
+            if "doesn't have an abstract" in q:
+                oq = fake_val(q)["oqo"]
+                return {"oqo": oq, "oql": q, "rows": [], "count": 2}
+            return Index.run(self.api, q, size, fields)
+        def fake_members(obj, ids):
+            if any(f.get("column_id") == "has_abstract" for f in obj.get("filter_rows", [])):
+                return set(ids) & {"W2", "W3"}
+            return Index.members(self.api, obj, ids)
+        with patch.object(self.api, "validate", side_effect=fake_val), \
+             patch.object(self.api, "run", side_effect=fake_run), \
+             patch.object(self.api, "members", side_effect=fake_members):
+            out = self.call("rescue", "--direction", "cited-by")
+        self.assertEqual(out["report"], report.name)
+        self.assertEqual(out["gate"], "any-block")
+        self.assertEqual(out["rescue_count"], 2)
+        self.assertEqual(out["development_rescued"], ["W2"])
+        self.assertNotIn("W3", out["development_rescued"])  # protected record not leaked
+        rdir = Path(out["rescue_dir"])
+        self.assertTrue((rdir / "rescue-query.oql").is_file())
+        manifest = json.loads((rdir / "rescue-manifest.json").read_text())
+        self.assertEqual(manifest["rescued_all_sets"], ["W2", "W3"])
+        # Export --rescue pages the rescue query into exports/<report>-rescue/
+        self.api.page = lambda oqo, cursor="*", size=100: {"count": 2, "rows": [{"id": "https://openalex.org/W2", "display_name": "Rescued"}], "next_cursor": None}
+        exp = self.call("export", "--rescue")
+        self.assertTrue(exp["complete"])
+        self.assertTrue(exp["rescue"])
+        self.assertTrue(exp["directory"].endswith(report.name + "-rescue"))
+        self.assertEqual(exp["unique_records"], 1)
+
 
 class StrategyTests(unittest.TestCase):
     def block(self, terms, role="search", field="title-abstract", id="a"):
         return {"id": id, "role": role, "field": field, "terms": terms, "rationale": "r"}
+
+    def test_rescue_oql_forms(self):
+        s = {"corpus": "all", "blocks": [self.block(["telemedicine"]), self.block(["rural"], id="b")],
+             "limits": {"to_date": "2020-12-31"}}
+        q_both = rescue_oql(s)
+        self.assertIn("get works (all corpora) where it doesn't have an abstract", q_both)
+        self.assertIn("(title-abstract has (telemedicine) or title-abstract has (rural))", q_both)
+        self.assertIn("it's cited by a work in the set", q_both)
+        self.assertIn("it cites a work in the set", q_both)
+        self.assertIn("publication_date <= 2020-12-31", q_both)
+        q_topic = rescue_oql(s, direction="cited-by", topics=["https://openalex.org/t10102", "T10912"])
+        self.assertIn("topic is (T10102 or T10912)", q_topic)
+        self.assertNotIn("it cites a work in the set", q_topic)
+        with self.assertRaises(Error):
+            rescue_oql(s, direction="invalid")
+        with self.assertRaises(Error):
+            rescue_oql(s, topics=["W123"])
 
     def test_compiles_supported_forms(self):
         s = {"corpus": "all", "blocks": [

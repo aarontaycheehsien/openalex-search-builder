@@ -283,3 +283,40 @@ def lint(strategy):
         "warnings": warnings,
         "note": "Local syntax and heuristic checks only — not validated against OpenAlex.",
     }
+
+
+def rescue_oql(strategy, direction="both", topics=None):
+    """Build a conditional no-abstract citation-set rescue query from a strategy.
+
+    Targets works that lack an abstract in OpenAlex, are linked by citation to the
+    strategy's core Boolean query, and pass either an any-block text gate (default)
+    or an explicit OpenAlex topic gate. Preserves corpus and eligibility limits.
+    """
+    check(strategy)
+    if direction not in {"cited-by", "citing", "both"}:
+        raise Error("Rescue direction must be cited-by, citing, or both.")
+    topic_ids = []
+    if topics:
+        for t in topics:
+            tid = re.sub(r"^https?://openalex\.org/", "", str(t).strip()).upper()
+            if not re.fullmatch(r"T[1-9][0-9]*", tid):
+                raise Error(f"Expected an OpenAlex Topic ID like T10102: {t!r}")
+            if tid not in topic_ids:
+                topic_ids.append(tid)
+    blocks, ex, limits = core(strategy), excluded(strategy), strategy.get("limits", {})
+    corpus = strategy.get("corpus", "core")
+    core_query = oql(blocks, limits, "core", ex, strategy.get("combine"))
+    core_where = core_query.partition(" where ")[2]
+    set_expr = f"(works where {core_where})"
+    if direction == "cited-by":
+        rel = f"it's cited by a work in the set {set_expr}"
+    elif direction == "citing":
+        rel = f"it cites a work in the set {set_expr}"
+    else:
+        rel = f"(it's cited by a work in the set {set_expr} or it cites a work in the set {set_expr})"
+    if topic_ids:
+        gate = f"topic is {topic_ids[0]}" if len(topic_ids) == 1 else "topic is (" + " or ".join(topic_ids) + ")"
+    else:
+        gate = "(" + " or ".join(clause(b) for b in blocks) + ")"
+    clauses = ["it doesn't have an abstract", gate, rel, *limit_clauses(limits).values()]
+    return "get works" + CORPORA[corpus] + " where " + " and ".join(clauses)
