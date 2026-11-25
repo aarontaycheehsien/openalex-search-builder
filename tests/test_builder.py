@@ -628,6 +628,7 @@ class ClientTests(unittest.TestCase):
         self.assertGreaterEqual(len(idx), 32)
         listing = bench.list_cases()
         self.assertEqual(listing["count"], len(idx))
+        self.assertTrue(all("original_screening_load" in row for row in listing["fixtures"]))
         self.assertEqual(bench.list_cases("frozen")["count"], 10)
         with tempfile.TemporaryDirectory() as temp:
             for cid, path in idx.items():
@@ -636,6 +637,11 @@ class ClientTests(unittest.TestCase):
                 date.fromisoformat(case["to_date"])
                 self.assertTrue(case["question"].strip())
                 self.assertTrue(case["gold"])
+                self.assertIn("original_screening_load", case)
+                load = case["original_screening_load"]
+                self.assertTrue(load is None or (isinstance(load, int) and not isinstance(load, bool) and load > 0), cid)
+                self.assertIsInstance(case.get("original_screening_load_source"), str)
+                self.assertTrue(case["original_screening_load_source"].strip(), cid)
                 # Every non-empty identifier in gold and seeds must parse cleanly
                 for row in case["gold"]:
                     for raw in row["ids"]:
@@ -647,6 +653,8 @@ class ClientTests(unittest.TestCase):
                 bench.prepare(case, "seeded", folder)
                 given = json.loads((folder / "intake.json").read_text())
                 self.assertNotIn("gold", given)
+                self.assertNotIn("original_screening_load", given)
+                self.assertNotIn("original_screening_load_source", given)
                 self.assertFalse((folder / "skill/evals").exists())
                 self.assertEqual(given["seeds"], bench.assignment(case, "seeded"))
 

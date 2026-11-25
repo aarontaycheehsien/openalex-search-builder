@@ -6,6 +6,8 @@
   "to_date": "2021-02-12",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Meijboom_2021 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: biomedical (pharmacology / rheumatology).",
+  "original_screening_load": 1199,
+  "original_screening_load_source": "SYNERGY dataset Meijboom_2021_ids.csv (asreview/synergy-dataset @ 7efde4a): 1,199 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Meijboom_2021.json",
   "baseline": null,
   "seeds": [

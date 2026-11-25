@@ -9,6 +9,8 @@
   "to_date_source": "December 31 of the year preceding review publication (2018).",
   "review": "https://doi.org/10.1016/j.compedu.2018.12.004",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Cinquin_2018/Cinquin_2018_ids.csv",
+  "original_screening_load": 971,
+  "original_screening_load_source": "SYNERGY dataset Cinquin_2018_ids.csv (asreview/synergy-dataset @ 7efde4a): 971 deduplicated records in title/abstract screening pool.",
   "baseline": null,
   "seeds": [],
   "gold": [

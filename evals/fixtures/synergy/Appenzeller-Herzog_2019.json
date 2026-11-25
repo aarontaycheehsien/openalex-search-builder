@@ -6,6 +6,8 @@
   "to_date": "2018-12-23",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Appenzeller-Herzog_2019 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: biomedical (hepatology).",
+  "original_screening_load": 3432,
+  "original_screening_load_source": "SYNERGY dataset Appenzeller-Herzog_2019_ids.csv (asreview/synergy-dataset @ 7efde4a): 3,432 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Appenzeller-Herzog_2019.json",
   "baseline": null,
   "seeds": [

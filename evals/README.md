@@ -41,7 +41,7 @@ python evals/bench.py score Bos_2018 /tmp/bos-blind --report /tmp/bos-blind/run/
 python evals/bench.py baseline Bos_2018 /tmp/bos-blind
 ```
 
-Repeat in a fresh directory for the other condition and topic. Record the agent/model, date, condition, number of runs and any leakage alongside scorecards. Scores include coverage counts, retrieval among resolved, in-window gold works, unseen retrieval after excluding development works, screening workload, works per test hit and reported API costs. Supplied seeds are excluded from both strategies' test sets. A scorecard is not a precision estimate.
+Repeat in a fresh directory for the other condition and topic. Record the agent/model, date, condition, number of runs and any leakage alongside scorecards. Scores include coverage counts, retrieval among resolved, in-window gold works, unseen retrieval after excluding development works, screening workload, `original_screening_load` and `workload_ratio` (`screening_count / original_screening_load`, when the original review's screening pool is publicly verifiable; kept out of `intake.json`), works per test hit and reported API costs. Supplied seeds are excluded from both strategies' test sets. A scorecard is not a precision estimate.
 
 ## Live controls
 

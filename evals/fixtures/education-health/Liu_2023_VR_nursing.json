@@ -12,6 +12,8 @@
   "to_date": "2023-03-31",
   "to_date_source": "review search date",
   "source": "Health-professions (nursing) education systematic review + meta-analysis: Liu et al., 'Effectiveness of virtual reality in nursing education', BMC Med Educ 2023;23:710 (PMID 37770884, doi 10.1186/s12909-023-04662-x). Education-adjacent-health topic chosen for PubMed reachability; gold = 6/12 included RCTs that are MEDLINE-indexed (6 Chinese-language included studies are PubMed-unreachable).",
+  "original_screening_load": 2179,
+  "original_screening_load_source": "Liu et al. 2023 (PMC10540340): 2,179 papers retrieved across 6 databases for title/abstract screening (152 selected for full-text review).",
   "upstream_fixture": "evals/fixtures/education-health/Liu_2023_VR_nursing.json",
   "baseline": "get works where title-abstract has (\"nursing students\" OR \"nursing student\" OR \"student nurses\" OR \"nursing education\" OR \"nurse education\" OR \"education, nursing\" OR \"baccalaureate nursing\" OR \"undergraduate nursing\" OR \"nursing curriculum\" OR \"nurse training\") and title-abstract has (\"virtual reality\" OR VR OR \"virtual simulation\" OR \"virtual patient\" OR \"virtual patients\" OR \"immersive virtual\" OR \"immersive technology\" OR \"head-mounted display\" OR \"augmented reality\" OR \"mixed reality\" OR \"computer simulation\" OR \"serious games\")",
   "seeds": [],

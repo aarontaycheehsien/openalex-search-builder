@@ -6,6 +6,8 @@
   "to_date": "2019-02-22",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Kwok_2020 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: biomedical (veterinary virology).",
+  "original_screening_load": 2481,
+  "original_screening_load_source": "SYNERGY dataset index.csv Kwok_2020 (asreview/synergy-dataset @ 7efde4a): 2,481 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Kwok_2020.json",
   "baseline": null,
   "seeds": [

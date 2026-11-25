@@ -11,6 +11,8 @@
   "to_date_source": "Review search rerun date (November 2020).",
   "review": "https://doi.org/10.1371/journal.pone.0253129",
   "source": "Langham-Putrow A, Bakker C, Riegelman A (2021). Is the open access citation advantage real? A systematic review of the citation of open access and subscription-based articles. PLOS ONE 16(6): e0253129. Included studies are references [11, 25-157] (n=134); 93 have DOI/PMID in PMC8221498 XML and 23 additional studies were matched by strict title+author+year to OpenAlex Work IDs (18 unmatched conference/thesis/working-paper entries have empty ids).",
+  "original_screening_load": 4019,
+  "original_screening_load_source": "Langham-Putrow et al. 2021 (PMC8221498) PRISMA: 4,019 deduplicated records screened (5,744 identified: 5,697 database + 47 handsearching).",
   "baseline": "get works with (\"open access\" AND citation) in the title or abstract",
   "seeds": [],
   "gold": [

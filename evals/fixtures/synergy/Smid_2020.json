@@ -13,6 +13,8 @@
   "to_date": "2017-11-29",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset (asreview/synergy-dataset) Smid_2020; social-science methodology review 'Bayesian Versus Frequentist Estimation for Structural Equation Models in Small Sample Contexts' (Struct Equ Modeling 2020, doi:10.1080/10705511.2019.1577140); gold = label_included==1 rows with DOI, resolved via [AID]",
+  "original_screening_load": 3523,
+  "original_screening_load_source": "SYNERGY dataset Smid_2019_ids.csv (asreview/synergy-dataset @ 7efde4a): 3,523 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Smid_2020.json",
   "baseline": "get works where title-abstract has (\"structural equation modeling\" OR \"structural equation model\" OR SEM OR \"latent variable model\" OR \"latent variable\" OR \"latent class\" OR \"latent growth\" OR \"confirmatory factor analysis\" OR \"factor analysis\" OR \"mediation analysis\" OR \"mediated effect\" OR \"indirect effect\" OR \"multilevel model\" OR \"growth mixture model\" OR \"mixture model\") and title-abstract has (\"Bayesian estimation\" OR Bayesian OR Bayes OR \"prior distribution\" OR \"informative prior\" OR MCMC OR \"Markov chain Monte Carlo\" OR \"Gibbs sampling\" OR \"posterior distribution\")",
   "seeds": [

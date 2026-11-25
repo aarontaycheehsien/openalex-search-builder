@@ -11,6 +11,8 @@
   "to_date": "2013-01-30",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "CLEF TAR 2018 Task 2 (Testing), content-level qrels — finally-included studies of Cochrane review CD010657.",
+  "original_screening_load": 1859,
+  "original_screening_load_source": "CLEF TAR 2018 Task 2 Testing topic CD010657 / full.test.abs.2018.qrels (CLEF-TAR/tar): 1,859 MEDLINE PMIDs retrieved by the Cochrane review's MEDLINE Boolean query.",
   "upstream_fixture": "evals/fixtures/clef-tar-2018/CD010657.json",
   "baseline": "get works where title-abstract has (\"vesicoureteral reflux\" OR VUR) and title-abstract has (DMSA OR \"dimercaptosuccinic acid\" OR \"renal ultrasound\" OR ultrasonography)",
   "seeds": [

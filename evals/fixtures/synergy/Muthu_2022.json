@@ -12,6 +12,8 @@
   "to_date": "2020-05-15",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Muthu_2022; 'Is cellular therapy beneficial in management of rotator cuff tears?' (World J Meta-Anal 2022, doi:10.13105/wjma.v10.i3.162); gold = label_included==1 rows with DOI via [AID]",
+  "original_screening_load": 2968,
+  "original_screening_load_source": "SYNERGY dataset Muthu_2020_ids.csv (asreview/synergy-dataset @ 7efde4a): 2,968 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Muthu_2022.json",
   "baseline": "get works where title-abstract has (\"rotator cuff\" OR \"rotator-cuff\" OR \"rotator cuff tear\" OR \"rotator cuff repair\" OR supraspinatus OR \"rotator cuff injury\") and title-abstract has (\"stem cells\" OR \"mesenchymal stem cells\" OR mesenchymal OR MSC OR \"bone marrow\" OR \"bone marrow aspirate\" OR \"bone marrow aspirate concentrate\" OR \"cellular therapy\" OR \"cell therapy\" OR \"platelet-rich plasma\" OR PRP OR \"adipose-derived\" OR \"tendon-derived\" OR \"biologic augmentation\")",
   "seeds": [],

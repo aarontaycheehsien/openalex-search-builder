@@ -6,6 +6,8 @@
   "to_date": "2020-11-22",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Welling_2021 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: public health / social.",
+  "original_screening_load": 4126,
+  "original_screening_load_source": "SYNERGY dataset Welling_2021_ids.csv (asreview/synergy-dataset @ 746601e): 4,126 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Welling_2021.json",
   "baseline": null,
   "seeds": [

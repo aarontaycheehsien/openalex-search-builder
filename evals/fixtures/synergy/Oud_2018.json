@@ -6,6 +6,8 @@
   "to_date": "2015-03-27",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Oud_2018 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: psychology / psychiatry.",
+  "original_screening_load": 1052,
+  "original_screening_load_source": "SYNERGY dataset Oud_2018_ids.csv (asreview/synergy-dataset @ 7efde4a): 1,052 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Oud_2018.json",
   "baseline": null,
   "seeds": [

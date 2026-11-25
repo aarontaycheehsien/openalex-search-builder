@@ -11,6 +11,8 @@
   "to_date": "2019-12-30",
   "to_date_source": "Day after latest Entrez date among included PubMed records (lower bound; review search cutoff not independently confirmed).",
   "source": "Rapo et al. 2023, Critical components of social prescribing programmes with a focus on older adults. PMID 37485982; PMCID PMC10478612. https://pmc.ncbi.nlm.nih.gov/articles/PMC10478612/",
+  "original_screening_load": 578,
+  "original_screening_load_source": "Rapo et al. 2023 (PMC10478612) PRISMA: 578 deduplicated records screened (1,193 identified minus 267 automatic and 348 manual duplicates).",
   "upstream_fixture": "evals/fixtures/frozen/social-prescribing-older-adults.json",
   "baseline": null,
   "seeds": [

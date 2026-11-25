@@ -9,6 +9,8 @@
   "to_date_source": "December 31 of the year preceding review publication (2020).",
   "review": "https://doi.org/10.1111/brv.12655",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Moran_2020/Moran_2020_ids.csv",
+  "original_screening_load": 5453,
+  "original_screening_load_source": "SYNERGY dataset Moran_2020_ids.csv (asreview/synergy-dataset @ 7efde4a): 5,453 deduplicated records in title/abstract screening pool.",
   "baseline": null,
   "seeds": [],
   "gold": [

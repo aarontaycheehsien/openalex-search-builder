@@ -9,6 +9,8 @@
   "to_date_source": "December 31 of the year preceding review publication (2021).",
   "review": "https://doi.org/10.1002/ecs2.3860",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Kapuka_2021/Kapuka_2021_ids.csv",
+  "original_screening_load": 467,
+  "original_screening_load_source": "SYNERGY dataset Kapuka_2021_ids.csv (asreview/synergy-dataset @ 7efde4a): 467 deduplicated records in title/abstract screening pool.",
   "baseline": null,
   "seeds": [],
   "gold": [

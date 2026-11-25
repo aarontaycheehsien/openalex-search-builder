@@ -11,6 +11,8 @@
   "to_date": "2003-10-12",
   "to_date_source": "Day after latest Entrez date among included SYNERGY records (lower bound).",
   "source": "Cohen et al. 2006 screening collection, Estrogens SYNERGY subset (80 included PubMed IDs): https://raw.githubusercontent.com/asreview/systematic-review-datasets/metadata-v1-final/datasets/Cohen_2006/output/online/Estrogens.csv; source paper DOI https://doi.org/10.1197/jamia.M1929",
+  "original_screening_load": 368,
+  "original_screening_load_source": "SYNERGY dataset index.csv Cohen_2006_Estrogens (asreview/synergy-dataset @ 7efde4a): 368 deduplicated records screened.",
   "upstream_fixture": "evals/fixtures/frozen/Cohen_2006_Estrogens.json",
   "baseline": null,
   "seeds": [

@@ -11,6 +11,8 @@
   "to_date": "2013-06-09",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "CLEF TAR 2018 Task 2 (Testing), content-level qrels — finally-included studies of Cochrane review CD011431.",
+  "original_screening_load": 4837,
+  "original_screening_load_source": "Cochrane review CD011431 (PMC4453861) PRISMA: 4,837 titles/abstracts identified and screened across all databases (1,182 MEDLINE-only PMIDs in CLEF TAR 2018 Task 2).",
   "upstream_fixture": "evals/fixtures/clef-tar-2018/CD011431.json",
   "baseline": "get works where title-abstract has (malaria OR Plasmodium) and title-abstract has (\"rapid diagnostic test\" OR \"rapid test\" OR RDT OR \"immunochromatographic test\")",
   "seeds": [

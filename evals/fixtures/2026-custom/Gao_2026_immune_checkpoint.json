@@ -9,6 +9,8 @@
   "to_date": "2025-01-31",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "custom fixture; gold from PMIDs (CLI)",
+  "original_screening_load": null,
+  "original_screening_load_source": "Not publicly available: Gao et al. 2026 Cochrane review CD015072.pub2/pub3 (PMC12892397/PMC13192319) is under PMC full-text embargo until 2027-02-11.",
   "upstream_fixture": "evals/fixtures/2026-custom/gao-2026-Immune checkpoint inhibitors.json",
   "baseline": "get works where title-abstract has (\"triple negative breast cancer\" OR TNBC) and title-abstract has (\"immune checkpoint inhibitor\" OR \"PD-1\" OR \"PD-L1\" OR pembrolizumab)",
   "seeds": [

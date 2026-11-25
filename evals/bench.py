@@ -128,6 +128,7 @@ def score(case, folder, api, report_dir=None, reference=False):
     log = run.root / "requests.jsonl"
     if report_dir and log.exists():
         costs = [json.loads(s) for s in log.read_text().splitlines() if s]
+    orig_load = case.get("original_screening_load")
     return {"case": case["id"], "suite": case.get("suite", "core"), "condition": intake["condition"],
             "mode": "delivered" if report_dir else ("reference" if reference else "baseline"),
             "at": now(), "oql": result["oql"], "cutoff": case["to_date"], "gold_rows": len(case["gold"]),
@@ -136,7 +137,9 @@ def score(case, folder, api, report_dir=None, reference=False):
             "tested": len(test), "hits": len(hits), "relative_recall": len(hits)/len(test) if test else None,
             "unseen_tested": len(unseen), "unseen_hits": len(hits & unseen),
             "unseen_recall": len(hits & unseen)/len(unseen) if unseen else None,
-            "screening_count": result["count"], "works_per_test_hit": result["count"]/len(hits) if hits else None,
+            "screening_count": result["count"], "original_screening_load": orig_load,
+            "workload_ratio": round(result["count"] / orig_load, 3) if orig_load else None,
+            "works_per_test_hit": result["count"]/len(hits) if hits else None,
             "build_usd_reported": round(sum(float(e.get("cost_usd") or 0) for e in costs), 6),
             "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced}
 
@@ -152,6 +155,7 @@ def list_cases(suite=None):
             "id": cid, "suite": s, "to_date": c["to_date"],
             "gold_rows": len(c["gold"]),
             "gold_with_ids": sum(bool(r["ids"]) for r in c["gold"]),
+            "original_screening_load": c.get("original_screening_load"),
             "explicit_seeds": len(c.get("seeds") or []),
             "has_baseline": bool(c.get("baseline")),
             "has_reference": bool(c.get("reference")),

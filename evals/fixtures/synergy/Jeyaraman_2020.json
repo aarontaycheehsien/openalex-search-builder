@@ -6,6 +6,8 @@
   "to_date": "2022-05-10",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Jeyaraman_2020 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: biomedical (orthopedics / regenerative medicine).",
+  "original_screening_load": 1175,
+  "original_screening_load_source": "SYNERGY v1.0 README (asreview/synergy-dataset): 1,175 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Jeyaraman_2020.json",
   "baseline": null,
   "seeds": [

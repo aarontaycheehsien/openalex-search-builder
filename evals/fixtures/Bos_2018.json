@@ -5,6 +5,8 @@
   "to_date": "2017-12-31",
   "review": "https://doi.org/10.1016/j.jalz.2018.04.007",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Bos_2018/Bos_2018_ids.csv",
+  "original_screening_load": 5726,
+  "original_screening_load_source": "SYNERGY dataset Bos_2018_ids.csv (asreview/synergy-dataset @ 7efde4a): 5,726 deduplicated records in title/abstract screening pool.",
   "baseline": "get works with (\"small vessel disease\" AND dementia) in the title or abstract",
   "gold": [
     {

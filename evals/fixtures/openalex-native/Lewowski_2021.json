@@ -9,6 +9,8 @@
   "to_date_source": "December 31 of the year preceding review publication (2021).",
   "review": "https://doi.org/10.1016/j.infsof.2021.106783",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Lewowski_2021/Lewowski_2021_ids.csv",
+  "original_screening_load": 1720,
+  "original_screening_load_source": "SYNERGY dataset Lewowski_2021_ids.csv (asreview/synergy-dataset @ 7efde4a): 1,720 deduplicated records in title/abstract screening pool.",
   "baseline": null,
   "seeds": [],
   "gold": [

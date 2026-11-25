@@ -11,6 +11,8 @@
   "to_date": "2018-08-01",
   "to_date_source": "Review search cutoff: July 2018; set to the first day after the reported month.",
   "source": "Aubry et al. 2019, The impact of Housing First on criminal justice outcomes. PMID 30612450; PMCID PMC6659163. https://pmc.ncbi.nlm.nih.gov/articles/PMC6659163/",
+  "original_screening_load": null,
+  "original_screening_load_source": "Not publicly available in PMC6659163 main text (Leclair et al. 2019, Canadian Journal of Psychiatry): PRISMA flow diagram is in online-only supplement CPA815902_onlinesupplement.pdf.",
   "upstream_fixture": "evals/fixtures/frozen/housing-first-criminal-justice.json",
   "baseline": null,
   "seeds": [

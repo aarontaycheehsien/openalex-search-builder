@@ -11,6 +11,8 @@
   "to_date": "2020-10-22",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Donners_2021; 'Pharmacokinetics and Associated Efficacy of Emicizumab in Humans' (Clin Pharmacokinet 2021, doi:10.1007/s40262-021-01042-w); gold = label_included==1 rows with DOI via [AID]",
+  "original_screening_load": 598,
+  "original_screening_load_source": "SYNERGY dataset Donners_2021_ids.csv (asreview/synergy-dataset @ 7efde4a): 598 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Donners_2021.json",
   "baseline": "get works where title-abstract has (emicizumab OR ACE910 OR \"ACE-910\" OR \"factor VIII-mimetic\" OR \"factor VIII mimetic\" OR \"FVIII-mimetic\" OR \"bispecific antibody\" OR Hemlibra)",
   "seeds": [

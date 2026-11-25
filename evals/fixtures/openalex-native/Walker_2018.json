@@ -9,6 +9,8 @@
   "to_date_source": "December 31 of the year preceding review publication (2018).",
   "review": "https://doi.org/10.1016/j.envint.2017.12.032",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Walker_2018/Walker_2018_ids.csv",
+  "original_screening_load": 48786,
+  "original_screening_load_source": "SYNERGY dataset Walker_2018_ids.csv (asreview/synergy-dataset @ 7efde4a): 48,786 deduplicated records in title/abstract screening pool.",
   "baseline": null,
   "seeds": [],
   "gold": [

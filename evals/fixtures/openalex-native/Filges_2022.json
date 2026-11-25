@@ -9,6 +9,8 @@
   "to_date_source": "December 31 of the year preceding review publication (2022).",
   "review": "https://doi.org/10.1002/cl2.1210",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Filges_2022/Filges_2022_ids.csv",
+  "original_screening_load": 6232,
+  "original_screening_load_source": "SYNERGY dataset Filges_2022_ids.csv (asreview/synergy-dataset @ 7efde4a): 6,232 deduplicated records in title/abstract screening pool.",
   "baseline": null,
   "seeds": [],
   "gold": [

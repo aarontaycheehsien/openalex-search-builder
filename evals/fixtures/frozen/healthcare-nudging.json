@@ -10,6 +10,8 @@
   "to_date": "2017-12-18",
   "to_date_source": "Day after latest Entrez date among exact-title PubMed matches (lower bound).",
   "source": "Nagtegaal et al. 2019, Nudging healthcare professionals towards evidence-based medicine: a systematic scoping review. https://doi.org/10.30636/jbpa.22.71; SYNERGY labels (CC0): https://raw.githubusercontent.com/asreview/systematic-review-datasets/metadata-v1-final/datasets/Nagtegaal_2019/output/Nagtegaal_2019.csv",
+  "original_screening_load": 2019,
+  "original_screening_load_source": "SYNERGY dataset index.csv Nagtegaal_2019 (asreview/synergy-dataset @ 7efde4a): 2,019 deduplicated records screened.",
   "upstream_fixture": "evals/fixtures/frozen/healthcare-nudging.json",
   "baseline": null,
   "seeds": [

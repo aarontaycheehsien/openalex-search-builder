@@ -11,6 +11,8 @@
   "to_date": "2021-12-18",
   "to_date_source": "Day after latest Entrez date among included PubMed records (lower bound; source review covered records published 2015-2021).",
   "source": "Fisker et al. 2024, Effects of work-directed interventions on return-to-work in people on sick-leave for common mental disorders. PMID 38710801; PMCID PMC11245426. https://pmc.ncbi.nlm.nih.gov/articles/PMC11245426/",
+  "original_screening_load": 14794,
+  "original_screening_load_source": "Fisker/Bramberg et al. 2024 (PMC11245426) PRISMA: 14,794 deduplicated records screened.",
   "upstream_fixture": "evals/fixtures/frozen/work-directed-return-to-work.json",
   "baseline": null,
   "seeds": [

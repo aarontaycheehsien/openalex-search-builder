@@ -11,6 +11,8 @@
   "to_date": "2014-08-09",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "CLEF TAR 2018 Task 2 (Testing), content-level qrels — finally-included studies of Cochrane review CD011926.",
+  "original_screening_load": 4050,
+  "original_screening_load_source": "CLEF TAR 2018 Task 2 Testing topic CD011926 / full.test.abs.2018.qrels (CLEF-TAR/tar): 4,050 MEDLINE PMIDs retrieved by the 2017 Cochrane review CD011926.pub2 MEDLINE Boolean query.",
   "upstream_fixture": "evals/fixtures/clef-tar-2018/CD011926.json",
   "baseline": "get works where title-abstract has (\"neonatal sepsis\" OR \"newborn sepsis\" OR \"neonatal bloodstream infection\" OR \"neonatal septicemia\") and title-abstract has (\"molecular assay\" OR \"nucleic acid amplification\" OR \"polymerase chain reaction\" OR PCR)",
   "seeds": [

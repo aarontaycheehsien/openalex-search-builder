@@ -9,6 +9,8 @@
   "to_date_source": "December 31 of the year preceding review publication (2019).",
   "review": "https://doi.org/10.1177/1362361319885215",
   "source": "https://raw.githubusercontent.com/asreview/synergy-dataset/7efde4a37bed9e8d71f19421b90eae3485184c4d/datasets/Ruggeri_2019/Ruggeri_2019_ids.csv",
+  "original_screening_load": 6573,
+  "original_screening_load_source": "SYNERGY dataset Ruggeri_2019_ids.csv (asreview/synergy-dataset @ 7efde4a): 6,573 deduplicated records in title/abstract screening pool.",
   "baseline": null,
   "seeds": [],
   "gold": [

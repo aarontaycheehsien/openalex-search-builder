@@ -11,6 +11,8 @@
   "to_date": "2017-12-14",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "custom fixture; gold from a local DOI list; 9/10 resolved via [AID]",
+  "original_screening_load": 4286,
+  "original_screening_load_source": "Medeiros et al. 2022 (PMC9518323) PRISMA: 4,286 deduplicated titles/abstracts screened (5,024 retrieved minus 738 duplicates).",
   "upstream_fixture": "evals/fixtures/2022-custom/Medeiros-2022-School-based food and nutrition education interventions for adolescent food consumption.json",
   "baseline": "get works where title-abstract has (\"nutrition education\" OR \"food education\" OR \"dietary education\") and title-abstract has (school OR \"school-based\")",
   "seeds": [

@@ -6,6 +6,8 @@
   "to_date": "2018-11-17",
   "to_date_source": "day after the latest Entrez date among gold records (a lower bound on the review's search date)",
   "source": "SYNERGY dataset Brouwer_2019 (asreview/synergy-dataset); gold = included records with DOIs from the source systematic review. Discipline: psychology.",
+  "original_screening_load": 45918,
+  "original_screening_load_source": "SYNERGY dataset Brouwer_2019_ids.csv (asreview/synergy-dataset @ 7efde4a): 45,918 deduplicated records in title/abstract screening pool.",
   "upstream_fixture": "evals/fixtures/synergy/Brouwer_2019.json",
   "baseline": null,
   "seeds": [
