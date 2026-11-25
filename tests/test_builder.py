@@ -15,7 +15,7 @@ import bench
 from oasb import cli
 from oasb.api import API, Error, check_translation, identifier, leaves, normalize_query, normalize_warnings, tokens
 from oasb.store import Run, write
-from oasb.strategy import check
+from oasb.strategy import check, lint
 import re
 from oasb.export import export
 from oasb.strategy import core, excluded, expected_tokens, final_query, parse_combine, failing, rescue_expectation, rescue_oql
@@ -619,6 +619,30 @@ class WorkspaceTests(unittest.TestCase):
                                                r"cited-by direction completed.*--direction cited-by.*does not shorten it.*neighbors"):
                 self.call("rescue", "--direction", "both")
 
+    def test_term_counts_flag_stemming_and_hyphen_phrases(self):
+        self.run.put("strategy", {"blocks": [
+            {"id": "diet", "role": "search", "field": "title", "terms": ["fasting", "ration"], "rationale": "r"},
+            {"id": "beh", "role": "search", "field": "title", "terms": ['"open-field"', '"COVID-19"', 'stemmed "risk-prone"'], "rationale": "r"},
+            {"id": "notes", "role": "screen", "terms": [], "rationale": "r"}], "limits": {"to_date": "2020-12-31"}})
+        live = {'fasting': 471555, '"fasting"': 33935, 'ration': 16830, '"ration"': 9400, '"open-field"': 10487,
+                '"open field"': 4872, '"COVID-19"': 968014, '"COVID 19"': 967735, 'stemmed "risk-prone"': 158}
+        queries = []
+        def fake_run(q, size=1, fields="id", include_pulled=None):
+            term = re.search(r"title has \((.*)\) and publication_date", q)[1]
+            queries.append(q)
+            return {"oqo": self.api.validate(q)["oqo"], "oql": q, "rows": [], "count": live[term]}
+        with patch.object(self.api, "run", side_effect=fake_run):
+            out = self.call("term-counts")
+            self.assertEqual(len(queries), len(live))            # one count per distinct query
+            self.assertTrue(all("publication_date <= 2020-12-31" in q for q in queries))   # limits kept
+            self.assertEqual([(f["term"], f["flag"]) for f in out["flagged"]],
+                             [("fasting", "stemming_expands"), ('"open-field"', "hyphen_not_phrase")])
+            self.assertEqual(out["terms"][2]["phrase_count"], 4872)
+            self.assertEqual(len(self.call("term-counts", "--block", "beh")["terms"]), 3)
+            with self.assertRaisesRegex(Error, "No block with terms"):
+                self.call("term-counts", "--block", "notes")
+        self.assertTrue(list((self.run.root / "term-counts").glob("*.json")))
+
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
         real_run = self.api.run
@@ -749,6 +773,13 @@ class StrategyTests(unittest.TestCase):
                 {"column_id": "has_abstract", "value": False}, {"column_id": "primary_topic.id", "value": "T10102"}]
         check_translation({"filter_rows": live}, "core", 4, expected_tokens([], lim))
         self.assertEqual(tokens("Café-Society"), ["cafe", "society"])
+
+    def test_lint_warns_hyphenated_phrases(self):
+        s = {"blocks": [self.block(['"open-field"', 'open-field', 'stemmed "risk-prone"', '"open-field test"', '"COVID-19"'])]}
+        codes = [(w["code"], w["term"]) for w in lint(s)["warnings"] if w["code"] in ("hyphenated_phrase", "unquoted_hyphen")]
+        self.assertEqual(codes, [("hyphenated_phrase", '"open-field"'), ("unquoted_hyphen", "open-field"),
+                                 ("hyphenated_phrase", '"COVID-19"')])
+        self.assertIn('Write "open field" for the phrase', lint(s)["warnings"][0]["message"])
 
     def test_wilson_interval(self):
         self.assertEqual(wilson(3, 3), [0.4385, 1.0])

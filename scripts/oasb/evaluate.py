@@ -7,7 +7,8 @@ from pathlib import Path
 from .api import PULLED_VIEWS, Error, check_translation, normalize_query, normalize_warnings, now
 from .records import PROTECTED, exposed_holdouts, exposure, interval_text, summary
 from .store import digest, write
-from .strategy import check, core, excluded, expected_leaves, expected_tokens, failing, oql, parse_combine, pulled_view
+from .strategy import (BARE_WORD, HYPHEN_PHRASE, check, core, excluded, expected_leaves, expected_tokens, failing, oql,
+                       parse_combine, pulled_view, spaced_phrase, term_text)
 
 
 def evaluate(run, api, abstract_stats=False):
@@ -107,6 +108,65 @@ def evaluate(run, api, abstract_stats=False):
     out["usage"] = {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6),
                     "responses_without_cost_header": api.unpriced}
     return out
+
+
+STEM_RATIO, STEM_MIN = 3, 100        # stemmed count at least 3x the exact word and 100 more works
+PHRASE_RATIO, PHRASE_MIN = 1.5, 50   # quoted hyphenated term at least 1.5x its phrase and 50 more works
+
+
+def term_counts(run, api, block_id=None):
+    """Per-term counts that expose stemming collisions and hyphenated terms that are not phrases.
+
+    For a bare word, compares the stemmed count with the exact word: "fasting" stems to "fast"
+    (2026-11-25: 471,555 titles stemmed vs 33,935 exact). For a quoted hyphenated term, compares
+    it with its spaced phrase: "open-field" runs as open AND field (10,487 vs 4,872)."""
+    strategy = run.get("strategy")
+    check(strategy)
+    corpus, limits = strategy.get("corpus", "core"), strategy.get("limits", {})
+    api.include_pulled = PULLED_VIEWS[pulled_view(strategy)]
+    blocks = [b for b in strategy["blocks"] if b["role"] != "screen" and b.get("terms")]
+    if block_id is not None:
+        blocks = [b for b in blocks if b["id"] == block_id]
+        if not blocks:
+            raise Error(f"No block with terms has the ID {block_id!r}.")
+    cache = {}
+
+    def count(block, term):
+        probe = {"id": "term", "role": "search", "field": block.get("field", "title-abstract"), "terms": [term], "rationale": ""}
+        query = oql([probe], limits, corpus)
+        if query not in cache:
+            parsed = api.validate(query)
+            check_translation(parsed["oqo"], corpus, expected_leaves([probe], limits), expected_tokens([probe], limits))
+            cache[query] = api.run(parsed["oql"])["count"]
+        return cache[query]
+
+    rows, flags = [], []
+    for b in blocks:
+        for t in b["terms"]:
+            row = {"block": b["id"], "term": term_text(t), "count": count(b, t)}
+            if isinstance(t, str) and BARE_WORD.fullmatch(t):
+                exact = count(b, f'"{t}"')
+                row["exact_count"] = exact
+                if row["count"] >= STEM_RATIO * max(exact, 1) and row["count"] - exact >= STEM_MIN:
+                    row["flag"] = "stemming_expands"
+                    row["message"] = (f"Stemmed {t} matches {row['count']:,} works but the exact word only {exact:,}: its stem "
+                                      f"also matches other words. Consider \"{t}\" or listing the variants you want.")
+            elif isinstance(t, str) and HYPHEN_PHRASE.fullmatch(t):
+                phrase = count(b, spaced_phrase(t))
+                row["phrase_count"] = phrase
+                if row["count"] >= PHRASE_RATIO * max(phrase, 1) and row["count"] - phrase >= PHRASE_MIN:
+                    row["flag"] = "hyphen_not_phrase"
+                    row["message"] = (f"{t} matches {row['count']:,} works as an AND of its parts; the phrase "
+                                      f"{spaced_phrase(t)} matches {phrase:,} and also covers the hyphenated spelling.")
+            rows.append(row)
+            if "flag" in row:
+                flags.append(row)
+    data = {"at": now(), "corpus": corpus, "limits": limits, "pulled": pulled_view(strategy), "terms": rows,
+            "flagged": flags, "requests": len(cache),
+            "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)},
+            "note": "Each count is the term alone in its block's field, with the strategy's corpus and limits."}
+    uid = run.snapshot("term-counts", data)
+    return dict(data, snapshot=uid)
 
 
 def evidence(result):

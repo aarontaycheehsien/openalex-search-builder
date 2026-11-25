@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from .api import API, Error, check_translation, now
-from .evaluate import evaluate, report, review, save_eval
+from .evaluate import evaluate, report, review, save_eval, term_counts
 from .export import estimate, export
 from .records import DEVELOPMENT, ROLES, add, discover, exposed_holdouts, mining
 from .rescue import rescue
@@ -32,6 +32,9 @@ def parser():
     c.add_argument("key")
     c.add_argument("--reason", required=True)
     cmds.add_parser("terms")
+    c = cmds.add_parser("term-counts", help="Count each term alone to expose stemming collisions and hyphenated "
+                                            "terms that are not phrases (about 10 credits per count).")
+    c.add_argument("--block", help="Only this block's terms.")
     cmds.add_parser("validate")
     c = cmds.add_parser("eval")
     c.add_argument("--abstract-stats", action="store_true",
@@ -196,7 +199,7 @@ def dispatch(run, api, a):
         result = api.validate(query)
         check_translation(result["oqo"], strategy.get("corpus", "core"), expected,
                           expected_tokens(core(strategy), strategy.get("limits", {}), excluded(strategy)))
-        return dict(result, submitted=query, leaves_checked=expected)
+        return dict(result, submitted=query, leaves_checked=expected, strategy_warnings=lint(strategy)["warnings"])
     if a.action == "eval":
         data = evaluate(run, api, abstract_stats=getattr(a, "abstract_stats", False))
         uid = save_eval(run, data)
@@ -211,7 +214,8 @@ def dispatch(run, api, a):
                "misses": {k: v for k, v in data["misses"].items() if k in dev},
                "miss_details": miss_details(records, data["misses"], dev),
                "change": {k: sorted(dev.intersection(v)) if isinstance(v, list) else v
-                          for k, v in data.get("change", {}).items()}, "usage": data["usage"]}
+                          for k, v in data.get("change", {}).items()}, "usage": data["usage"],
+               "strategy_warnings": lint(run.get("strategy"))["warnings"]}
         out["pulled"] = {"view": data["pulled"]["view"], "final_pulled_works": data["pulled"]["final_pulled_works"],
                          "development_pulled": sorted(dev.intersection(data["pulled"]["known_pulled"]))}
         if "abstract_stats" in data:
@@ -249,6 +253,8 @@ def dispatch(run, api, a):
         return {"role": "relevant", "key": a.key}
     if a.action == "terms":
         return mining(records)
+    if a.action == "term-counts":
+        return term_counts(run, api, a.block)
     if a.action == "vocab":
         return api.vocabulary(a.entity, a.query, a.size)
     if a.action == "sample":

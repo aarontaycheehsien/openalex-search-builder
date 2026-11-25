@@ -328,6 +328,16 @@ def final_query(strategy):
             expected_leaves(blocks, limits, ex))
 
 
+# A whole term that is one quoted hyphenated token, such as "open-field" (not stemmed "...").
+HYPHEN_PHRASE = re.compile(r'"[^"\s-]+(?:-[^"\s-]+)+"')
+BARE_WORD = re.compile(r"[^\W_][\w']*", re.UNICODE)
+
+
+def spaced_phrase(term):
+    """The phrase form of a hyphenated term: "open-field" or open-field -> "open field"."""
+    return '"' + term.strip('"').replace("-", " ") + '"'
+
+
 def lint(strategy):
     """Offline syntax check, local OQL compilation, and heuristic warnings. No API calls."""
     check(strategy)
@@ -356,7 +366,14 @@ def lint(strategy):
             if isinstance(t, str):
                 if "-" in t and not t.startswith(('"', 'stemmed "')):
                     warnings.append({"code": "unquoted_hyphen", "block": bid, "term": t,
-                                     "message": f"Unquoted hyphenated term {t!r} in {bid!r} can split/stem broadly in OpenAlex; consider quoting it."})
+                                     "message": f"Unquoted hyphenated term {t!r} in {bid!r} runs as a stemmed AND of its parts "
+                                                f"anywhere in the field, not as a phrase. Write {spaced_phrase(t)} for the phrase."})
+                if HYPHEN_PHRASE.fullmatch(t):
+                    warnings.append({"code": "hyphenated_phrase", "block": bid, "term": t,
+                                     "message": f"Quoted hyphenated term {t} in {bid!r} runs as an AND of its parts anywhere in "
+                                                f"the field, not as a phrase (2026-11-25: \"open-field\" matched 10,487 titles, "
+                                                f"the phrase \"open field\" 4,872). Write {spaced_phrase(t)} for the phrase; it "
+                                                "also matches the hyphenated spelling. Check with term-counts."})
                 if "*" in t and re.search(r'(?:^|[\s"])[^\s"*]{0,2}\*', t):
                     warnings.append({"code": "short_wildcard", "block": bid, "term": t,
                                      "message": f"Wildcard {t!r} in {bid!r} has fewer than 3 leading characters; OpenAlex will reject it."})
