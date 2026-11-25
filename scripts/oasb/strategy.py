@@ -2,7 +2,7 @@
 import re
 from datetime import date
 
-from .api import Error
+from .api import Error, tokens
 
 FIELDS = {"title", "abstract", "title-abstract", "title-abstract-keywords", "fulltext"}
 # OQL field names after `where`. "fulltext" searches title, abstract and full text.
@@ -276,6 +276,34 @@ def expected_leaves(blocks, limits=None, excludes=()):
     return sum(block_leaves(b) for b in [*blocks, *excludes]) + limit_leaves(limits)
 
 
+def term_tokens(term):
+    if isinstance(term, dict):
+        return [t for w in term["near"] for t in tokens(w)]
+    return tokens(term[len("stemmed "):] if term.startswith("stemmed ") else term)
+
+
+def block_tokens(block):
+    out = [t for term in block.get("terms", []) for t in term_tokens(term)]
+    if "topics" in block:
+        out += [t for tid in topic_ids(block["topics"]) for t in tokens(tid)]
+    if "has_abstract" in block:
+        out += tokens(block["has_abstract"])
+    return out
+
+
+def limit_tokens(limits):
+    out = []
+    for key, v in (limits or {}).items():
+        values = topic_ids(v) if key == "topic" else v if isinstance(v, list) else [v]
+        out += [t for item in values for t in tokens(item)]
+    return out
+
+
+def expected_tokens(blocks, limits=None, excludes=()):
+    """Words each strategy term, topic and limit must leave in OpenAlex's query object."""
+    return [t for b in [*blocks, *excludes] for t in block_tokens(b)] + limit_tokens(limits)
+
+
 def core(strategy):
     return [b for b in strategy["blocks"] if b["role"] == "search"]
 
@@ -356,9 +384,9 @@ def rescue_oql(strategy, direction="both", topics=None):
         raise Error("Rescue direction must be cited-by, citing, or both.")
     blocks, ex, limits = core(strategy), excluded(strategy), strategy.get("limits", {})
     corpus = strategy.get("corpus", "core")
-    core_query = oql(blocks, limits, "core", ex, strategy.get("combine"))
-    core_where = core_query.partition(" where ")[2]
-    set_expr = f"(works where {core_where})"
+    # The nested set must be written as a full `get works <corpus> where` query: OpenAlex
+    # silently drops a corpus written as `(works (all corpora) where ...)`.
+    set_expr = "(" + oql(blocks, limits, corpus, ex, strategy.get("combine")) + ")"
     if direction == "cited-by":
         rel = f"it's cited by a work in the set {set_expr}"
     elif direction == "citing":
@@ -368,3 +396,15 @@ def rescue_oql(strategy, direction="both", topics=None):
     gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in blocks) + ")"
     clauses = ["it doesn't have an abstract", gate, rel, *limit_clauses(limits).values()]
     return "get works" + CORPORA[corpus] + " where " + " and ".join(clauses)
+
+
+def rescue_expectation(strategy, direction="both", topics=None):
+    """Leaf count and words the translated rescue query must keep (see check_translation)."""
+    blocks, ex, limits = core(strategy), excluded(strategy), strategy.get("limits", {})
+    sets = 2 if direction == "both" else 1
+    gate_leaves = len(topic_ids(topics)) if topics else sum(block_leaves(b) for b in blocks)
+    gate_tokens = [t for tid in topic_ids(topics) for t in tokens(tid)] if topics else \
+        [t for b in blocks for t in block_tokens(b)]
+    count = 1 + gate_leaves + sets * expected_leaves(blocks, limits, ex) + limit_leaves(limits)
+    words = tokens(False) + gate_tokens + sets * expected_tokens(blocks, limits, ex) + limit_tokens(limits)
+    return count, words

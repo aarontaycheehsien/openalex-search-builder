@@ -6,11 +6,11 @@ from pathlib import Path
 
 from .api import API, Error, check_translation, now
 from .evaluate import evaluate, report, review, save_eval
-from .export import export
-from .records import DEVELOPMENT, ROLES, add, discover, mining
+from .export import estimate, export
+from .records import DEVELOPMENT, ROLES, add, discover, exposed_holdouts, mining
 from .rescue import rescue
 from .store import Run, digest, write
-from .strategy import check, final_query, lint
+from .strategy import check, core, excluded, expected_tokens, final_query, lint
 
 
 def parser():
@@ -59,6 +59,7 @@ def parser():
     c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
     c.add_argument("--max-pages", type=int, help="Stop after this many 100-record pages; rerun to resume.")
     c.add_argument("--rescue", action="store_true", help="Export the report's saved no-abstract rescue query instead of the primary Boolean query.")
+    c.add_argument("--estimate", action="store_true", help="Report pages and expected credits without downloading (free).")
     c = cmds.add_parser("rescue", help="Optional post-delivery citation-set rescue for works lacking abstracts in OpenAlex.")
     c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
     c.add_argument("--direction", choices=["both", "cited-by", "citing"], default="both",
@@ -192,7 +193,8 @@ def dispatch(run, api, a):
         check(strategy)
         query, expected = final_query(strategy)
         result = api.validate(query)
-        check_translation(result["oqo"], strategy.get("corpus", "core"), expected)
+        check_translation(result["oqo"], strategy.get("corpus", "core"), expected,
+                          expected_tokens(core(strategy), strategy.get("limits", {}), excluded(strategy)))
         return dict(result, submitted=query, leaves_checked=expected)
     if a.action == "eval":
         data = evaluate(run, api, abstract_stats=getattr(a, "abstract_stats", False))
@@ -211,12 +213,19 @@ def dispatch(run, api, a):
                           for k, v in data.get("change", {}).items()}, "usage": data["usage"]}
         if "abstract_stats" in data:
             out["abstract_stats"] = data["abstract_stats"]
+        if exposed := exposed_holdouts(run, records):
+            out["holdout_exposure"] = {
+                "exposed": len(exposed),
+                "note": "An earlier report showed these holdouts' retrieval. The next report will be labelled "
+                        "post-exposure and also score the unexposed holdouts separately."}
         return out
     if a.action == "review":
         return {"review": review(run, a.file)}
     if a.action == "report":
         return report(run, api)
     if a.action == "export":
+        if a.estimate:
+            return estimate(run, api, a.report, rescue=a.rescue)
         if a.max_pages is not None and a.max_pages < 1:
             raise Error("--max-pages must be at least 1.")
         return export(run, api, a.report, a.max_pages, rescue=a.rescue)

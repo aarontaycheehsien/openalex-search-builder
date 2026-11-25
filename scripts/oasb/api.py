@@ -3,6 +3,8 @@ import json
 import os
 import re
 import time
+import unicodedata
+from collections import Counter
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, unquote
@@ -126,7 +128,11 @@ class API:
         value = self.request("/query", body={key: query})
         if value.get("validation", {}).get("valid") is not True or not value.get("oql") or not value.get("oqo"):
             raise Error(f"OpenAlex did not validate the strategy: {value.get('validation')}")
-        return {k: value[k] for k in ("oql", "oqo", "validation")}
+        out = {k: value[k] for k in ("oql", "oqo", "validation")}
+        if isinstance(value.get("check"), dict):
+            # OpenAlex's own time and cost estimate for one execution of this query.
+            out["check"] = value["check"]
+        return out
 
     def run(self, query, size=1, fields="id"):
         key = "oql" if isinstance(query, str) else "oqo"
@@ -228,22 +234,84 @@ class API:
         }
 
 
+def subquery(node):
+    """The nested query of a citation-set filter such as cited_by, or None."""
+    value = node.get("value") if isinstance(node, dict) else None
+    return value if isinstance(value, dict) and "get_rows" in value else None
+
+
 def leaves(obj):
-    """Count condition leaves in an OQO filter tree (one per term, value or date bound)."""
+    """Count condition leaves in an OQO filter tree (one per term, value or date bound).
+
+    A citation-set filter counts the leaves of its nested query, so a term dropped inside
+    `it's cited by a work in the set (...)` is caught like one dropped at the top level."""
     if isinstance(obj, list):
         return sum(leaves(v) for v in obj)
     if not isinstance(obj, dict):
         return 0
     if "column_id" in obj:
-        return 1
+        nested = subquery(obj)
+        return leaves(nested.get("filter_rows", [])) if nested else 1
     return sum(leaves(v) for k, v in obj.items() if k in ("filter_rows", "filters"))
 
 
-def check_translation(oqo, corpus, expected):
-    """OpenAlex can drop an unrecognised clause without a validation error. Refuse that."""
-    if (oqo.get("corpus") or "core") != corpus:
-        raise Error(f"OpenAlex interpreted the corpus as {oqo.get('corpus') or 'core'}, not {corpus}.")
-    found = leaves(oqo.get("filter_rows", []))
-    if found != expected:
-        raise Error(f"OpenAlex kept {found} of {expected} search terms and limit values. "
+def leaf_values(obj):
+    """Every leaf value in an OQO filter tree, descending into nested citation sets."""
+    if isinstance(obj, list):
+        return [v for item in obj for v in leaf_values(item)]
+    if not isinstance(obj, dict):
+        return []
+    if "column_id" in obj:
+        nested = subquery(obj)
+        return leaf_values(nested.get("filter_rows", [])) if nested else [obj.get("value")]
+    return [v for k, item in obj.items() if k in ("filter_rows", "filters") for v in leaf_values(item)]
+
+
+def corpora(oqo, where="top-level query"):
+    """(location, corpus) for the query and every nested citation set."""
+    found = [(where, (oqo.get("corpus") or "core") if isinstance(oqo, dict) else "core")]
+
+    def visit(obj):
+        if isinstance(obj, list):
+            for v in obj:
+                visit(v)
+        elif isinstance(obj, dict):
+            if "column_id" in obj:
+                nested = subquery(obj)
+                if nested:
+                    found.extend(corpora(nested, f"nested set ({obj['column_id']})"))
+                return
+            for k in ("filter_rows", "filters"):
+                visit(obj.get(k))
+    visit(oqo.get("filter_rows", []) if isinstance(oqo, dict) else [])
+    return found
+
+
+def tokens(value):
+    """Case- and accent-insensitive word tokens, used to compare terms across OpenAlex's
+    rewrites (stemmed phrases lose the keyword, proximity becomes "a"~3~"b")."""
+    if isinstance(value, bool):
+        value = str(value).lower()
+    text = unicodedata.normalize("NFKD", str(value)).casefold()
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return re.findall(r"[^\W_]+", text)
+
+
+def check_translation(oqo, corpus, expected, terms=None):
+    """OpenAlex can drop an unrecognised clause, or a nested set's corpus, without a
+    validation error. Refuse that."""
+    for where, found in corpora(oqo):
+        if found != corpus:
+            raise Error(f"OpenAlex interpreted the corpus of the {where} as {found}, not {corpus}. "
+                        "Inspect the canonical OQL; the corpus qualifier was dropped.")
+    count = leaves(oqo.get("filter_rows", []))
+    if count != expected:
+        raise Error(f"OpenAlex kept {count} of {expected} search terms and limit values. "
                     "Inspect the canonical OQL; a clause was dropped or split.")
+    if terms is not None:
+        kept = Counter(t for v in leaf_values(oqo.get("filter_rows", [])) for t in tokens(v))
+        missing = Counter(terms) - kept
+        if missing:
+            raise Error("OpenAlex's query object lacks these words from the strategy: "
+                        + ", ".join(sorted(missing.elements())) + ". A term was dropped or replaced "
+                        "even though the number of conditions matches.")

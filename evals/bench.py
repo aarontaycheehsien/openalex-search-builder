@@ -11,6 +11,7 @@ FIXTURES_DIR = ROOT / "evals/fixtures"
 sys.path.insert(0, str(ROOT / "scripts"))
 from oasb.api import API, Error, identifier, normalize_query, now, work_id
 from oasb.store import Run, digest, write
+from oasb.records import wilson
 
 
 def fixture_index():
@@ -134,8 +135,10 @@ def score(case, folder, api, report_dir=None, reference=False):
             "distinct_resolved": len(known), "unresolved_source_rows": unresolved,
             "outside_date_bound": len(excluded), "resolved_seed_works_excluded": len(dated & seed_works),
             "tested": len(test), "hits": len(hits), "relative_recall": len(hits)/len(test) if test else None,
+            "relative_recall_ci95": wilson(len(hits), len(test)),
             "unseen_tested": len(unseen), "unseen_hits": len(hits & unseen),
             "unseen_recall": len(hits & unseen)/len(unseen) if unseen else None,
+            "unseen_recall_ci95": wilson(len(hits & unseen), len(unseen)),
             "screening_count": result["count"], "works_per_test_hit": result["count"]/len(hits) if hits else None,
             "build_usd_reported": round(sum(float(e.get("cost_usd") or 0) for e in costs), 6),
             "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced}

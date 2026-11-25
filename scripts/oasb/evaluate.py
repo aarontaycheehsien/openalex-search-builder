@@ -5,9 +5,9 @@ import tempfile
 from pathlib import Path
 
 from .api import Error, check_translation, normalize_query, normalize_warnings, now
-from .records import summary
+from .records import PROTECTED, exposed_holdouts, exposure, interval_text, summary
 from .store import digest, write
-from .strategy import check, core, excluded, expected_leaves, failing, oql, parse_combine
+from .strategy import check, core, excluded, expected_leaves, expected_tokens, failing, oql, parse_combine
 
 
 def evaluate(run, api, abstract_stats=False):
@@ -26,7 +26,7 @@ def evaluate(run, api, abstract_stats=False):
         query = oql(list(use), lims, corpus, list(ex), combine)
         if query not in cache:
             parsed = api.validate(query)
-            check_translation(parsed["oqo"], corpus, expected_leaves(use, lims, ex))
+            check_translation(parsed["oqo"], corpus, expected_leaves(use, lims, ex), expected_tokens(use, lims, ex))
             result = api.run(parsed["oql"])
             if normalize_query(result["oqo"]) != normalize_query(parsed["oqo"]):
                 raise Error("The executed query differs from the validated query object.")
@@ -160,11 +160,34 @@ def report(run, api):
             audit.append(f"| {name} | {row['without_abstract']} | {row['total']} | {row['pct_without_abstract']}% |")
         if st.get("attrition_note"):
             audit.extend(["", st["attrition_note"]])
-    audit.extend(["", "| Set | Eligible | Resolved | Retrieved |", "|---|---:|---:|---:|"])
+    audit.extend(["", "| Set | Eligible | Resolved | Retrieved | Relative recall (95% CI) |", "|---|---:|---:|---:|---|"])
     for role, s in fresh["sets"].items():
-        audit.append(f"| {role} | {s['eligible']} | {s['resolved']} | {s['retrieved']} |")
+        audit.append(f"| {role} | {s['eligible']} | {s['resolved']} | {s['retrieved']} | {interval_text(s)} |")
     audit += ["", "Coverage uses all eligible records. Relative recall uses resolved records within each set.",
-              "A set with zero resolved works supplies no recall estimate.", "", "## Missed works", ""]
+              "A set with zero resolved works supplies no recall estimate. Intervals are 95% Wilson score",
+              "intervals; with only a few known works they are wide, and they describe the known works only.",
+              ""]
+    records = run.get("records")
+    exposed = exposed_holdouts(run, records)
+    post = None
+    if exposed:
+        earlier = [e for e in exposure(run) if set(e["ids"]) & set(exposed)]
+        unexposed = summary({k: v for k, v in records.items() if k not in exposed}, set(query["hits"]))
+        post = {"exposed": exposed, "first_exposed_at": min(e["at"] for e in earlier),
+                "earlier_reports": sorted({e["report"] for e in earlier}),
+                "unexposed_sets": {role: unexposed[role] for role in PROTECTED}}
+        audit += ["## Holdout exposure", "",
+                  f"**Post-exposure delivery.** {len(exposed)} validation or benchmark work(s) had their retrieval "
+                  f"shown in earlier report(s) {', '.join(post['earlier_reports'])} (first at {post['first_exposed_at']}). "
+                  "Any revision since then may have been informed by those results, so their relative recall is no "
+                  "longer an independent estimate.", "",
+                  "| Set, excluding exposed works | Resolved | Retrieved | Relative recall (95% CI) |", "|---|---:|---:|---|"]
+        audit += [f"| {role} | {s['resolved']} | {s['retrieved']} | {interval_text(s)} |"
+                  for role, s in post["unexposed_sets"].items()]
+        audit += ["", "Exposed works: " + ", ".join(exposed), ""]
+    else:
+        audit += ["## Holdout exposure", "", "No validation or benchmark result had been shown in an earlier delivery.", ""]
+    audit += ["## Missed works", ""]
     audit += [f"- {wid} — {', '.join(reasons)}" for wid, reasons in fresh["misses"].items()] or ["No resolved known works missed."]
     audit += [f"- Unresolved ({role}) — {alias}" for role, s in fresh["sets"].items() for alias in s["unresolved"]]
     audit += ["", "## Search lines as executed", ""]
@@ -193,8 +216,14 @@ def report(run, api):
         write(stage / "validation.json", {"evaluation_id": uid, "review_id": review_id, "evaluation": fresh,
                                           "records": run.get("records"), "scope": scope, "review": critic,
                                           "history": history, "scope_approval": run.get("scope"),
-                                          "screening": run.get("screening") if (run.root / "screening.json").is_file() else {}})
+                                          "screening": run.get("screening") if (run.root / "screening.json").is_file() else {},
+                                          "post_exposure": post})
         if run.fingerprint() != fresh["input_hash"]:
             raise Error("Inputs changed before delivery.")
         os.replace(stage, dest)
-    return {"report": str(dest), "validated_at": fresh["at"], "count": query["count"]}
+    # This audit reveals holdout retrieval. Record it outside the input fingerprint, so the
+    # delivered evidence stays valid while later deliveries are labelled post-exposure.
+    shown = sorted(k for k, r in records.items() if r["role"] in PROTECTED and r["work"])
+    run.put("exposure", {"events": [*exposure(run), {"at": fresh["at"], "report": uid, "ids": shown}]})
+    return {"report": str(dest), "validated_at": fresh["at"], "count": query["count"],
+            "post_exposure": bool(post), "exposed_holdouts": exposed}

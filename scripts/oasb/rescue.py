@@ -1,9 +1,9 @@
 """Optional post-delivery citation-set rescue for works lacking abstracts in OpenAlex."""
-from .api import Error, normalize_query, now
+from .api import Error, check_translation, normalize_query, now
 from .export import delivered
 from .records import DEVELOPMENT
 from .store import write
-from .strategy import rescue_oql
+from .strategy import rescue_expectation, rescue_oql
 
 MAX_SET_WORKS = 450_000
 
@@ -31,8 +31,9 @@ def rescue(run, api, report_id=None, direction="both", topics=None):
     # Compile, validate, and execute the conditional no-abstract citation-set rescue query
     query = rescue_oql(strategy, direction=direction, topics=topics)
     parsed = api.validate(query)
-    if (parsed["oqo"].get("corpus") or "core") != strategy.get("corpus", "core"):
-        raise Error("OpenAlex changed the corpus when translating the rescue query.")
+    # Same guard as the primary search, applied inside the nested citation sets too.
+    check_translation(parsed["oqo"], strategy.get("corpus", "core"),
+                      *rescue_expectation(strategy, direction=direction, topics=topics))
     result = api.run(parsed["oql"])
     if normalize_query(result["oqo"]) != normalize_query(parsed["oqo"]):
         raise Error("The executed rescue query differs from the validated query object.")

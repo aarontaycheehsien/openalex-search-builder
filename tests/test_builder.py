@@ -13,12 +13,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "evals"))
 import bench
 from oasb import cli
-from oasb.api import API, Error, identifier, leaves, normalize_query, normalize_warnings
+from oasb.api import API, Error, check_translation, identifier, leaves, normalize_query, normalize_warnings, tokens
 from oasb.store import Run, write
 from oasb.strategy import check
 import re
 from oasb.export import export
-from oasb.strategy import final_query, parse_combine, failing, rescue_oql
+from oasb.strategy import core, excluded, expected_tokens, final_query, parse_combine, failing, rescue_expectation, rescue_oql
+from oasb.records import wilson
 
 TERMS = {"telemedicine": {"W1", "W2"}, "rural": {"W1", "W3"}, "hospital": {"W2"}}
 CLAUSE = re.compile(r'(not )?(?:full text|[\w-]+) has \(((?:[^()]|\([^()]*\))*)\)')
@@ -77,6 +78,23 @@ class Index:
             return key, None
         wid = "W1" if key.startswith(("doi:", "pmid:")) else key
         return key, {"id": wid, "display_name": "Rural healthcare " + wid}
+
+
+def search(value):
+    return {"column_id": "title_and_abstract.search", "value": value, "operator": "has"}
+
+
+def rescue_oqo(nested_corpus=None, terms=("telemedicine", "telehealth", "rural", "remote")):
+    """Rescue query object for examples/telehealth.json, shaped like OpenAlex's live translation."""
+    nested = {"get_rows": "works", "filter_rows": [
+        {"join": "or", "filters": [search(t) for t in terms[:2]]},
+        {"join": "or", "filters": [search(t) for t in terms[2:]]}]}
+    if nested_corpus:
+        nested["corpus"] = nested_corpus
+    return {"get_rows": "works", "corpus": "core", "filter_rows": [
+        {"column_id": "has_abstract", "value": False},
+        {"join": "or", "filters": [search(t) for t in ("telemedicine", "telehealth", "rural", "remote")]},
+        {"column_id": "cited_by", "operator": "in", "value": nested}]}
 
 
 class WorkspaceTests(unittest.TestCase):
@@ -380,8 +398,7 @@ class WorkspaceTests(unittest.TestCase):
         real_val = self.api.validate
         def fake_val(q):
             if "doesn't have an abstract" in q:
-                return {"oqo": {"get_rows": "works", "filter_rows": [{"column_id": "has_abstract", "value": False}], "corpus": "core"},
-                        "oql": q, "validation": {"valid": True, "warnings": []}}
+                return {"oqo": rescue_oqo(), "oql": q, "validation": {"valid": True, "warnings": []}}
             return real_val(q)
         def fake_run(q, size=1, fields="id"):
             if isinstance(q, dict):
@@ -414,6 +431,67 @@ class WorkspaceTests(unittest.TestCase):
         self.assertTrue(exp["rescue"])
         self.assertTrue(exp["directory"].endswith(report.name + "-rescue"))
         self.assertEqual(exp["unique_records"], 1)
+
+    def test_rescue_refuses_term_dropped_inside_nested_set(self):
+        self.deliver()
+        dropped = rescue_oqo(terms=("telemedicine", "telehealth", "rural"))   # 'remote' lost inside the set
+        real_val = self.api.validate
+        def fake_val(q):
+            if "doesn't have an abstract" in q:
+                return {"oqo": dropped, "oql": q, "validation": {"valid": True, "warnings": []}}
+            return real_val(q)
+        with patch.object(self.api, "validate", side_effect=fake_val):
+            with self.assertRaisesRegex(Error, "kept 8 of 9"):
+                self.call("rescue", "--direction", "cited-by")
+
+    def test_relative_recall_interval_in_eval_and_audit(self):
+        sets = self.call("eval")["sets"]
+        self.assertEqual(sets["seed"]["relative_recall"], 0.5)
+        self.assertEqual(sets["seed"]["relative_recall_ci95"], wilson(1, 2))
+        self.attach_critique()
+        audit = (Path(self.call("report")["report"]) / "audit.md").read_text()
+        self.assertIn("| seed | 2 | 2 | 1 | 50% (95% CI ", audit)
+        self.assertIn("| benchmark | 1 | 0 | 0 | no estimate |", audit)
+
+    def test_holdout_exposure_labels_later_reports(self):
+        first = self.deliver()
+        archive = json.loads((first / "validation.json").read_text())
+        self.assertIsNone(archive["post_exposure"])
+        self.assertIn("No validation or benchmark result had been shown", (first / "audit.md").read_text())
+        # Recording exposure must not invalidate the delivered evidence.
+        self.assertFalse(self.call("export", "--estimate")["translation_changed_since_report"])
+        self.assertEqual(self.run.fingerprint(), archive["evaluation"]["input_hash"])
+        self.assertEqual(self.call("eval")["holdout_exposure"]["exposed"], 1)
+        # A holdout registered after the first report stays unexposed.
+        self.api.resolve = lambda raw: (identifier(raw), {"id": "W4", "display_name": "Later holdout"})
+        self.call("resolve", "W4", "--role", "validation", "--source", "added later")
+        self.call("eval")
+        self.attach_critique()
+        second = self.call("report")
+        self.assertTrue(second["post_exposure"])
+        self.assertEqual(second["exposed_holdouts"], ["W3"])
+        archive = json.loads((Path(second["report"]) / "validation.json").read_text())
+        post = archive["post_exposure"]
+        self.assertEqual(post["earlier_reports"], [first.name])
+        self.assertEqual(post["unexposed_sets"]["validation"]["resolved"], 1)   # only W4
+        self.assertIn("**Post-exposure delivery.**", (Path(second["report"]) / "audit.md").read_text())
+        events = self.run.get("exposure")["events"]
+        self.assertEqual([e["ids"] for e in events], [["W3"], ["W3", "W4"]])
+
+    def test_export_estimate_is_free_and_tracks_progress(self):
+        report = self.deliver()
+        count = json.loads((report / "validation.json").read_text())["evaluation"]["final"]["count"]
+        est = self.call("export", "--estimate")
+        self.assertEqual((est["pages"], est["credits_per_page"]), (1, 10))   # text search: 10 credits a page
+        self.assertIn("documented price", est["basis"])
+        self.assertEqual(est["validated_count"], count)
+        self.assertFalse((self.run.root / "exports").exists())                # nothing downloaded
+        real_val = self.api.validate
+        with patch.object(self.api, "validate", side_effect=lambda q: dict(real_val(q), check={"cost": {"credits": 13}})):
+            est = self.call("export", "--estimate")
+        self.assertEqual((est["credits_per_page"], est["estimated_credits"], est["estimated_usd"]), (13, 13, 0.0013))
+        self.call("export")
+        self.assertEqual(self.call("export", "--estimate")["remaining_pages"], 0)
 
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
@@ -507,6 +585,49 @@ class StrategyTests(unittest.TestCase):
                          {"blocks": [self.block(["a1"]), self.block(["b1"], id="b")], "combine": "a and not b"}):
             with self.assertRaises(Error):
                 check(strategy)
+
+    def test_rescue_nested_set_keeps_corpus(self):
+        s = {"corpus": "all", "blocks": [self.block(["telemedicine"]), self.block(["rural"], id="b")]}
+        q = rescue_oql(s, direction="cited-by")
+        self.assertIn("it's cited by a work in the set (get works (all corpora) where", q)
+        self.assertEqual(rescue_expectation(s, "cited-by")[0], 1 + 2 + 2)
+        self.assertEqual(rescue_expectation(s, "both")[0], 1 + 2 + 4)
+        self.assertIn("(get works where", rescue_oql({**s, "corpus": "core"}, direction="cited-by"))
+
+    def test_translation_guard_descends_into_nested_sets(self):
+        s = json.loads((ROOT / "examples/telehealth.json").read_text())
+        count, words = rescue_expectation(s, "cited-by")
+        self.assertEqual(leaves(rescue_oqo()["filter_rows"]), count)
+        check_translation(rescue_oqo(), "core", count, words)
+        # OpenAlex silently drops `(works (all corpora) where ...)`; the guard must notice.
+        outer_all = dict(rescue_oqo(), corpus="all")
+        with self.assertRaisesRegex(Error, r"nested set \(cited_by\) as core, not all"):
+            check_translation(outer_all, "all", count, words)
+        check_translation(dict(rescue_oqo(nested_corpus="all"), corpus="all"), "all", count, words)
+
+    def test_translation_guard_catches_compensated_drop(self):
+        s = json.loads((ROOT / "examples/telehealth.json").read_text())
+        n, words = final_query(s)[1], expected_tokens(core(s), s.get("limits"), excluded(s))
+        swapped = {"get_rows": "works", "filter_rows": [search(t) for t in ("telemedicine", "remote", "rural", "remote")]}
+        with self.assertRaisesRegex(Error, "lacks these words from the strategy: telehealth"):
+            check_translation(swapped, "core", n, words)
+
+    def test_tokens_survive_openalex_rewrites(self):
+        # Live representations (2026-11-25) of a stemmed phrase, proximity and a hyphenated word.
+        b = self.block(['stemmed "remote care"', {"near": ["video", "consultation"], "within": 3},
+                        "Tele-health", "Telesalud"])
+        rows = [search('"remote care"'), search('"video"~3~"consultation"'), search("Tele-health"), search("telesalud")]
+        check_translation({"filter_rows": rows}, "core", 4, expected_tokens([b]))
+        lim = {"from_date": "2010-01-01", "language": ["en"], "has_abstract": False, "topic": ["T10102"]}
+        live = [{"column_id": "from_publication_date", "value": "2010-01-01"}, {"column_id": "language", "value": "en"},
+                {"column_id": "has_abstract", "value": False}, {"column_id": "primary_topic.id", "value": "T10102"}]
+        check_translation({"filter_rows": live}, "core", 4, expected_tokens([], lim))
+        self.assertEqual(tokens("Café-Society"), ["cafe", "society"])
+
+    def test_wilson_interval(self):
+        self.assertEqual(wilson(3, 3), [0.4385, 1.0])
+        self.assertEqual(wilson(0, 3), [0.0, 0.5615])
+        self.assertIsNone(wilson(0, 0))
 
     def test_leaf_counter(self):
         oqo = {"filter_rows": [{"join": "or", "filters": [{"column_id": "a"}, {"join": "and", "filters": [{"column_id": "b"}, {"column_id": "c"}]}]},

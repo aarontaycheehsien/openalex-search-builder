@@ -40,6 +40,7 @@ Edit the vocabulary and rerun `eval` to see gained or lost known works and the c
 | Attach a completed internal critique | `review critique.json` |
 | Revalidate and deliver | `report` |
 | Optional citation-set rescue for works lacking abstracts | `rescue` (optionally `--direction both\|cited-by\|citing`, `--topic T...`) |
+| Estimate export pages and credits without downloading (free) | `export --estimate` (optionally `--rescue`) |
 | Download every retrieved record (resumable) | `export` (optionally `--report ID`, `--max-pages N`, `--rescue`) |
 
 See [SKILL.md](SKILL.md) for the workflow, strategy schema and critique format. Search terms are grouped inside concept blocks. The CLI supports explicit publication-date, language and work-type limits. Broader OQL queries can be used for discovery pilots.
@@ -55,7 +56,7 @@ See [SKILL.md](SKILL.md) for the workflow, strategy schema and critique format. 
 - **Combine.** `"combine": "(delivery or apps) and setting"` replaces the default AND of search blocks with an AND/OR expression over them, which allows several entry routes for one concept. When combine is used, single-block ablation is reported as not assessed.
 - **Missing-abstract diagnostics & fallback filters.** Pass `--abstract-stats` to `eval` to measure `% without abstract` in `final` and each search block (carried into `audit.md` on `report`). Both `limits` (`has_abstract`, `topic`) and individual blocks (`has_abstract`, `topics`) support OpenAlex abstract-presence and topic filters, enabling conditional no-abstract fallback branches via `combine`.
 
-Every compiled query is checked after OpenAlex translates it. The run fails if the corpus differs or if the canonical query keeps fewer terms and limit values than the strategy defines. On 2026-11-24 the translator dropped `and is_xpac is false` without a validation error. This check catches that kind of loss.
+Every compiled query, including the rescue query, is checked after OpenAlex translates it. The run fails if the corpus of the query or of any nested citation set differs, if the canonical query keeps a different number of terms and limit values than the strategy defines, or if a word from a strategy term is missing from the query object (which catches a dropped term hidden by a split elsewhere). On 2026-11-24 the translator dropped `and is_xpac is false` without a validation error. On 2026-11-25 it accepted `(works (all corpora) where ...)` as a nested set but dropped the corpus, so rescue sets are now written as `(get works (all corpora) where ...)`. This check catches both kinds of loss.
 
 ## Outputs
 
@@ -63,7 +64,7 @@ Each delivery under `reports/<evaluation-id>/` includes the exact executable `fi
 
 `export` pages the delivered query object with OpenAlex cursors into `exports/<report-id>/`. It writes `results.csv`, `results.ris` (for Zotero, EndNote, Rayyan or Covidence) and `results.jsonl` (the full original records), plus `export-manifest.json`. Each page is checkpointed in `checkpoint.sqlite3` and records are deduplicated by work ID. If the API budget runs out or the run is interrupted, files are named `results.partial.*`; rerunning `export` resumes from the saved cursor. The manifest reports pages, unique records, the validated count, counts seen while paging, any discrepancy, and reported credit usage. Paging a changing index does not produce a historical snapshot. Spreadsheet-formula-like CSV cells are escaped. Original values stay in JSONL.
 
-Coverage is the number of distinct resolved eligible works divided by resolved works plus unresolved eligible entries. Relative recall is the fraction of resolved eligible works retrieved. Reviewers should reconcile citations that have several unresolved aliases. The development, validation and external benchmark sets are reported separately. Work IDs provide the deduplication unit. The workflow does not estimate total recall across unknown eligible works.
+Coverage is the number of distinct resolved eligible works divided by resolved works plus unresolved eligible entries. Relative recall is the fraction of resolved eligible works retrieved, reported with a 95% Wilson score interval: with three known works, 3 of 3 retrieved is compatible with a relative recall of about 44%. Reviewers should reconcile citations that have several unresolved aliases. A report's audit shows validation and benchmark retrieval, so each report records which holdouts it exposed in `exposure.json`. A later report is labelled post-exposure, lists the exposed holdouts, and scores holdouts added since then separately. The development, validation and external benchmark sets are reported separately. Work IDs provide the deduplication unit. The workflow does not estimate total recall across unknown eligible works.
 
 ## Verification
 
