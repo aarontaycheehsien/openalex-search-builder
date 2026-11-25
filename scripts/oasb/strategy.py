@@ -52,9 +52,33 @@ def term_text(term):
     return near_term(term) if isinstance(term, dict) else word_term(term)
 
 
+def topic_ids(values):
+    if not isinstance(values, list) or not values:
+        raise Error("topic/topics must be a nonempty list of OpenAlex Topic IDs like T10102.")
+    out = []
+    for t in values:
+        tid = re.sub(r"^https?://openalex\.org/", "", str(t).strip()).upper()
+        if not re.fullmatch(r"T[1-9][0-9]*", tid):
+            raise Error(f"Expected an OpenAlex Topic ID like T10102: {t!r}")
+        if tid not in out:
+            out.append(tid)
+    return out
+
+
+def topic_clause(values):
+    ids = topic_ids(values)
+    return f"topic is {ids[0]}" if len(ids) == 1 else "topic is (" + " or ".join(ids) + ")"
+
+
+def abstract_clause(value):
+    if type(value) is not bool:
+        raise Error("has_abstract must be true or false.")
+    return "it has an abstract" if value else "it doesn't have an abstract"
+
+
 def limit_clauses(limits):
-    if not isinstance(limits, dict) or set(limits) - {"from_date", "to_date", "language", "type"}:
-        raise Error("Supported limits: from_date, to_date, language, type.")
+    if not isinstance(limits, dict) or set(limits) - {"from_date", "to_date", "language", "type", "has_abstract", "topic"}:
+        raise Error("Supported limits: from_date, to_date, language, type, has_abstract, topic.")
     clauses = {}
     for key, op in [("from_date", ">="), ("to_date", "<=")]:
         if key in limits:
@@ -71,11 +95,23 @@ def limit_clauses(limits):
         ):
             raise Error(f"{key} must be a nonempty list of OpenAlex codes.")
         clauses[key] = f"{key} is (" + " or ".join(values) + ")"
+    if "has_abstract" in limits:
+        clauses["has_abstract"] = abstract_clause(limits["has_abstract"])
+    if "topic" in limits:
+        clauses["topic"] = topic_clause(limits["topic"])
     return clauses
 
 
 def limit_leaves(limits):
-    return sum(len(v) if isinstance(v, list) else 1 for v in (limits or {}).values())
+    total = 0
+    for key, v in (limits or {}).items():
+        if key == "topic":
+            total += len(topic_ids(v))
+        elif isinstance(v, list):
+            total += len(v)
+        else:
+            total += 1
+    return total
 
 
 # --- combine: a small AND/OR expression over search block IDs -------------------------
@@ -169,7 +205,7 @@ def check(strategy):
         raise Error("Define at least one search block in strategy.json.")
     ids = set()
     for block in blocks:
-        if not isinstance(block, dict) or set(block) - {"id", "role", "field", "terms", "rationale"}:
+        if not isinstance(block, dict) or set(block) - {"id", "role", "field", "terms", "rationale", "has_abstract", "topics"}:
             raise Error("Unknown block property.")
         name = block.get("id", "")
         if not re.fullmatch(r"[A-Za-z][\w-]*", name) or name in ids or name.lower() in {"and", "or", "not"}:
@@ -178,8 +214,16 @@ def check(strategy):
         if block.get("role") not in ROLES or block.get("field", "title-abstract") not in FIELDS:
             raise Error(f"Invalid field or role in {name}.")
         terms = block.get("terms", [])
-        if not isinstance(terms, list) or (block["role"] != "screen" and not terms):
-            raise Error(f"Define the vocabulary for {name}.")
+        if not isinstance(terms, list):
+            raise Error(f"terms must be a list in {name}.")
+        if "has_abstract" in block:
+            abstract_clause(block["has_abstract"])
+        if "topics" in block:
+            topic_ids(block["topics"])
+        if block["role"] == "exclude" and ("has_abstract" in block or "topics" in block):
+            raise Error(f"Exclude block {name} only supports text terms.")
+        if block["role"] != "screen" and not terms and "topics" not in block and "has_abstract" not in block:
+            raise Error(f"Define the vocabulary (or topics/has_abstract) for {name}.")
         for term in terms:
             term_text(term)
     if not any(b["role"] == "search" for b in blocks):
@@ -190,9 +234,18 @@ def check(strategy):
 
 
 def clause(block, negate=False):
-    terms = " OR ".join(term_text(t) for t in block["terms"])
-    field = block.get("field", "title-abstract")
-    return ("not " if negate else "") + f"{FIELD_OQL.get(field, field)} has ({terms})"
+    parts = []
+    if block.get("terms"):
+        terms = " OR ".join(term_text(t) for t in block["terms"])
+        field = block.get("field", "title-abstract")
+        parts.append(f"{FIELD_OQL.get(field, field)} has ({terms})")
+    if "topics" in block:
+        parts.append(topic_clause(block["topics"]))
+    if "has_abstract" in block:
+        parts.append(abstract_clause(block["has_abstract"]))
+    if negate:
+        return "not " + parts[0]
+    return parts[0] if len(parts) == 1 else "(" + " and ".join(parts) + ")"
 
 
 def render(tree, by_id):
@@ -213,8 +266,14 @@ def oql(blocks, limits=None, corpus="core", excludes=(), combine=None):
     return "get works" + CORPORA[corpus] + (" where " + " and ".join(clauses) if clauses else "")
 
 
+def block_leaves(block):
+    return (len(block.get("terms", []))
+            + (len(topic_ids(block["topics"])) if "topics" in block else 0)
+            + (1 if "has_abstract" in block else 0))
+
+
 def expected_leaves(blocks, limits=None, excludes=()):
-    return sum(len(b["terms"]) for b in [*blocks, *excludes]) + limit_leaves(limits)
+    return sum(block_leaves(b) for b in [*blocks, *excludes]) + limit_leaves(limits)
 
 
 def core(strategy):
@@ -250,7 +309,7 @@ def lint(strategy):
             continue
         block_oql[bid] = oql([b], corpus=corpus)
         seen_terms = set()
-        for t in b["terms"]:
+        for t in b.get("terms", []):
             rendered = term_text(t)
             norm = rendered.casefold()
             if norm in seen_terms:
@@ -295,14 +354,6 @@ def rescue_oql(strategy, direction="both", topics=None):
     check(strategy)
     if direction not in {"cited-by", "citing", "both"}:
         raise Error("Rescue direction must be cited-by, citing, or both.")
-    topic_ids = []
-    if topics:
-        for t in topics:
-            tid = re.sub(r"^https?://openalex\.org/", "", str(t).strip()).upper()
-            if not re.fullmatch(r"T[1-9][0-9]*", tid):
-                raise Error(f"Expected an OpenAlex Topic ID like T10102: {t!r}")
-            if tid not in topic_ids:
-                topic_ids.append(tid)
     blocks, ex, limits = core(strategy), excluded(strategy), strategy.get("limits", {})
     corpus = strategy.get("corpus", "core")
     core_query = oql(blocks, limits, "core", ex, strategy.get("combine"))
@@ -314,9 +365,6 @@ def rescue_oql(strategy, direction="both", topics=None):
         rel = f"it cites a work in the set {set_expr}"
     else:
         rel = f"(it's cited by a work in the set {set_expr} or it cites a work in the set {set_expr})"
-    if topic_ids:
-        gate = f"topic is {topic_ids[0]}" if len(topic_ids) == 1 else "topic is (" + " or ".join(topic_ids) + ")"
-    else:
-        gate = "(" + " or ".join(clause(b) for b in blocks) + ")"
+    gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in blocks) + ")"
     clauses = ["it doesn't have an abstract", gate, rel, *limit_clauses(limits).values()]
     return "get works" + CORPORA[corpus] + " where " + " and ".join(clauses)

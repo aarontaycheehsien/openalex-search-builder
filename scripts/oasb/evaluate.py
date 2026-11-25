@@ -10,7 +10,7 @@ from .store import digest, write
 from .strategy import check, core, excluded, expected_leaves, failing, oql, parse_combine
 
 
-def evaluate(run, api):
+def evaluate(run, api, abstract_stats=False):
     run.approved()
     strategy, records = run.get("strategy"), run.get("records")
     start_hash = run.fingerprint()
@@ -72,11 +72,31 @@ def evaluate(run, api):
         raise Error("A retrieved work failed a required clause in its own line. Repeat against the current index.")
     if start_hash != run.fingerprint():
         raise Error("Inputs changed during evaluation. Rerun with the current files.")
-    return {"at": now(), "input_hash": start_hash, "final": final, "lines": lines, "misses": missed,
-            "sets": summary(records, hits), "strategy": strategy, "corpus": corpus,
-            "ablation": "assessed" if tree is None else "not assessed for a custom combine expression",
-            "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6),
-                      "responses_without_cost_header": api.unpriced}}
+    out = {"at": now(), "input_hash": start_hash, "final": final, "lines": lines, "misses": missed,
+           "sets": summary(records, hits), "strategy": strategy, "corpus": corpus,
+           "ablation": "assessed" if tree is None else "not assessed for a custom combine expression"}
+    if abstract_stats:
+        def no_abs(line):
+            total = line["count"]
+            if not total:
+                return {"without_abstract": 0, "total": 0, "pct_without_abstract": 0.0}
+            oqo_na = dict(line["oqo"], filter_rows=[*line["oqo"].get("filter_rows", []),
+                                                    {"column_id": "has_abstract", "value": False}])
+            n = api.run(oqo_na)["count"]
+            return {"without_abstract": n, "total": total, "pct_without_abstract": round(100 * n / total, 1)}
+        stats = {"final": no_abs(final),
+                 "blocks": {k: no_abs(lines[k]) for k in lines if k.startswith("block/")}}
+        block_pcts = [v["pct_without_abstract"] for v in stats["blocks"].values() if v["total"]]
+        if block_pcts and stats["final"]["total"] and stats["final"]["pct_without_abstract"] < min(block_pcts):
+            stats["attrition_note"] = (
+                f"Final query has {stats['final']['pct_without_abstract']}% works without abstracts vs "
+                f"{min(block_pcts)}%-{max(block_pcts)}% in individual blocks; ANDing text blocks is "
+                "disproportionately dropping abstract-less records. Consider `rescue` or a no-abstract fallback branch."
+            )
+        out["abstract_stats"] = stats
+    out["usage"] = {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6),
+                    "responses_without_cost_header": api.unpriced}
+    return out
 
 
 def evidence(result):
@@ -115,7 +135,7 @@ def report(run, api):
     _, last = run.latest("evaluations")
     if critic["evidence"] != evidence(last) or last["input_hash"] != run.fingerprint():
         raise Error("The critique is stale. Evaluate and review the current strategy.")
-    fresh = evaluate(run, api)
+    fresh = evaluate(run, api, abstract_stats="abstract_stats" in last)
     uid = save_eval(run, fresh)
     if critic["evidence"] != evidence(fresh):
         raise Error("Live validation changed the retrieval evidence. Review the new evaluation.")
@@ -130,6 +150,16 @@ def report(run, api):
              "|---|---:|---:|", f"| Final | {query['count']} | {len(query['hits'])} |"]
     for name, line in fresh["lines"].items():
         audit.append(f"| {name} | {line['count']} | {len(line['hits'])} |")
+    if "abstract_stats" in fresh:
+        st = fresh["abstract_stats"]
+        audit.extend(["", "## Missing-abstract attrition", "",
+                      "| Line | Without abstract | Total | % without abstract |",
+                      "|---|---:|---:|---:|",
+                      f"| Final | {st['final']['without_abstract']} | {st['final']['total']} | {st['final']['pct_without_abstract']}% |"])
+        for name, row in st["blocks"].items():
+            audit.append(f"| {name} | {row['without_abstract']} | {row['total']} | {row['pct_without_abstract']}% |")
+        if st.get("attrition_note"):
+            audit.extend(["", st["attrition_note"]])
     audit.extend(["", "| Set | Eligible | Resolved | Retrieved |", "|---|---:|---:|---:|"])
     for role, s in fresh["sets"].items():
         audit.append(f"| {role} | {s['eligible']} | {s['resolved']} | {s['retrieved']} |")

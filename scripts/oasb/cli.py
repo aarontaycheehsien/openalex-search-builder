@@ -33,7 +33,9 @@ def parser():
     c.add_argument("--reason", required=True)
     cmds.add_parser("terms")
     cmds.add_parser("validate")
-    cmds.add_parser("eval")
+    c = cmds.add_parser("eval")
+    c.add_argument("--abstract-stats", action="store_true",
+                   help="Also measure missing-abstract counts for final and each search block (1 extra API call per line).")
     c = cmds.add_parser("review")
     c.add_argument("file", type=Path, help="JSON critique, see SKILL.md")
     cmds.add_parser("report")
@@ -193,20 +195,23 @@ def dispatch(run, api, a):
         check_translation(result["oqo"], strategy.get("corpus", "core"), expected)
         return dict(result, submitted=query, leaves_checked=expected)
     if a.action == "eval":
-        data = evaluate(run, api)
+        data = evaluate(run, api, abstract_stats=getattr(a, "abstract_stats", False))
         uid = save_eval(run, data)
         records = run.get("records")
         dev = {k for k, v in records.items() if v["role"] in DEVELOPMENT}
-        return {"evaluation": uid, "oql": data["final"]["oql"], "count": data["final"]["count"],
-                "corpus": data["corpus"], "ablation": data["ablation"],
-                "warnings": data["final"]["warnings"],
-                "lines": {k: {"count": v["count"], "development_hits": sorted(dev.intersection(v["hits"])),
-                              "warnings": v["warnings"]} for k, v in data["lines"].items()},
-                "sets": {k: data["sets"][k] for k in sorted(DEVELOPMENT)},
-                "misses": {k: v for k, v in data["misses"].items() if k in dev},
-                "miss_details": miss_details(records, data["misses"], dev),
-                "change": {k: sorted(dev.intersection(v)) if isinstance(v, list) else v
-                           for k, v in data.get("change", {}).items()}, "usage": data["usage"]}
+        out = {"evaluation": uid, "oql": data["final"]["oql"], "count": data["final"]["count"],
+               "corpus": data["corpus"], "ablation": data["ablation"],
+               "warnings": data["final"]["warnings"],
+               "lines": {k: {"count": v["count"], "development_hits": sorted(dev.intersection(v["hits"])),
+                             "warnings": v["warnings"]} for k, v in data["lines"].items()},
+               "sets": {k: data["sets"][k] for k in sorted(DEVELOPMENT)},
+               "misses": {k: v for k, v in data["misses"].items() if k in dev},
+               "miss_details": miss_details(records, data["misses"], dev),
+               "change": {k: sorted(dev.intersection(v)) if isinstance(v, list) else v
+                          for k, v in data.get("change", {}).items()}, "usage": data["usage"]}
+        if "abstract_stats" in data:
+            out["abstract_stats"] = data["abstract_stats"]
+        return out
     if a.action == "review":
         return {"review": review(run, a.file)}
     if a.action == "report":

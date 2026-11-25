@@ -53,6 +53,7 @@ See [SKILL.md](SKILL.md) for the workflow, strategy schema and critique format. 
 - **Proximity.** `{"near": ["video", "consultation"], "within": 3}` compiles to OpenAlex's native `(video and consultation within 3 words of each other)`, with stemming and in any order. Add `"exact": true` for phrases or wildcards. The `"a b"~N` slop form is refused.
 - **Exclusions.** Blocks with `"role": "exclude"` are ANDed as `not field has (...)`. `eval` reports which known works each exclusion removes (`exclude/ID`) and what dropping it would recover (`without/ID`).
 - **Combine.** `"combine": "(delivery or apps) and setting"` replaces the default AND of search blocks with an AND/OR expression over them, which allows several entry routes for one concept. When combine is used, single-block ablation is reported as not assessed.
+- **Missing-abstract diagnostics & fallback filters.** Pass `--abstract-stats` to `eval` to measure `% without abstract` in `final` and each search block (carried into `audit.md` on `report`). Both `limits` (`has_abstract`, `topic`) and individual blocks (`has_abstract`, `topics`) support OpenAlex abstract-presence and topic filters, enabling conditional no-abstract fallback branches via `combine`.
 
 Every compiled query is checked after OpenAlex translates it. The run fails if the corpus differs or if the canonical query keeps fewer terms and limit values than the strategy defines. On 2026-11-24 the translator dropped `and is_xpac is false` without a validation error. This check catches that kind of loss.
 

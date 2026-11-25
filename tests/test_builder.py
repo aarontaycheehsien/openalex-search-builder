@@ -415,10 +415,53 @@ class WorkspaceTests(unittest.TestCase):
         self.assertTrue(exp["directory"].endswith(report.name + "-rescue"))
         self.assertEqual(exp["unique_records"], 1)
 
+    def test_eval_abstract_stats_and_audit(self):
+        # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
+        real_run = self.api.run
+        def fake_run(q, size=1, fields="id"):
+            if isinstance(q, dict) and any(f.get("column_id") == "has_abstract" for f in q.get("filter_rows", [])):
+                # 1 filter row + has_abstract = single block; >2 = final
+                n_leaves = len(q["filter_rows"]) - 1
+                return {"oqo": q, "oql": "no_abs", "rows": [], "count": 0 if n_leaves >= 4 else 1}
+            return real_run(q, size, fields)
+        with patch.object(self.api, "run", side_effect=fake_run):
+            ev = self.call("eval", "--abstract-stats")
+            self.assertEqual(ev["abstract_stats"]["final"]["pct_without_abstract"], 0.0)
+            self.assertEqual(ev["abstract_stats"]["blocks"]["block/delivery"]["pct_without_abstract"], 50.0)
+            self.assertIn("disproportionately dropping", ev["abstract_stats"]["attrition_note"])
+            self.attach_critique()
+            deliver = self.call("report")
+        audit = (Path(deliver["report"]) / "audit.md").read_text()
+        self.assertIn("## Missing-abstract attrition", audit)
+        self.assertIn("disproportionately dropping", audit)
+
 
 class StrategyTests(unittest.TestCase):
     def block(self, terms, role="search", field="title-abstract", id="a"):
         return {"id": id, "role": role, "field": field, "terms": terms, "rationale": "r"}
+
+    def test_has_abstract_and_topic_filters(self):
+        s = {
+            "combine": "(a and b) or fallback",
+            "blocks": [
+                self.block(["telemedicine"]),
+                self.block(["rural"], id="b"),
+                {"id": "fallback", "role": "search", "field": "title", "terms": ["telemedicine"],
+                 "topics": ["T10912"], "has_abstract": False, "rationale": "No-abstract fallback"},
+            ],
+            "limits": {"has_abstract": False, "topic": ["https://openalex.org/t10102", "T10912"]},
+        }
+        check(s)
+        q, n = final_query(s)
+        self.assertIn("(title has (telemedicine) and topic is T10912 and it doesn't have an abstract)", q)
+        self.assertIn("topic is (T10102 or T10912)", q)
+        self.assertEqual(n, 8)  # 1 + 1 + (1+1+1) + (1+2)
+        with self.assertRaises(Error):
+            check({"blocks": [self.block(["a1"])], "limits": {"has_abstract": "false"}})
+        with self.assertRaises(Error):
+            check({"blocks": [self.block(["a1"])], "limits": {"topic": ["W123"]}})
+        with self.assertRaises(Error):
+            check({"blocks": [self.block(["a1"]), {"id": "x", "role": "exclude", "field": "title", "terms": ["vet"], "has_abstract": False, "rationale": "r"}]})
 
     def test_rescue_oql_forms(self):
         s = {"corpus": "all", "blocks": [self.block(["telemedicine"]), self.block(["rural"], id="b")],
