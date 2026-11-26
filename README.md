@@ -1,20 +1,118 @@
 # OpenAlex Search Builder
 
-An agent skill and Python CLI for researchers developing a high-sensitivity OpenAlex search. Give Codex or Claude Code a review question and optional known papers. The skill builds a strategy, tests it against OpenAlex, diagnoses missed papers by concept, and delivers a reproducible OQL query with its audit.
+An agent skill and zero-dependency Python CLI for researchers and librarians developing a **reproducible, high-sensitivity [OpenAlex](https://openalex.org) search strategy** for a systematic, scoping, or rapid review.
 
-The workflow adapts Aaron Tay's [PubMed Search Builder](https://github.com/aarontaycheehsien/pubmed-search-builder-next). Search execution, field interpretation, work identity and citation discovery use OpenAlex. Python 3.10+ is sufficient. The CLI has no third-party dependencies.
+Give **Claude Code** or **Codex** your review question and any known seed papers. Instead of guessing a one-shot Boolean query, the agent drives a deterministic Python CLI against the live OpenAlex API to lock scope with you, test every concept block, diagnose missed papers, guard against OpenAlex search traps, and deliver an audited OQL query with a draft **PRISMA-S** checklist and deduplicated **RIS/CSV** export.
 
-## Use the skill
+> Adapts Aaron Tay's [PubMed Search Builder](https://github.com/aarontaycheehsien/pubmed-search-builder-next) for OpenAlex search execution, field interpretation, work identity, and citation discovery. Requires **Python 3.10+** with **no third-party dependencies**.
 
-Clone the repository, open the folder in your agent, and ask:
+---
 
-> Read SKILL.md. Develop an OpenAlex search strategy for a scoping review of telemedicine delivery in rural communities. Treat W2618851878 as a seed paper. Use standard depth and discuss the concept blocks with me.
+## How is this different from just prompting an LLM?
 
-Supply a free OpenAlex key through the environment variable `OPENALEX_API_KEY` for repeated searches. The CLI sends it in the authorization header. Anonymous calls have a small shared allowance. Block counts, known-record intersections and final revalidation each consume requests. [OpenAlex authentication](https://help.openalex.org/api/authentication/) · [OQL API](https://help.openalex.org/api/oql/)
+Asking ChatGPT or Claude to *"write an OpenAlex search for X"* gives you an unverified string of keywords. This skill separates **search judgment** (you + the agent) from **measurement and guardrails** (the CLI + live OpenAlex API):
 
-## Try the CLI
+| If you just prompt an LLM | With `openalex-search-builder` |
+|---|---|
+| **Unverified syntax & silent query drops** — LLMs hallucinate OpenAlex syntax or miss cases where OpenAlex accepts a query while silently dropping a corpus flag or clause. | **Compiled & translation-checked** — compiles structured blocks into canonical OQL, validates via `/query`, and fails fast if OpenAlex drops any corpus, term, word, or limit. |
+| **Hidden OpenAlex search traps** — bare-word stemming collisions, quoted hyphenated terms running as `AND` instead of phrases, and inconsistent handling of pulled (retracted/withdrawn) works go unnoticed. | **Explicit trap & scope guards** — offline `lint` and live `term-counts` flag stemming and hyphenation traps; `corpus` and `pulled` settings are locked in scope and sent on every request. |
+| **Silent loss of abstract-less papers** — ANDing multiple text blocks quietly drops works that lack an indexed abstract in OpenAlex. | **Missing-abstract diagnostics & rescue** — measures missing-abstract attrition per block, supports conditional fallback branches, and offers post-delivery citation `rescue` plus unlinked reference leads. |
+| **No empirical feedback or miss diagnosis** — you cannot see what each block costs, which block missed a known paper, or whether broadening actually added eligible studies. | **Live ablation & broadening checks** — measures per-block counts, leave-one-out ablation (`without/ID`), per-miss causes, revision cost warnings (`sample --added`), and exact-query pilot precision. |
+| **Overfitting & unverified narratives** — known papers leak into vocabulary mining, and LLM summaries frequently cite stale counts from earlier drafts. | **Protected holdouts & tamper-resistant critique** — keeps validation/benchmark works out of development, reports 95% Wilson intervals, fills critique figures from live evidence, and re-executes at delivery. |
+| **Manual copy-paste & no reporting trail** — you still have to document methods, format PRISMA-S items, and export records into screening software by hand. | **Audit bundle & resumable export** — delivers `final-query.oql`, `final-query.json`, `audit.md`, a 16-item draft `prisma-s.json`, and resumable Work-ID-deduplicated CSV, RIS (Zotero/EndNote/Rayyan/Covidence), and JSONL. |
 
-From the repository root, run:
+See [**OpenAlex Search Pitfalls**](docs/openalex-pitfalls.md) for the concrete live measurements and edge cases behind each safeguard.
+
+---
+
+## How the workflow runs
+
+```mermaid
+flowchart LR
+    A["1. Intake & Scope\n(Reviewer approves blocks,\ncorpus, limits, pulled view)"] --> B["2. Discovery & Vocabulary\n(Seeds, pilot samples,\nmulti-seed citation neighbors,\nterm-counts)"]
+    B --> C["3. Live Eval & Ablation\n(Per-block counts, without/ID,\nmiss diagnosis, broadening check)"]
+    C -->|Revise| B
+    C --> D["4. Internal PRESS Critique\n(6 domains with live\nplaceholder figures)"]
+    D --> E["5. Revalidated Delivery\n(final-query.oql, audit.md,\ndraft PRISMA-S)"]
+    E --> F["6. Optional Rescue & Export\n(No-abstract citation rescue,\nresumable CSV / RIS / JSONL)"]
+```
+
+Every run lives in an auditable workspace (`-w runs/<name>`). You remain in control at the key methodological checkpoints: approving the concept scope before evaluation, reviewing the delivered audit and draft PRISMA-S checklist, and deciding whether to run the optional no-abstract citation rescue and full record export.
+
+---
+
+## What you get
+
+Each delivery under `reports/<evaluation-id>/` produces:
+
+- **`final-query.oql`** — Exact canonical OQL query as executed by OpenAlex.
+- **`final-query.json`** — Machine-readable OpenAlex Query Object (OQO) for exact re-execution.
+- **`audit.md`** — Human-readable peer-review report containing scope decisions, block counts and leave-one-out ablation, missing-abstract attrition, separate recall tables with 95% Wilson intervals, pilot precision, missed-work causes, revision history, 6-domain PRESS critique, and a **16-item draft PRISMA-S checklist**.
+- **`prisma-s.json`** — Machine-readable draft PRISMA-S checklist (Rethlefsen et al., 2021).
+- **`validation.json`** — Complete JSON evidence archive.
+
+Running `export` writes deduplicated **`results.csv`**, **`results.ris`** (ready for Zotero, EndNote, Rayyan, or Covidence), **`results.jsonl`**, and **`export-manifest.json`** under `exports/<report-id>/`.
+
+👉 **Browse an illustrative sample delivery right now:** [`examples/sample-report/`](examples/sample-report/) (see [`audit.md`](examples/sample-report/audit.md) and [`final-query.oql`](examples/sample-report/final-query.oql)).
+
+---
+
+## Quickstart (Claude Code & Codex)
+
+### 1. Clone and set your OpenAlex API key
+
+Clone the repository and open the folder in **Claude Code** or **Codex**:
+
+```sh
+git clone https://github.com/aarontaycheehsien/openalex-search-builder.git
+cd openalex-search-builder
+```
+
+Set a free OpenAlex API key in `OPENALEX_API_KEY` ([get a key & auth docs](https://help.openalex.org/api/authentication/); see [`.env.example`](.env.example)):
+
+```sh
+# macOS / Linux
+export OPENALEX_API_KEY="your-key-here"
+```
+
+```powershell
+# Windows PowerShell
+$env:OPENALEX_API_KEY="your-key-here"
+```
+
+> **Typical API cost:** A full interactive search build typically uses about **\$0.07–\$0.15** in OpenAlex credits (block counts, known-work intersections, discovery, and live revalidation). Anonymous calls share a very small daily allowance. Before any large download or rescue, `export --estimate` and `rescue --estimate` report expected credits first.
+
+### 2. Start a session with a prompt recipe
+
+**With known seed papers (recommended when you have 1–5 relevant studies):**
+> Read SKILL.md. Develop an OpenAlex search strategy for a scoping review of telemedicine delivery in rural communities (2015–2025). Treat W2618851878 as a seed paper. Use standard depth and discuss the concept blocks with me before running searches.
+
+**Starting from scratch (seedless scoping or rapid review):**
+> Read SKILL.md. Build an OpenAlex search strategy from scratch (no seed papers) for: "How do university libraries use generative AI in reference services?" Include empirical studies from 2022 onward. Use standard depth, discover candidate papers via both keyword samples and citations, and confirm the concept blocks with me first.
+
+**Adapting an existing PubMed search (or drafting offline without an API key):**
+> Read SKILL.md. Adapt my PubMed search strategy for OpenAlex (watch for MeSH terms that need explicit synonyms since OpenAlex has no controlled-heading explosion). If no `OPENALEX_API_KEY` is set, run in offline draft mode (`lint` and `draft`) so I can review the OQL before running live tests.
+
+---
+
+## Try in 60 seconds without an API key (Offline Draft Mode)
+
+Want to see the CLI compile and lint a strategy before getting an API key? Neither `lint` nor `draft` makes network calls:
+
+```sh
+python scripts/oasb.py -w runs/offline-demo init --question "How is telemedicine used in rural communities?"
+cp examples/telehealth.json runs/offline-demo/strategy.json
+python scripts/oasb.py -w runs/offline-demo lint
+python scripts/oasb.py -w runs/offline-demo draft
+```
+
+This writes clearly labelled untested files (`draft-query.oql`, `draft-notes.md`, `draft-manifest.json`) under `runs/offline-demo/draft/`. When you add `OPENALEX_API_KEY` later, confirm scope and continue in the same workspace.
+
+---
+
+## Using the CLI directly
+
+With `OPENALEX_API_KEY` set, you can drive the entire workflow yourself from the repository root:
 
 ```sh
 python scripts/oasb.py -w runs/demo init --question "How is telemedicine used in rural communities?"
@@ -23,67 +121,49 @@ python scripts/oasb.py -w runs/demo scope
 python scripts/oasb.py -w runs/demo scope --confirm --note "Reviewer approved delivery and setting blocks"
 python scripts/oasb.py -w runs/demo resolve W2618851878 --role seed --source "Reviewer"
 python scripts/oasb.py -w runs/demo validate
-python scripts/oasb.py -w runs/demo eval
+python scripts/oasb.py -w runs/demo eval --abstract-stats
 ```
 
-Edit the vocabulary and rerun `eval` to see gained or lost known works and the change in workload. Compare the `title-abstract` and `title-abstract-keywords` fields. Missing abstracts can make a restrictive block costly. The `without/BLOCK` lines quantify the impact of dropping one block.
+Edit `runs/demo/strategy.json`, rerun `eval` to compare gained/lost works and `without/<block>` ablation, attach a critique (starting from [`examples/critique-template.json`](examples/critique-template.json)) with `review`, deliver with `report`, and optionally run `rescue` and `export`.
 
-| Task | Command after the workspace argument |
+For every subcommand, the `strategy.json` schema (`corpus`, `pulled`, `combine`, proximity, exclusions, conditional no-abstract branches), critique placeholders, holdout workflows, and an annotated session walkthrough, see [**CLI Reference, Schema & Walkthrough**](docs/cli-reference.md).
+
+---
+
+## What this does — and does not — do
+
+> [!IMPORTANT]
+> - **Single database:** This tool searches OpenAlex only. Systematic reviews normally require multiple databases, study registries, and grey-literature sources; the draft PRISMA-S checklist marks those items for the reviewer to complete.
+> - **Development recall is not absolute recall:** Relative recall on known or discovered works describes only those works (and is always shown with a 95% Wilson score interval). Protected local validation works discovered by the same agent share its blind spots; use [separate-context holdout validation](SKILL.md#separate-context-holdout-validation) when independent blinding is needed.
+> - **Internal critique is not formal peer review:** The 6-domain PRESS-structured critique catches mechanical and reporting errors, but does not replace peer review by a human information specialist or librarian.
+> - **Live index drift:** OpenAlex metadata, reference links, and pulled status change continuously. A dated `report` records what OpenAlex returned at that timestamp; rerunning later queries the live index.
+
+---
+
+## Benchmarks
+
+The repository includes a **41-fixture evaluation suite** ([`evals/README.md`](evals/README.md)) spanning 12 multidisciplinary OpenAlex-native reviews (software engineering, ecology, climate, education, accessibility, bibliometrics) and 29 PubMed cross-comparison reviews (including 10 held-out `frozen` fixtures). Blind single-agent pilot runs on the OpenAlex-native suite typically cost **\$0.07–\$0.15** in API credits and empirically surfaced both wins (such as post-delivery no-abstract rescue recovering missing-abstract gold misses) and structural limits (such as limited discovery reach in seedless runs, underscoring the value of reviewer-supplied seeds). Full scorecards, Wilson intervals, workload ratios, and caveats are published in [`evals/RESULTS.md`](evals/RESULTS.md).
+
+---
+
+## Documentation & Verification
+
+| Resource | Purpose |
 |---|---|
-| Check syntax and heuristics offline (no API key) | `lint` |
-| Write untested draft query and notes offline | `draft` |
-| Mine terminology from development papers | `terms` |
-| Flag stemming collisions and hyphenated terms that are not phrases (about 10 credits per count) | `term-counts` (optionally `--block ID`) |
-| Look up OpenAlex keywords or topics | `vocab keywords "telemedicine" --size 10` · `vocab topics "telemedicine"` |
-| Find works citing, referenced by, or related to a seed (cursor-paged) | `neighbors W2618851878 --direction citing\|references\|related --size 200` (or `--all`, `--cursor`, `--max-pages`) |
-| Save a random screening pilot | `sample --oql "get works about telemedicine" --seed 42 --size 10` |
-| Sample only the records the latest revision added, to judge a broadening | `sample --added --size 10` |
-| Screen the best-matching records first (relevance order), for development works | `sample --from-strategy --top --size 20` |
-| Record a candidate's eligibility | `screen BATCH WORK_ID include --reason "Meets population and delivery criteria"` |
-| Attach a completed internal critique | `review critique.json` |
-| Revalidate and deliver | `report` |
-| Optional citation rescue for works lacking abstracts | `rescue --estimate`, then `rescue` (default: cited-by works from the delivered works' matched reference lists; `--direction citing` or `--method walk` for OpenAlex's citation-set query; `--topic T...`) |
-| Estimate export pages and credits without downloading (free) | `export --estimate` (optionally `--rescue`) |
-| Download every retrieved record (resumable) | `export` (optionally `--report ID`, `--max-pages N`, `--rescue`) |
+| [`SKILL.md`](SKILL.md) | Agent workflow specification (read by Claude Code / Codex) |
+| [`docs/openalex-pitfalls.md`](docs/openalex-pitfalls.md) | Concrete OpenAlex search traps, verified measurements, and CLI safeguards |
+| [`docs/cli-reference.md`](docs/cli-reference.md) | All CLI commands, `strategy.json` schema, critique placeholders, and annotated walkthrough |
+| [`examples/sample-report/`](examples/sample-report/) | Illustrative delivered `audit.md`, `final-query.oql`, `final-query.json`, and `prisma-s.json` |
+| [`examples/`](examples/) | Starter strategies (`telehealth.json`, `telehealth-advanced.json`) and `critique-template.json` |
+| [`evals/README.md`](evals/README.md) · [`evals/RESULTS.md`](evals/RESULTS.md) | 41-fixture benchmark harness, blind build protocol, and published results |
+| [`ROADMAP.md`](ROADMAP.md) | Implemented fixes, empirical lessons, and prioritized open improvements |
 
-See [SKILL.md](SKILL.md) for the workflow, strategy schema and critique format. Search terms are grouped inside concept blocks. The CLI supports explicit publication-date, language and work-type limits. Broader OQL queries can be used for discovery pilots.
-
-### Strategy features
-
-[examples/telehealth-advanced.json](examples/telehealth-advanced.json) shows each of these:
-
-- **Corpus.** `"corpus": "core"` (the default), `"all"` (core plus the expansion corpus) or `"expansion"`. It is part of the scope decision and is written into every query and citation lookup.
-- **Pulled works.** `"pulled": "exclude"` (the default) or `"include"`. Since 2026-11-19 OpenAlex leaves retracted, withdrawn and removed works out of lists, searches and counts unless asked, but an ID filter brings them back. The CLI states the view on every request, so known-work checks, rescue and export all see what the search sees, and a pulled known work is reported as a miss with the reason `pulled`. `eval` and `audit.md` give the number of pulled works the search leaves out (or includes). Setting it explicitly is a scope decision. [Pulled works](https://help.openalex.org/data/works/pulled/)
-- **Fields.** `title`, `abstract`, `title-abstract`, `title-abstract-keywords` and `fulltext`. The full-text field searches title, abstract and full text where OpenAlex holds it.
-- **Proximity.** `{"near": ["video", "consultation"], "within": 3}` compiles to OpenAlex's native `(video and consultation within 3 words of each other)`, with stemming and in any order. Add `"exact": true` for phrases or wildcards. The `"a b"~N` slop form is refused.
-- **Exclusions.** Blocks with `"role": "exclude"` are ANDed as `not field has (...)`. `eval` reports which known works each exclusion removes (`exclude/ID`) and what dropping it would recover (`without/ID`).
-- **Combine.** `"combine": "(delivery or apps) and setting"` replaces the default AND of search blocks with an AND/OR expression over them, which allows several entry routes for one concept. Ablation still runs: `without/ID` relaxes a block (treats it as always satisfied) to show what it costs, and `drop-route/ID` removes a block under an OR to show what that entry route adds. A block whose relaxation leaves no search block is listed in `ablation_notes`.
-- **Missing-abstract diagnostics & fallback filters.** Pass `--abstract-stats` to `eval` to measure `% without abstract` in `final` and each search block (carried into `audit.md` on `report`). Both `limits` (`has_abstract`, `topic`) and individual blocks (`has_abstract`, `topics`) support OpenAlex abstract-presence and topic filters, enabling conditional no-abstract fallback branches via `combine`.
-
-Every compiled query, including the rescue query, is checked after OpenAlex translates it. The run fails if the corpus of the query or of any nested citation set differs, if the canonical query keeps a different number of terms and limit values than the strategy defines, or if a word from a strategy term is missing from the query object (which catches a dropped term hidden by a split elsewhere). On 2026-11-24 the translator dropped `and is_xpac is false` without a validation error. On 2026-11-25 it accepted `(works (all corpora) where ...)` as a nested set but dropped the corpus, so rescue sets are now written as `(get works (all corpora) where ...)`. This check catches both kinds of loss.
-
-## Hold out discovered papers for evaluation
-
-There are two options. Use `screen BATCH WORK_ID include --role validation --reason "Eligible"` to allocate a newly screened candidate directly to the local validation set. Its retrieval is hidden during development, but the agent has already seen the candidate's content.
-
-For genuinely blinded validation, use a separate human or fresh-context agent with a private, non-nested reviewer workspace. The reviewer discovers and screens citation candidates, runs `holdout-split --development-workspace PATH` to seal approximately half and shares only the development IDs. After the builder delivers its query, the reviewer runs `holdout-score --report PATH` once. The scorer excludes works rediscovered by the builder, measures relative recall with a Wilson interval, and keeps individual results private. A revised strategy needs a new independent set. See [the separate-context workflow](SKILL.md#separate-context-holdout-validation) for exact steps and isolation requirements.
-
-The CLI enforces allocation and one-time scoring, not operating-system permissions or independent agent contexts.
-
-## Outputs
-
-Each delivery under `reports/<evaluation-id>/` includes the exact executable `final-query.oql`, its OpenAlex query object in `final-query.json`, a human-readable `audit.md` (ending with a draft PRISMA-S search reporting checklist, also saved as `prisma-s.json`) and a `validation.json` archive with counts, role-specific retrieval, unresolved citations, critique and revision history. Earlier deliveries remain identifiable as earlier snapshots.
-
-`export` pages the delivered query object with OpenAlex cursors into `exports/<report-id>/`. It writes `results.csv`, `results.ris` (for Zotero, EndNote, Rayyan or Covidence; with ISSN, publisher and OpenAlex keywords, and author names as OpenAlex displays them) and `results.jsonl` (the full original records), plus `export-manifest.json`. Each page is checkpointed in `checkpoint.sqlite3` and records are deduplicated by work ID. If the API budget runs out or the run is interrupted, files are named `results.partial.*`; rerunning `export` resumes from the saved cursor. The manifest reports pages, unique records, the validated count, counts seen while paging, any discrepancy, and reported credit usage. Paging a changing index does not produce a historical snapshot. Spreadsheet-formula-like CSV cells are escaped. Original values stay in JSONL.
-
-Coverage is the number of distinct resolved eligible works divided by resolved works plus unresolved eligible entries. Relative recall is the fraction of resolved eligible works retrieved, reported with a 95% Wilson score interval: with three known works, 3 of 3 retrieved is compatible with a relative recall of about 44%. Reviewers should reconcile citations that have several unresolved aliases. A report's audit shows validation and benchmark retrieval, so each report records which holdouts it exposed in `exposure.json`. A later report is labelled post-exposure, lists the exposed holdouts, and scores holdouts added since then separately. The development, validation and external benchmark sets are reported separately. Work IDs provide the deduplication unit. The workflow does not estimate total recall across unknown eligible works.
-
-## Verification
+Run the offline test suite (also executed automatically by the **Offline tests** GitHub Actions workflow on every push and PR):
 
 ```sh
 python -m unittest discover -s tests -v
 ```
 
-The offline suite runs on every push and pull request (**Offline tests** workflow). Use the [benchmark guide](evals/README.md) for blind seeded and seedless runs against biomedical and education reviews. A manual **OpenAlex live checks** workflow can run the integration smoke test and benchmark reference queries using a repository Actions secret named `OPENALEX_API_KEY`. The smoke test also runs two single-page exports to check live cursor resumption.
+A manual **OpenAlex live checks** workflow runs the live integration smoke test and reference comparators when a repository Actions secret named `OPENALEX_API_KEY` is configured.
 
-[OpenAlex systematic reviews](https://help.openalex.org/tutorials/systematic-reviews/) · [License](LICENSE)
+[OpenAlex OQL API](https://help.openalex.org/api/oql/) · [OpenAlex systematic reviews](https://help.openalex.org/tutorials/systematic-reviews/) · [Pulled works](https://help.openalex.org/data/works/pulled/) · [License](LICENSE)

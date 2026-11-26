@@ -1,0 +1,101 @@
+{
+  "guideline": "Rethlefsen et al. (2021), https://doi.org/10.1186/s13643-020-01542-z",
+  "items": [
+    {
+      "item": 1,
+      "topic": "Database name",
+      "status": "filled",
+      "text": "OpenAlex (https://openalex.org), searched through the OpenAlex API's OQL interface (https://api.openalex.org), corpus: core (OpenAlex's default set of works)."
+    },
+    {
+      "item": 2,
+      "topic": "Multi-database searching",
+      "status": "not applicable",
+      "text": "Not applicable: one database (OpenAlex) was searched by this tool."
+    },
+    {
+      "item": 3,
+      "topic": "Study registries",
+      "status": "reviewer to complete",
+      "text": "This tool searches no study registries. List any registries searched separately."
+    },
+    {
+      "item": 4,
+      "topic": "Online resources and browsing",
+      "status": "reviewer to complete",
+      "text": "Describe any online or print sources searched or browsed outside this tool."
+    },
+    {
+      "item": 5,
+      "topic": "Citation searching",
+      "status": "partly filled",
+      "text": "Citation searching was used during strategy development: 1 batch(es) of OpenAlex citation links (1 citing) from 1 development work(s), with 7 candidate decision(s) recorded and 4 included. These informed the strategy; they are not a separate set of records in this report. The links are OpenAlex's matched references, as of 2026-11-26: about 82% of references to works in OpenAlex are linked, unmatched references are dropped and many records carry no reference list (OpenAlex documentation, November 2026); OpenAlex revised its links on 25 November 2026, so a rerun on another date can differ. If the optional no-abstract rescue (`rescue`) is run, report it here as a supplementary citation search, with its manifest."
+    },
+    {
+      "item": 6,
+      "topic": "Contacts",
+      "status": "reviewer to complete",
+      "text": "State whether authors, experts or others were contacted for additional studies or data."
+    },
+    {
+      "item": 7,
+      "topic": "Other methods",
+      "status": "partly filled",
+      "text": "1 random-sample pilot(s) of candidate queries were screened during development to check precision and terminology; they were not a source of records. Report any other methods."
+    },
+    {
+      "item": 8,
+      "topic": "Full search strategies",
+      "status": "filled",
+      "text": "The OpenAlex search exactly as run is under 'Search as executed' and in final-query.oql (OQL) and final-query.json (the OpenAlex query object), executed with include_pulled=false."
+    },
+    {
+      "item": 9,
+      "topic": "Limits and restrictions",
+      "status": "partly filled",
+      "text": "Limits applied: publication date 2015-01-01 to 2025-12-31. Corpus: core (OpenAlex's default set of works). Pulled works: retracted, withdrawn and removed works excluded (include_pulled=false, OpenAlex's default view). Scope decision recorded at approval: \"Reviewer approved delivery and setting search blocks, outcomes at screening, core corpus, pulled excluded, 2015-2025 window.\". Confirm that it justifies each limit."
+    },
+    {
+      "item": 10,
+      "topic": "Search filters",
+      "status": "partly filled",
+      "text": "The tool builds no published search filter into the strategy. State whether any block reproduces or adapts a published filter, and cite it."
+    },
+    {
+      "item": 11,
+      "topic": "Prior work",
+      "status": "reviewer to complete",
+      "text": "State whether search strategies from earlier reviews were adapted or reused, and cite them."
+    },
+    {
+      "item": 12,
+      "topic": "Updates",
+      "status": "partly filled",
+      "text": "To update, rerun final-query.json against the OpenAlex API (POST https://api.openalex.org/ with the query object and include_pulled=false), or rerun `report` in this workspace. A rerun searches the live index on that date, so counts can change. State the update method actually used."
+    },
+    {
+      "item": 13,
+      "topic": "Dates of searches",
+      "status": "filled",
+      "text": "OpenAlex was last searched on 2026-11-26 (at 07:07:50 UTC)."
+    },
+    {
+      "item": 14,
+      "topic": "Peer review",
+      "status": "partly filled",
+      "text": "An internal PRESS-structured critique (six domains) was recorded on 2026-11-26. It is not formal peer review; describe any human peer review of the search."
+    },
+    {
+      "item": 15,
+      "topic": "Total records",
+      "status": "partly filled",
+      "text": "OpenAlex: 4,280 records on 2026-11-26. Add the records identified from each other source."
+    },
+    {
+      "item": 16,
+      "topic": "Deduplication",
+      "status": "partly filled",
+      "text": "Within OpenAlex, records are unique by OpenAlex Work ID; `export` deduplicates by Work ID, including across the optional rescue queries. Describe the process and software used to deduplicate records across databases and other sources."
+    }
+  ]
+}
