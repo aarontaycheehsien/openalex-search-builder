@@ -45,10 +45,16 @@ Single-run pilot evaluations built autonomously by an agent using `SKILL.md` and
 | Lewowski 2021 | `openalex-native` | `core` | Seedless | 40/46 | 33/40 (82.5%) | 20/27 (74.1%) | 1,144 | 35 | \$0.130 | +1/1 no-abs miss → **34/40 (85.0%)** (+1,374 works) |
 | Moran 2020 | `openalex-native` | `core` | Seedless | 139/142 | 93/139 (66.9%) | 90/136 (66.2%) | 9,383 | 101 | \$0.073 | `query_too_slow` (>11s on 238-leaf subquery) |
 | Walker 2018 | `openalex-native` | `core` | Seedless (blind) | 148/148 | 70/148 (47.3%, CI [39.4%, 55.3%]) | 62/140 (44.3%, CI [36.3%, 52.6%]) | 9,124 (0.187× orig 48,786) | 130 | \$0.211 | — |
+| Kapuka 2021 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 27/27 | 21/27 (77.8%, CI [59.2%, 89.4%]) | 21/27 (77.8%, CI [59.2%, 89.4%]) | 7,722 (16.535× orig 467) | 368 | \$0.112 | — |
+| Filges 2022 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 28/28 | 19/28 (67.9%, CI [49.3%, 82.1%]) | 15/24 (62.5%, CI [42.7%, 78.8%]) | 30,933 (4.964× orig 6,232) | 1628 | \$0.095 | — |
+| Noetel 2021 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 27/29 | 24/27 (88.9%, CI [71.9%, 96.2%]) | 11/14 (78.6%, CI [52.4%, 92.4%]) | 1,510 (1.281× orig 1,179) | 63 | \$0.119 | — |
+| Verdugo-Castro 2022 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 26/26 | 21/26 (80.8%, CI [62.1%, 91.5%]) | 20/25 (80.0%, CI [60.9%, 91.1%]) | 29,810 (7.031× orig 4,240) | 1420 | \$0.101 | — |
+| Cinquin 2018 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 27/27 | 16/27 (59.3%, CI [40.7%, 75.5%]) | 15/26 (57.7%, CI [39.0%, 74.5%]) | 5,091 (5.243× orig 971) | 318 | \$0.125 | — |
 
 ### Methodological notes
 - **Isolation caveat:** The `Bos_2018`, `Anmarkrud_2021`, `Lewowski_2021`, and `Moran_2020` runs used prompt-enforced subagent isolation inside prepared directories (`evals/bench.py prepare`) on the same VM rather than separate filesystems. `Langham-Putrow_2021_OACA` was built interactively in seedless mode before inspecting the review's 134 included studies (91 resolved by DOI/PMID + 23 matched by strict title+author+year; 18 unmatched conference/thesis/working-paper items).
 - **Single-run variance:** Each row is a single agent run (`n=1`). Multi-run repeats and strict filesystem-isolated runs on the `frozen` held-out suite remain to be run.
+- **Batch of 2026-11-26 (Kapuka 2021, Filges 2022, Noetel 2021, Verdugo-Castro 2022, Cinquin 2018):** five blind seedless builds with the skill as of commit `78399d7` (before the SKILL.md changes in `e4ca1f8`), one run each, by Opus 5.5 at medium effort as separate subagents, each confined by its instructions to a directory prepared with `bench.py prepare` on the same VM (prompt-enforced isolation, as above), with web and literature tools forbidden, a $0.15 OpenAlex budget, a self-written internal critique, and no rescue. A log check of every run found all development works traceable to the run's own discovery batches, every single-work lookup to a work those batches surfaced, and no DOI or PMID in any query. In Kapuka 2021 a related-works lookup surfaced what may be the source review (W4200017961); the agent screened it out as post-cutoff and did not use it or follow its citations (confirmed in the log). In every run the agent's own development set was retrieved in full (100%), while gold recall was 59–89%: development recall from a seedless build says little about recall. All five retrieved more records than the original review screened (1.3× to 16.5×).
 - **Not precision:** `Works retrieved` and `Works / hit` reflect screening volume, not precision across the full result set.
 
 ### Recall intervals and workload (derived)
@@ -66,6 +72,11 @@ Derived from the counts in the table above: 95% Wilson score intervals for relat
 | Lewowski 2021 | `openalex-native` | `core` | Seedless | 33/40 (82.5%; 68.0–91.2%) | 20/27 (74.1%; 55.3–86.8%) | 1,144 | 1,720 | 0.67× |
 | Moran 2020 | `openalex-native` | `core` | Seedless | 93/139 (66.9%; 58.7–74.2%) | 90/136 (66.2%; 57.9–73.6%) | 9,383 | 5,453 | 1.72× |
 | Walker 2018 | `openalex-native` | `core` | Seedless (blind) | 70/148 (47.3%; 39.4–55.3%) | 62/140 (44.3%; 36.3–52.6%) | 9,124 | 48,786 | 0.19× |
+| Kapuka 2021 | `openalex-native` | `core` | Seedless (blind) | 21/27 (77.8%; 59.2–89.4%) | 21/27 (77.8%; 59.2–89.4%) | 7,722 | 467 | 16.54× |
+| Filges 2022 | `openalex-native` | `core` | Seedless (blind) | 19/28 (67.9%; 49.3–82.1%) | 15/24 (62.5%; 42.7–78.8%) | 30,933 | 6,232 | 4.96× |
+| Noetel 2021 | `openalex-native` | `core` | Seedless (blind) | 24/27 (88.9%; 71.9–96.2%) | 11/14 (78.6%; 52.4–92.4%) | 1,510 | 1,179 | 1.28× |
+| Verdugo-Castro 2022 | `openalex-native` | `core` | Seedless (blind) | 21/26 (80.8%; 62.1–91.5%) | 20/25 (80.0%; 60.9–91.1%) | 29,810 | 4,240 | 7.03× |
+| Cinquin 2018 | `openalex-native` | `core` | Seedless (blind) | 16/27 (59.3%; 40.7–75.5%) | 15/26 (57.7%; 39.0–74.5%) | 5,091 | 971 | 5.24× |
 
 With no-abstract rescue (`cited-by`): Langham-Putrow 2021 (`all`) 106/114 (93.0%; 86.8–96.4%); Lewowski 2021 34/40 (85.0%; 70.9–92.9%).
 
