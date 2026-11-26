@@ -50,6 +50,11 @@ Single-run pilot evaluations built autonomously by an agent using `SKILL.md` and
 | Noetel 2021 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 27/29 | 24/27 (88.9%, CI [71.9%, 96.2%]) | 11/14 (78.6%, CI [52.4%, 92.4%]) | 1,510 (1.281× orig 1,179) | 63 | \$0.119 | — |
 | Verdugo-Castro 2022 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 26/26 | 21/26 (80.8%, CI [62.1%, 91.5%]) | 20/25 (80.0%, CI [60.9%, 91.1%]) | 29,810 (7.031× orig 4,240) | 1420 | \$0.101 | — |
 | Cinquin 2018 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium) | 27/27 | 16/27 (59.3%, CI [40.7%, 75.5%]) | 15/26 (57.7%, CI [39.0%, 74.5%]) | 5,091 (5.243× orig 971) | 318 | \$0.125 | — |
+| Kapuka 2021 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium, skill `d0f174f`) | 27/27 | 23/27 (85.2%, CI [67.5%, 94.1%]) | 23/27 (85.2%, CI [67.5%, 94.1%]) | 16,820 (36.017× orig 467) | 731 | \$0.141 | — |
+| Filges 2022 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium, skill `d0f174f`) | 28/28 | 18/28 (64.3%, CI [45.8%, 79.3%]) | 17/27 (63.0%, CI [44.2%, 78.5%]) | 19,003 (3.049× orig 6,232) | 1056 | \$0.142 | — |
+| Noetel 2021 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium, skill `d0f174f`) | 27/29 | 25/27 (92.6%, CI [76.6%, 97.9%]) | 17/19 (89.5%, CI [68.6%, 97.1%]) | 7,293 (6.186× orig 1,179) | 292 | \$0.128 | — |
+| Verdugo-Castro 2022 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium, skill `d0f174f`) | 26/26 | 21/26 (80.8%, CI [62.1%, 91.5%]) | 21/26 (80.8%, CI [62.1%, 91.5%]) | 54,212 (12.786× orig 4,240) | 2582 | \$0.143 | — |
+| Cinquin 2018 | `openalex-native` | `core` | Seedless (blind, Opus 5.5 medium, skill `d0f174f`) | 27/27 | 17/27 (63.0%, CI [44.2%, 78.5%]) | 14/24 (58.3%, CI [38.8%, 75.5%]) | 4,918 (5.065× orig 971) | 289 | \$0.144 | — |
 
 ### Methodological notes
 - **Isolation caveat:** The `Bos_2018`, `Anmarkrud_2021`, `Lewowski_2021`, and `Moran_2020` runs used prompt-enforced subagent isolation inside prepared directories (`evals/bench.py prepare`) on the same VM rather than separate filesystems. `Langham-Putrow_2021_OACA` was built interactively in seedless mode before inspecting the review's 134 included studies (91 resolved by DOI/PMID + 23 matched by strict title+author+year; 18 unmatched conference/thesis/working-paper items).
@@ -77,9 +82,32 @@ Derived from the counts in the table above: 95% Wilson score intervals for relat
 | Noetel 2021 | `openalex-native` | `core` | Seedless (blind) | 24/27 (88.9%; 71.9–96.2%) | 11/14 (78.6%; 52.4–92.4%) | 1,510 | 1,179 | 1.28× |
 | Verdugo-Castro 2022 | `openalex-native` | `core` | Seedless (blind) | 21/26 (80.8%; 62.1–91.5%) | 20/25 (80.0%; 60.9–91.1%) | 29,810 | 4,240 | 7.03× |
 | Cinquin 2018 | `openalex-native` | `core` | Seedless (blind) | 16/27 (59.3%; 40.7–75.5%) | 15/26 (57.7%; 39.0–74.5%) | 5,091 | 971 | 5.24× |
+| Kapuka 2021 | `openalex-native` | `core` | Seedless (blind, skill `d0f174f`) | 23/27 (85.2%; 67.5–94.1%) | 23/27 (85.2%; 67.5–94.1%) | 16,820 | 467 | 36.02× |
+| Filges 2022 | `openalex-native` | `core` | Seedless (blind, skill `d0f174f`) | 18/28 (64.3%; 45.8–79.3%) | 17/27 (63.0%; 44.2–78.5%) | 19,003 | 6,232 | 3.05× |
+| Noetel 2021 | `openalex-native` | `core` | Seedless (blind, skill `d0f174f`) | 25/27 (92.6%; 76.6–97.9%) | 17/19 (89.5%; 68.6–97.1%) | 7,293 | 1,179 | 6.19× |
+| Verdugo-Castro 2022 | `openalex-native` | `core` | Seedless (blind, skill `d0f174f`) | 21/26 (80.8%; 62.1–91.5%) | 21/26 (80.8%; 62.1–91.5%) | 54,212 | 4,240 | 12.79× |
+| Cinquin 2018 | `openalex-native` | `core` | Seedless (blind, skill `d0f174f`) | 17/27 (63.0%; 44.2–78.5%) | 14/24 (58.3%; 38.8–75.5%) | 4,918 | 971 | 5.07× |
 
 With no-abstract rescue (`cited-by`): Langham-Putrow 2021 (`all`) 106/114 (93.0%; 86.8–96.4%); Lewowski 2021 34/40 (85.0%; 70.9–92.9%).
 
 - **Fixture layers:** every agent-built run so far is on the OpenAlex-native layer (the `core` and `openalex-native` suites, 12 fixtures). None of the 29 PubMed-subset fixtures has an agent-built run yet; report those separately when they exist, because their gold sets are only the PubMed-indexed part of each review.
 - **Width of the intervals:** with 6 to 9 gold works (Bos 2018), 100% retrieval is compatible with a true relative recall near 61–70%. Differences between runs smaller than the overlap of their intervals are not evidence that one strategy is better.
 - **Scoring rescue:** `bench.py score CASE DIR --report REPORT --with-rescue` now scores the delivered search together with the report's saved rescue queries (union recall with intervals, and an upper bound on screening volume).
+
+### Skill versions compared: `78399d7` → `d0f174f` (2026-11-26)
+
+The same five fixtures, rebuilt blind with the latest committed skill (`d0f174f`: multi-seed `neighbors`, `sample --from-strategy`, the guidance against enumerating open-ended facets and against pruning core synonyms to fit a volume ceiling, protected `--role validation` allocation, and the no-abstract fallback guidance). Same model (Opus 5.5, medium effort), instructions, $0.15 budget and scoring. One run per fixture per version.
+
+| Review | Gold retrieved | Works retrieved | Workload ratio | Agent's protected validation (run 2) |
+|---|---:|---:|---:|---:|
+| Kapuka 2021 | 21/27 → 23/27 | 7,722 → 16,820 | 16.5× → 36.0× | 8/8 |
+| Filges 2022 | 19/28 → 18/28 | 30,933 → 19,003 | 5.0× → 3.0× | 4/4 |
+| Noetel 2021 | 24/27 → 25/27 | 1,510 → 7,293 | 1.3× → 6.2× | 5/5 |
+| Verdugo-Castro 2022 | 21/26 → 21/26 | 29,810 → 54,212 | 7.0× → 12.8× | 6/8 |
+| Cinquin 2018 | 16/27 → 17/27 | 5,091 → 4,918 | 5.2× → 5.1× | 8/8 |
+| **Total** | **101/135 → 104/135** | **75,066 → 102,246** | | |
+
+- **Recall:** pooled 101/135 (74.8%; 66.9–81.4%) → 104/135 (77.0%; 69.2–83.3%). Three more gold works across five reviews, with overlapping intervals: no evidence yet that the newer skill changes recall. Pooling gold works across different reviews is a rough summary only.
+- **Workload:** 36% more records in total. The newer guidance against pruning core synonyms produced broader searches in three reviews (Noetel 1.3× → 6.2×, Kapuka 16.5× → 36.0×, Verdugo-Castro 7.0× → 12.8×) for at most two more gold works each; Filges narrowed (5.0× → 3.0×) and Cinquin was unchanged.
+- **Protected validation is not a recall estimate:** four of the five agents scored 100% on their own validation works (the fifth 75%), while gold recall was 63–93%. Works the agent finds through its own citation searches share its blind spots; SKILL.md's label "protected, not blinded" is accurate and should stay prominent.
+- **Blinding:** log checks as for the first batch found no leakage. Kapuka 2021 (again W4200017961) and Verdugo-Castro 2022 (W4292874629) surfaced possible source reviews in citation lists; Filges 2022 surfaced a review protocol (W3146159216). None was used (logs confirm). Two agents wrote scratch files to `/tmp` outside their folder, a minor departure from the instructions that gives no access to answers.
