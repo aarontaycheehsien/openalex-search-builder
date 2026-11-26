@@ -110,6 +110,19 @@ def mining(records):
 
 
 DISCOVERY_FIELDS = "id,display_name,publication_year,abstract_inverted_index"
+# OpenAlex related_works: up to 10 nearest neighbours by text embeddings (since October 2026); never reviews,
+# retracted works or paratext. https://help.openalex.org/data/works/attributes/#related_works
+RELATED_MAX = 10
+RELATED_NOTE = ("OpenAlex related works are at most 10 nearest neighbours by text similarity (since October 2026) and "
+                "never include reviews or retracted works: a text route like keyword search, not citation searching, "
+                "and of no use when the eligible studies are reviews.")
+LINK_NOTE = ("Citation links are OpenAlex's matched references: about 82% of references to works in OpenAlex are "
+             "linked, unmatched ones are dropped, and many records have no reference list "
+             "(https://help.openalex.org/data/works/citations/).")
+
+
+def route_kind(direction):
+    return "text-similarity" if direction == "related" else "citation"
 
 
 def date_window(strategy, any_date=False):
@@ -145,6 +158,22 @@ def discover(run, api, args):
         cursor_arg = getattr(args, "cursor", None)
         if len(wids) > 1 and cursor_arg:
             raise Error("--cursor can only be used with a single seed work ID.")
+        # A seed with no matched references (or citations) returns nothing: say so before spending a request.
+        needed = {"references": "referenced_works_count", "citing": "cited_by_count"}.get(args.direction)
+        seed_links, skipped = {}, []
+        if needed:
+            for wid in wids:
+                seed_links[wid] = api.link_counts(wid)
+                if seed_links[wid][needed] == 0:
+                    skipped.append(wid)
+            if skipped and len(skipped) == len(wids):
+                other = "citing" if args.direction == "references" else "references"
+                raise Error(f"{', '.join(skipped)} {'has' if len(skipped) == 1 else 'have'} no "
+                            f"{'matched references' if needed == 'referenced_works_count' else 'citations'} in OpenAlex, "
+                            f"so --direction {args.direction} would return nothing. Choose another seed or try "
+                            f"--direction {other}. For references, recent open-access papers are the best seeds: "
+                            "OpenAlex reads their reference lists from the PDF.")
+            wids = [w for w in wids if w not in skipped]
         corpus = strategy.get("corpus", "core")
         head = f"get works{CORPORA.get(corpus, '')}"
         fetch_all = bool(getattr(args, "all", False))
@@ -196,17 +225,25 @@ def discover(run, api, args):
                 cursor = nxt
             return rows, total, pages, cursor, oql_echo, oqo_echo
 
+        if args.direction == "related":   # OpenAlex never returns more than 10 related works
+            fetch_all = False
+            args.size = min(args.size or RELATED_MAX, RELATED_MAX)
+        notes = [RELATED_NOTE if args.direction == "related" else LINK_NOTE]
+        if skipped:
+            label = "matched references" if needed == "referenced_works_count" else "citations"
+            notes.append(f"Skipped {', '.join(skipped)}: no {label} in OpenAlex.")
         if len(wids) == 1:
             wid = wids[0]
             limit = None if fetch_all else args.size
             rows, total, pages, cursor, oql_echo, oqo_echo = fetch_seed(wid, limit, cursor_arg or "*")
             complete = cursor is None
-            data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wid,
-                    "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages, "date_window": window_note,
-                    "complete": complete, "next_cursor": cursor, "rows": rows}
+            data = {"at": now(), "route": "neighbors", "direction": args.direction, "route_kind": route_kind(args.direction),
+                    "seed": wid, "seed_links": seed_links, "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages,
+                    "date_window": window_note, "complete": complete, "next_cursor": cursor, "rows": rows}
             uid = run.snapshot("discovery", data)
-            return {"discovery": uid, "candidates": rows, "total": total, "pages": pages, "date_window": window_note,
-                    "complete": complete, "next_cursor": cursor,
+            return {"discovery": uid, "seed": wid, "candidates": rows, "total": total, "pages": pages, "date_window": window_note,
+                    "route_kind": route_kind(args.direction), "seed_links": seed_links, "skipped_seeds": skipped,
+                    "notes": notes, "complete": complete, "next_cursor": cursor,
                     "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
 
         # Multi-seed snowballing: fetch per seed, deduplicate, and rank co-cited/multi-linked candidates first.
@@ -233,11 +270,13 @@ def discover(run, api, args):
             ranked.append(dict(row, matched_seeds=seed_links[r_id], seed_count=len(seed_links[r_id])))
         ranked.sort(key=lambda r: (-r["seed_count"], -(r["year"] or 0), r["id"]))
         rows = ranked if fetch_all else ranked[:args.size]
-        data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wids[0],
-                "seeds": wids, "per_seed_totals": per_seed_totals, "pages": total_pages, "date_window": window_note,
+        data = {"at": now(), "route": "neighbors", "direction": args.direction, "route_kind": route_kind(args.direction),
+                "seed": wids[0], "seeds": wids, "seed_links": seed_links, "skipped_seeds": skipped,
+                "per_seed_totals": per_seed_totals, "pages": total_pages, "date_window": window_note,
                 "complete": all_complete, "rows": rows}
         uid = run.snapshot("discovery", data)
         return {"discovery": uid, "seeds": wids, "candidates": rows, "total_unique": len(ranked), "date_window": window_note,
+                "route_kind": route_kind(args.direction), "seed_links": seed_links, "skipped_seeds": skipped, "notes": notes,
                 "pages": total_pages, "complete": all_complete,
                 "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
 
@@ -257,7 +296,7 @@ def discover(run, api, args):
     result = api.run(obj, args.size, DISCOVERY_FIELDS)
     rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
              "abstract": abstract(w)} for w in result["rows"] if work_id(w) not in protected]
-    data = {"at": now(), "route": args.action, "oql": result["oql"], "oqo": result["oqo"], "date_window": window_note,
-            "rows": rows}
+    data = {"at": now(), "route": args.action, "route_kind": "text", "oql": result["oql"], "oqo": result["oqo"],
+            "date_window": window_note, "rows": rows}
     uid = run.snapshot("discovery", data)
     return {"discovery": uid, "candidates": rows, "date_window": window_note}

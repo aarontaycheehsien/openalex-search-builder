@@ -198,6 +198,12 @@ class API:
             hits.update(found)
         return hits
 
+    def link_counts(self, wid):
+        """Matched references and citations of one work (a free single-work request)."""
+        record = self.request("/works/" + wid, {"select": "id,referenced_works_count,cited_by_count"})
+        return {"referenced_works_count": record.get("referenced_works_count") or 0,
+                "cited_by_count": record.get("cited_by_count") or 0}
+
     def pulled(self, ids):
         """Which of these works OpenAlex currently marks as pulled (any corpus)."""
         return self.members(PULLED_QUERY, ids, include_pulled=True) if ids else set()

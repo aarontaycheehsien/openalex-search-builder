@@ -41,9 +41,12 @@ def items(run, fresh, critic, scope_note):
     at = fresh["at"]
     count = fresh["final"]["count"]
     batches, screening, included = discovery(run)
-    neighbors = [b for b in batches if b.get("route") == "neighbors"]
+    # related_works is text similarity (embeddings), not citation searching: report it under other methods.
+    neighbors = [b for b in batches if b.get("route") == "neighbors" and b.get("direction") != "related"]
+    related = [b for b in batches if b.get("route") == "neighbors" and b.get("direction") == "related"]
     samples = [b for b in batches if b.get("route") == "sample"]
     directions = Counter(b.get("direction") for b in neighbors)
+    linked_on = sorted({b["at"][:10] for b in neighbors if b.get("at")})
     pulled_text = ("retracted, withdrawn and removed works excluded (include_pulled=false, OpenAlex's default view)"
                    if pulled["view"] == "exclude" else "retracted, withdrawn and removed works included (include_pulled=true)")
 
@@ -53,16 +56,26 @@ def items(run, fresh, critic, scope_note):
         citation = (PARTLY, f"Citation searching was used during strategy development: {len(neighbors)} batch(es) of "
                     f"OpenAlex citation links ({routes}) from {seeds} development work(s), with {len(screening)} candidate "
                     f"decision(s) recorded and {included} included. These informed the strategy; they are not a separate "
-                    "set of records in this report. If the optional no-abstract rescue (`rescue`) is run, report it here "
-                    "as a supplementary citation search, with its manifest.")
+                    "set of records in this report. The links are OpenAlex's matched references, as of "
+                    f"{', '.join(linked_on) or 'the batch dates'}: about 82% of references to works in OpenAlex are "
+                    "linked, unmatched references are dropped and many records carry no reference list (OpenAlex "
+                    "documentation, November 2026); OpenAlex revised its links on 25 November 2026, so a rerun on "
+                    "another date can differ. If the optional no-abstract rescue (`rescue`) is run, report it here as a "
+                    "supplementary citation search, with its manifest.")
     else:
         citation = (REVIEWER, "No citation searching is recorded in this workspace. If the optional no-abstract rescue "
                     "(`rescue`) is run, report it here as a supplementary citation search; report any other citation "
                     "searching done outside the tool.")
 
-    other = ((PARTLY, f"{len(samples)} random-sample pilot(s) of candidate queries were screened during development to "
-              "check precision and terminology; they were not a source of records. Report any other methods.")
-             if samples else (REVIEWER, "Report any additional information sources or search methods."))
+    methods = []
+    if samples:
+        methods.append(f"{len(samples)} random-sample pilot(s) of candidate queries were screened during development to "
+                       "check precision and terminology; they were not a source of records.")
+    if related:
+        methods.append(f"{len(related)} batch(es) of OpenAlex related works (up to 10 nearest neighbours by text "
+                       "similarity, never reviews or retracted works) were screened during development.")
+    other = (PARTLY, " ".join(methods) + " Report any other methods.") if methods else \
+        (REVIEWER, "Report any additional information sources or search methods.")
 
     if limits:   # PRISMA-S asks for a justification; the scope note may not give one
         limit_status, limit_text = PARTLY, f"Limits applied: {limits_text(limits)}."

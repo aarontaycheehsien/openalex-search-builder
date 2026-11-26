@@ -58,6 +58,11 @@ class Index:
     def pulled(self, ids):
         return set(ids) & self.pulled_ids
 
+    links = {}   # per-work overrides of matched-reference and citation counts
+
+    def link_counts(self, wid):
+        return self.links.get(wid, {"referenced_works_count": 5, "cited_by_count": 5})
+
     def run(self, q, size=1, fields="id", include_pulled=None):
         if isinstance(q, dict):
             return {"oqo": q, "oql": "pilot", "rows": [{"id": f"W{i}", "display_name": f"title {i}"} for i in (1, 2, 3)], "count": 3}
@@ -388,7 +393,7 @@ class WorkspaceTests(unittest.TestCase):
         self.assertIsNone(rest["next_cursor"])
 
         # --all with --max-pages bounds the number of pages fetched
-        bounded = self.call("neighbors", "W1", "--direction", "related", "--all", "--max-pages", "2")
+        bounded = self.call("neighbors", "W1", "--direction", "citing", "--all", "--max-pages", "2")
         self.assertEqual(bounded["pages"], 2)
         self.assertFalse(bounded["complete"])
         self.assertEqual(bounded["next_cursor"], "c3")
@@ -866,6 +871,33 @@ class WorkspaceTests(unittest.TestCase):
         bound = {"column_id": "to_publication_date", "value": "2020-12-31"}
         self.assertEqual(windowed({"filter_rows": [bound]}, date_window({"limits": {"to_date": "2020-12-31"}})),
                          {"filter_rows": [bound]})                       # a row the query already has is not repeated
+
+    def test_dead_end_seeds_and_related_limits(self):
+        calls = []
+        def page(oqo, cursor="*", size=100, select=None):
+            calls.append(size)
+            return {"count": 30, "rows": [{"id": f"W{i}", "display_name": f"N{i}"} for i in range(100, 100 + size)],
+                    "next_cursor": None, "oqo": oqo, "oql": "neighbors"}
+        self.api.page = page
+        self.api.links = {"W1": {"referenced_works_count": 0, "cited_by_count": 4}}
+        with self.assertRaisesRegex(Error, r"W1 has no matched references in OpenAlex.*--direction citing.*open-access"):
+            self.call("neighbors", "W1", "--direction", "references")
+        self.assertEqual(calls, [])                                    # refused before any paging request
+        out = self.call("neighbors", "W1", "W2", "--direction", "references")
+        self.assertEqual((out["seed"], out["skipped_seeds"]), ("W2", ["W1"]))
+        self.assertIn("Skipped W1: no matched references in OpenAlex.", out["notes"])
+        out = self.call("neighbors", "W1", "--direction", "citing")
+        self.assertEqual((out["route_kind"], out["seed_links"]["W1"]["cited_by_count"]), ("citation", 4))
+        calls.clear()
+        out = self.call("neighbors", "W1", "--direction", "related", "--size", "50", "--all")
+        self.assertEqual((calls, len(out["candidates"]), out["route_kind"]), ([10], 10, "text-similarity"))
+        self.assertIn("never include reviews", out["notes"][0])
+        self.assertEqual(out["seed_links"], {})                        # no link check for a text route
+        report = self.deliver()
+        items = {i["topic"]: i for i in json.loads((report / "prisma-s.json").read_text())["items"]}
+        self.assertIn("2 batch(es) of OpenAlex citation links (1 citing, 1 references)", items["Citation searching"]["text"])
+        self.assertIn("about 82% of references", items["Citation searching"]["text"])
+        self.assertIn("1 batch(es) of OpenAlex related works", items["Other methods"]["text"])
 
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
