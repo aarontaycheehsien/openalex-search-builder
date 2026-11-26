@@ -42,14 +42,14 @@ Running record of implemented fixes/features and open improvements surfaced duri
 
 ### 3. Medium — Stronger vocabulary & discovery tools
 - **Enrichment-ranked `terms`:** Rank mined terms by frequency in development records vs. a background sample rather than raw document frequency (the objective approach of Hausner et al., 2012, https://doi.org/10.1186/2046-4053-1-19). Worth it mainly at `thorough` depth: with two or three seeds neither raw counts nor lift say much.
-- **Multi-seed `neighbors`:** Allow passing multiple work IDs to `neighbors` in one deduplicated snowballing batch.
+- **Done — Multi-seed `neighbors`:** `neighbors` accepts multiple development Work IDs in one deduplicated snowballing batch, ranking co-linked candidates by `seed_count` first (excluding seeds and protected records).
 - **Post-export abstract enrichment (for screening):** Optional enrichment of missing abstracts in `results.csv` / `results.ris` via PubMed / Europe PMC / Crossref by DOI/PMID, with provenance logged in `export-manifest.json`.
 
 ### 4. Medium — Stricter critique & workspace ergonomics
 - **Multi-round critique continuity:** Numbered findings across critique rounds with required dispositions and a `report --diagnostic` dry-run mode.
 - **`doctor` command & response caching:** Quick check of `OPENALEX_API_KEY`, remaining credits, and API connectivity; optional per-workspace cache for repeated read-only calls.
-- **`eval` irrelevant-set hit count:** Report how many `exclude`-screened development works are matched by the query alongside `sets.relevant` / `sets.seed` so agents can track development specificity directly (surfaced in blind `Langham-Putrow_2021_OACA` run).
-- **`SKILL.md` `sample --oql` syntax example:** Add a 1-line canonical `sample --oql` example (`get works where title-abstract has (...) and publication_date <= ...`) to prevent initial HTTP 400 syntax trial-and-error during seedless discovery (surfaced in blind `Langham-Putrow_2021_OACA` run).
+- **Done — `eval` irrelevant-set hit count:** `eval` reports `irrelevant` (`screened_excluded`, `matched`, `match_rate`, `hits`) for `exclude`-screened development works from `screening.json` so agents can track development specificity directly.
+- **Done — `sample --from-strategy` & `SKILL.md` recall/ergonomics updates:** Added `sample --from-strategy` (compiles and checks `strategy.json` directly), a canonical `sample --oql` example, and `SKILL.md` guidance against enumerating "any X" facets, for breadth-calibrated volume, for seedless citation-discovered validation holdouts, and for triggering `has_abstract: false` fallback branches when `--abstract-stats` flags >15% missing abstracts or attrition.
 
 ### 5. Medium — Benchmark expansion & rigor
 - Run blind builds across the remaining `openalex-native` fixtures (`Walker_2018` done 2026-11-25; still to run: `Kapuka_2021`, `Filges_2022`, `Noetel_2021`, `Verdugo-Castro_2022`, `Cinquin_2018`, `Ruggeri_2019`) and the 10 `frozen` held-out fixtures (with strict filesystem isolation and 2–3 repeats per condition to measure variance).

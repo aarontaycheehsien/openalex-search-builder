@@ -43,16 +43,18 @@ def parser():
     c.add_argument("file", type=Path, help="JSON critique, see SKILL.md")
     cmds.add_parser("report")
     c = cmds.add_parser("sample")
-    c.add_argument("--oql", required=True)
+    c.add_argument("--oql", help="OQL query to sample (mutually exclusive with --from-strategy).")
+    c.add_argument("--from-strategy", action="store_true",
+                   help="Sample directly from the current strategy.json instead of passing --oql.")
     c.add_argument("--size", type=int, default=10)
     c.add_argument("--seed", type=int, default=42)
-    c = cmds.add_parser("neighbors", help="Follow citing, referenced, or related works of a development record (cursor-paged).")
-    c.add_argument("work_id")
+    c = cmds.add_parser("neighbors", help="Follow citing, referenced, or related works of one or more development records (cursor-paged).")
+    c.add_argument("work_ids", nargs="+", help="One or more resolved development OpenAlex Work IDs.")
     c.add_argument("--direction", choices=["citing", "references", "related"], required=True)
     c.add_argument("--size", type=int, default=10, help="Maximum candidates to return (pages automatically above 100).")
     c.add_argument("--all", action="store_true", help="Page through all neighbors until exhausted (combine with --max-pages to bound cost).")
-    c.add_argument("--cursor", help="Start from a saved next_cursor returned by a previous neighbors call.")
-    c.add_argument("--max-pages", type=int, help="Stop after this many API pages.")
+    c.add_argument("--cursor", help="Start from a saved next_cursor returned by a previous single-seed neighbors call.")
+    c.add_argument("--max-pages", type=int, help="Stop after this many API pages (per seed when multiple seeds are given).")
     c = cmds.add_parser("screen")
     c.add_argument("discovery")
     c.add_argument("work_id")
@@ -220,6 +222,8 @@ def dispatch(run, api, a):
                          "development_pulled": sorted(dev.intersection(data["pulled"]["known_pulled"]))}
         if "abstract_stats" in data:
             out["abstract_stats"] = data["abstract_stats"]
+        if "irrelevant" in data:
+            out["irrelevant"] = data["irrelevant"]
         if exposed := exposed_holdouts(run, records):
             out["holdout_exposure"] = {
                 "exposed": len(exposed),
@@ -260,6 +264,8 @@ def dispatch(run, api, a):
     if a.action == "sample":
         if not 1 <= a.size <= 100:
             raise Error("--size must be between 1 and 100.")
+        if bool(a.oql) == bool(a.from_strategy):
+            raise Error("Pass either --oql or --from-strategy (not both).")
         return discover(run, api, a)
     if a.action == "neighbors":
         if not a.all and a.size < 1:

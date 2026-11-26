@@ -3,8 +3,8 @@ import math
 import re
 from collections import Counter
 
-from .api import PULLED_VIEWS, Error, work_id, now
-from .strategy import CORPORA, pulled_view
+from .api import PULLED_VIEWS, Error, check_translation, work_id, now
+from .strategy import CORPORA, check, core, excluded, expected_tokens, final_query, pulled_view
 
 ROLES = ("seed", "relevant", "validation", "benchmark")
 DEVELOPMENT = {"seed", "relevant"}
@@ -108,69 +108,121 @@ DISCOVERY_FIELDS = "id,display_name,publication_year,abstract_inverted_index"
 
 def discover(run, api, args):
     protected = {k for k, v in run.get("records").items() if v["role"] not in DEVELOPMENT}
-    api.include_pulled = PULLED_VIEWS[pulled_view(run.get("strategy"))]
+    strategy = run.get("strategy")
+    api.include_pulled = PULLED_VIEWS[pulled_view(strategy)]
     if args.action == "neighbors":
         records = run.get("records")
-        wid = args.work_id.upper()
-        if wid not in records or records[wid]["role"] not in DEVELOPMENT or not records[wid]["work"]:
-            raise Error("Choose a resolved development record as the citation starting point.")
-        corpus = run.get("strategy").get("corpus", "core")
+        raw_ids = getattr(args, "work_ids", None) or [args.work_id]
+        wids = list(dict.fromkeys(w.upper() for w in raw_ids))
+        for wid in wids:
+            if wid not in records or records[wid]["role"] not in DEVELOPMENT or not records[wid]["work"]:
+                raise Error("Choose a resolved development record as the citation starting point.")
+        cursor_arg = getattr(args, "cursor", None)
+        if len(wids) > 1 and cursor_arg:
+            raise Error("--cursor can only be used with a single seed work ID.")
+        corpus = strategy.get("corpus", "core")
         head = f"get works{CORPORA.get(corpus, '')}"
-        if args.direction == "citing":
-            query = f"{head} citing []({wid})"
-        elif args.direction == "references":
-            query = f"{head} cited by []({wid})"
-        else:
-            query = f"{head} where it's related to ([]({wid}))"
-        parsed = api.validate(query)
-        obj = dict(parsed["oqo"])
-        if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
-            raise Error("Discovery requires a query that lists works.")
         fetch_all = bool(getattr(args, "all", False))
-        limit = None if fetch_all else args.size
         max_pages = getattr(args, "max_pages", None)
-        cursor = getattr(args, "cursor", None) or "*"
-        seen_cursors, seen_ids, rows = set(), set(), []
-        pages, total, oql_echo, oqo_echo = 0, None, parsed["oql"], obj
-        while cursor is not None:
-            if max_pages is not None and pages >= max_pages:
-                break
-            if limit is not None and len(rows) >= limit:
-                break
-            per_page = 100 if limit is None else min(100, limit - len(rows))
-            page = api.page(obj, cursor=cursor, size=per_page, select=DISCOVERY_FIELDS)
-            nxt = page["next_cursor"]
-            if nxt and (nxt == cursor or nxt in seen_cursors):
-                raise Error("Repeated cursor; neighbor paging stopped to prevent an infinite loop.")
-            if not page["rows"] and nxt:
-                raise Error("Empty page with a continuation cursor; neighbor paging stopped.")
-            seen_cursors.add(cursor)
-            pages += 1
-            total = page["count"]
-            if page.get("oql"):
-                oql_echo = page["oql"]
-            if page.get("oqo"):
-                oqo_echo = page["oqo"]
-            for w in page["rows"]:
-                r_id = work_id(w)
-                if r_id in protected or r_id in seen_ids:
-                    continue
-                seen_ids.add(r_id)
-                rows.append({"id": r_id, "title": w.get("display_name"), "year": w.get("publication_year"),
-                             "abstract": abstract(w)})
+
+        def fetch_seed(wid, limit, start_cursor="*"):
+            if args.direction == "citing":
+                query = f"{head} citing []({wid})"
+            elif args.direction == "references":
+                query = f"{head} cited by []({wid})"
+            else:
+                query = f"{head} where it's related to ([]({wid}))"
+            parsed = api.validate(query)
+            obj = dict(parsed["oqo"])
+            if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
+                raise Error("Discovery requires a query that lists works.")
+            cursor = start_cursor or "*"
+            seen_cursors, seen_ids, rows = set(), set(), []
+            pages, total, oql_echo, oqo_echo = 0, None, parsed["oql"], obj
+            while cursor is not None:
+                if max_pages is not None and pages >= max_pages:
+                    break
                 if limit is not None and len(rows) >= limit:
                     break
-            cursor = nxt
-        complete = cursor is None
-        data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wid,
-                "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages,
-                "complete": complete, "next_cursor": cursor, "rows": rows}
+                per_page = 100 if limit is None else min(100, limit - len(rows))
+                page = api.page(obj, cursor=cursor, size=per_page, select=DISCOVERY_FIELDS)
+                nxt = page["next_cursor"]
+                if nxt and (nxt == cursor or nxt in seen_cursors):
+                    raise Error("Repeated cursor; neighbor paging stopped to prevent an infinite loop.")
+                if not page["rows"] and nxt:
+                    raise Error("Empty page with a continuation cursor; neighbor paging stopped.")
+                seen_cursors.add(cursor)
+                pages += 1
+                total = page["count"]
+                if page.get("oql"):
+                    oql_echo = page["oql"]
+                if page.get("oqo"):
+                    oqo_echo = page["oqo"]
+                for w in page["rows"]:
+                    r_id = work_id(w)
+                    if r_id in protected or r_id in seen_ids:
+                        continue
+                    seen_ids.add(r_id)
+                    rows.append({"id": r_id, "title": w.get("display_name"), "year": w.get("publication_year"),
+                                 "abstract": abstract(w)})
+                    if limit is not None and len(rows) >= limit:
+                        break
+                cursor = nxt
+            return rows, total, pages, cursor, oql_echo, oqo_echo
+
+        if len(wids) == 1:
+            wid = wids[0]
+            limit = None if fetch_all else args.size
+            rows, total, pages, cursor, oql_echo, oqo_echo = fetch_seed(wid, limit, cursor_arg or "*")
+            complete = cursor is None
+            data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wid,
+                    "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages,
+                    "complete": complete, "next_cursor": cursor, "rows": rows}
+            uid = run.snapshot("discovery", data)
+            return {"discovery": uid, "candidates": rows, "total": total, "pages": pages,
+                    "complete": complete, "next_cursor": cursor,
+                    "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
+
+        # Multi-seed snowballing: fetch per seed, deduplicate, and rank co-cited/multi-linked candidates first.
+        per_seed_limit = None if fetch_all else max(args.size, 50)
+        seed_set = set(wids)
+        merged, seed_links = {}, {}
+        total_pages, all_complete, per_seed_totals = 0, True, {}
+        for wid in wids:
+            s_rows, s_total, s_pages, s_cursor, _, _ = fetch_seed(wid, per_seed_limit)
+            total_pages += s_pages
+            all_complete = all_complete and (s_cursor is None)
+            per_seed_totals[wid] = s_total
+            for row in s_rows:
+                r_id = row["id"]
+                if r_id in seed_set:
+                    continue
+                if r_id not in merged:
+                    merged[r_id] = row
+                    seed_links[r_id] = []
+                if wid not in seed_links[r_id]:
+                    seed_links[r_id].append(wid)
+        ranked = []
+        for r_id, row in merged.items():
+            ranked.append(dict(row, matched_seeds=seed_links[r_id], seed_count=len(seed_links[r_id])))
+        ranked.sort(key=lambda r: (-r["seed_count"], -(r["year"] or 0), r["id"]))
+        rows = ranked if fetch_all else ranked[:args.size]
+        data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wids[0],
+                "seeds": wids, "per_seed_totals": per_seed_totals, "pages": total_pages,
+                "complete": all_complete, "rows": rows}
         uid = run.snapshot("discovery", data)
-        return {"discovery": uid, "candidates": rows, "total": total, "pages": pages,
-                "complete": complete, "next_cursor": cursor,
+        return {"discovery": uid, "seeds": wids, "candidates": rows, "total_unique": len(ranked),
+                "pages": total_pages, "complete": all_complete,
                 "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
 
-    parsed = api.validate(args.oql)
+    if getattr(args, "from_strategy", False):
+        check(strategy)
+        query, expected = final_query(strategy)
+        parsed = api.validate(query)
+        check_translation(parsed["oqo"], strategy.get("corpus", "core"), expected,
+                          expected_tokens(core(strategy), strategy.get("limits", {}), excluded(strategy)))
+    else:
+        parsed = api.validate(args.oql)
     obj = dict(parsed["oqo"])
     if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
         raise Error("Discovery requires a query that lists works.")
