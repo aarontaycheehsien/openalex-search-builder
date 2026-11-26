@@ -49,6 +49,8 @@ def parser():
                    help="Sample directly from the current strategy.json instead of passing --oql.")
     c.add_argument("--size", type=int, default=10)
     c.add_argument("--seed", type=int, default=42)
+    c.add_argument("--any-date", action="store_true",
+                   help="Do not apply the strategy's publication-date limits to the candidates (they apply by default).")
     c = cmds.add_parser("neighbors", help="Follow citing, referenced, or related works of one or more development records (cursor-paged).")
     c.add_argument("work_ids", nargs="+", help="One or more resolved development OpenAlex Work IDs.")
     c.add_argument("--direction", choices=["citing", "references", "related"], required=True)
@@ -56,6 +58,8 @@ def parser():
     c.add_argument("--all", action="store_true", help="Page through all neighbors until exhausted (combine with --max-pages to bound cost).")
     c.add_argument("--cursor", help="Start from a saved next_cursor returned by a previous single-seed neighbors call.")
     c.add_argument("--max-pages", type=int, help="Stop after this many API pages (per seed when multiple seeds are given).")
+    c.add_argument("--any-date", action="store_true",
+                   help="Do not apply the strategy's publication-date limits to the candidates (they apply by default).")
     c = cmds.add_parser("screen")
     c.add_argument("discovery")
     c.add_argument("work_id")
@@ -199,9 +203,9 @@ def dispatch(run, api, a):
             if not a.note or not a.note.strip():
                 raise Error("Record the reviewer's instruction using --note.")
             check(run.get("strategy"))
-            run.put("scope", {"at": now(), "hash": digest(scope), "decision": a.note})
-        return dict(scope, confirmed=a.confirm or (
-            (run.root / "scope.json").exists() and run.get("scope")["hash"] == digest(scope)))
+            key = run.scope_key()
+            run.put("scope", {"at": now(), "hash": digest(key), "key": key, "decision": a.note})
+        return dict(scope, confirmed=run.scope_confirmed())
     if a.action == "validate":
         strategy = run.get("strategy")
         check(strategy)
@@ -239,7 +243,7 @@ def dispatch(run, api, a):
                         "post-exposure and also score the unexposed holdouts separately."}
         return out
     if a.action == "review":
-        return {"review": review(run, a.file)}
+        return review(run, a.file)   # {"review": id, "evaluation": id, "placeholders_filled": [...]}
     if a.action == "report":
         return report(run, api)
     if a.action == "holdout-split":

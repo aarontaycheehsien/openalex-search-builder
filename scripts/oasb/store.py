@@ -44,6 +44,27 @@ MISSING = {
 }
 
 
+def scope_changes(old, new):
+    """Plain-language list of what differs between two scope keys (old may be absent)."""
+    if not old:
+        return ""
+    out = []
+    if old.get("protocol") != new.get("protocol"):
+        out.append("question, eligibility or depth")
+    before = {c["id"]: c["role"] for c in old.get("concepts", [])}
+    after = {c["id"]: c["role"] for c in new.get("concepts", [])}
+    if added := sorted(set(after) - set(before)):
+        out.append("blocks added: " + ", ".join(added))
+    if removed := sorted(set(before) - set(after)):
+        out.append("blocks removed: " + ", ".join(removed))
+    if roles := sorted(k for k in set(before) & set(after) if before[k] != after[k]):
+        out.append("roles changed: " + ", ".join(f"{k} {before[k]}→{after[k]}" for k in roles))
+    for key, label in (("limits", "limits"), ("corpus", "corpus"), ("pulled", "pulled-works setting")):
+        if old.get(key) != new.get(key):
+            out.append(label)
+    return "; ".join(out)
+
+
 class Run:
     def __init__(self, root):
         self.root = Path(root)
@@ -94,10 +115,27 @@ class Run:
             data["pulled"] = s["pulled"]
         return data
 
+    def scope_key(self):
+        """What a scope decision covers. Rationale wording is documentation, not a decision:
+        editing it does not need re-confirmation (it still changes the evaluation fingerprint)."""
+        data = self.scope_data()
+        return dict(data, concepts=[{k: c.get(k) for k in ("id", "role")} for c in data["concepts"]])
+
+    def scope_confirmed(self):
+        if not (self.root / "scope.json").exists():
+            return False
+        stored = self.get("scope")["hash"]
+        # Scopes confirmed before 2026-11-26 hashed the rationale too; they stay valid until something changes.
+        return stored in (digest(self.scope_key()), digest(self.scope_data()))
+
     def approved(self):
-        path = self.root / "scope.json"
-        if not path.exists() or self.get("scope")["hash"] != digest(self.scope_data()):
-            raise Error("Confirm the current concepts, eligibility and limits with the scope command.")
+        if self.scope_confirmed():
+            return
+        if not (self.root / "scope.json").exists():
+            raise Error('Confirm the scope first: scope --confirm --note "<the reviewer\'s decision>".')
+        changed = scope_changes(self.get("scope").get("key"), self.scope_key())
+        raise Error("The scope changed since it was confirmed" + (f" ({changed})" if changed else "")
+                    + '. Check it with scope, then run: scope --confirm --note "<what changed and why>".')
 
     def fingerprint(self):
         return digest({k: self.get(k) for k in ("strategy", "protocol", "scope", "records")})

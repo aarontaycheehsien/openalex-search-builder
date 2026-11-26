@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / "evals"))
 import bench
 from oasb import cli
 from oasb.api import API, Error, check_translation, identifier, leaves, normalize_query, normalize_warnings, tokens
-from oasb.store import Run, write
+from oasb.store import Run, digest, write
 from oasb.strategy import check, lint
 import re
 from oasb.export import export
@@ -278,7 +278,7 @@ class WorkspaceTests(unittest.TestCase):
 
     def test_corpus_requires_scope_and_reaches_neighbors(self):
         self.run.put("strategy", dict(self.strategy, corpus="all"))
-        with self.assertRaisesRegex(Error, "Confirm"):
+        with self.assertRaisesRegex(Error, r"scope changed since it was confirmed \(corpus\)"):
             self.call("eval")
         self.call("scope", "--confirm", "--note", "Include expansion corpus")
         self.assertIn("(all corpora)", self.call("eval")["oql"])
@@ -610,7 +610,7 @@ class WorkspaceTests(unittest.TestCase):
     def test_including_pulled_is_a_scope_decision(self):
         self.api.pulled_ids = {"W1"}
         self.run.put("strategy", dict(self.strategy, pulled="include"))
-        with self.assertRaisesRegex(Error, "Confirm the current concepts"):
+        with self.assertRaisesRegex(Error, r"scope changed since it was confirmed \(pulled-works setting\).*scope --confirm"):
             self.call("eval")
         self.call("scope", "--confirm", "--note", "Review must identify retracted studies")
         ev = self.call("eval")
@@ -795,6 +795,77 @@ class WorkspaceTests(unittest.TestCase):
         self.assertIn("## PRISMA-S search reporting checklist (draft)", audit)
         self.assertEqual(audit.count("\n| 1 | Database name | filled |"), 1)
         self.assertRegex(audit, r"last searched on \d{4}-\d\d-\d\d \(at \d\d:\d\d:\d\d UTC\)")
+
+    def test_rationale_edits_keep_the_scope_and_real_changes_name_themselves(self):
+        self.strategy["blocks"][0]["rationale"] = "Reworded rationale"
+        self.run.put("strategy", self.strategy)
+        self.call("eval")                                       # no re-confirmation needed
+        self.strategy["blocks"][1]["role"] = "optional"
+        self.strategy["blocks"].append({"id": "extra", "role": "screen", "terms": [], "rationale": "r"})
+        self.run.put("strategy", self.strategy)
+        with self.assertRaisesRegex(Error, r"blocks added: extra; roles changed: setting search→optional.*scope --confirm"):
+            self.call("eval")
+        # A scope confirmed before this change (hash included rationale, no stored key) stays valid.
+        self.strategy["blocks"][1]["role"] = "search"
+        self.strategy["blocks"].pop()
+        self.run.put("strategy", self.strategy)
+        write(self.run.root / "scope.json", {"at": "2026-11-25T00:00:00+00:00", "hash": digest(self.run.scope_data()),
+                                             "decision": "legacy approval"})
+        self.call("eval")
+        self.strategy["limits"] = {"to_date": "2020-12-31"}
+        self.run.put("strategy", self.strategy)
+        with self.assertRaisesRegex(Error, r"The scope changed since it was confirmed\. Check it"):
+            self.call("eval")                                   # legacy record: no detail, still a clear command
+
+    def test_review_fills_figures_and_refuses_stale_counts(self):
+        self.call("eval")
+        uid, current = self.run.latest("evaluations")
+        earlier = dict(current, at="2000-01-01T00:00:00+00:00", final=dict(current["final"], count=30848))
+        write(self.run.root / "evaluations" / ("0" * 32 + ".json"), earlier)
+        file = self.run.root / "critique.json"
+        base = dict.fromkeys(("scope", "vocabulary", "boolean_and_fields", "limits", "limitations"), "Reviewed.") | {"decision": "ready"}
+        write(file, dict(base, retrieval="The search returns 30,848 works."))
+        with self.assertRaisesRegex(Error, r"cites 30,848 works, the final count of an earlier evaluation.*\{final_count\}"):
+            self.call("review", str(file))
+        write(file, dict(base, retrieval="Down from 30,848 to {final_count} works; development recall {development_recall}; {pulled_count} pulled."))
+        out = self.call("review", str(file))
+        self.assertEqual(out["placeholders_filled"], ["development_recall", "final_count", "pulled_count"])
+        write(file, dict(base, retrieval="{validation_recall}"))      # holdout figures are not offered
+        with self.assertRaisesRegex(Error, r"Unknown critique placeholder\(s\): validation_recall\. Available: .*\{final_count\}"):
+            self.call("review", str(file))
+        write(file, dict(base, retrieval="Down from 30,848 to {final_count} works; development recall {development_recall}."))
+        self.call("review", str(file))
+        audit = (Path(self.call("report")["report"]) / "audit.md").read_text()
+        count = current["final"]["count"]
+        self.assertIn(f"Down from 30,848 to {count:,} works; development recall 50% (95% CI 9–91%).", audit)
+        self.assertIn("filled in by `review` from evaluation", audit)
+
+    def test_discovery_applies_the_date_window(self):
+        self.strategy["limits"] = {"from_date": "2000-01-01", "to_date": "2020-12-31"}
+        self.reconfirm(self.strategy)
+        sent = []
+        def page(oqo, cursor="*", size=100, select=None):
+            sent.append(oqo)
+            return {"count": 0, "rows": [], "next_cursor": None, "oqo": oqo, "oql": "neighbors"}
+        self.api.page = page
+        out = self.call("neighbors", "W1", "--direction", "related")
+        rows = sent[-1]["filter_rows"]
+        self.assertIn({"column_id": "to_publication_date", "value": "2020-12-31"}, rows)
+        self.assertIn({"column_id": "from_publication_date", "value": "2000-01-01"}, rows)
+        self.assertEqual(out["date_window"], {"from": "2000-01-01", "to": "2020-12-31"})
+        self.call("neighbors", "W1", "W2", "--direction", "citing")                  # multi-seed path
+        self.assertIn({"column_id": "to_publication_date", "value": "2020-12-31"}, sent[-1]["filter_rows"])
+        out = self.call("neighbors", "W1", "--direction", "citing", "--any-date")
+        self.assertFalse(any("publication_date" in r.get("column_id", "") for r in sent[-1]["filter_rows"]))
+        self.assertIsNone(out["date_window"])
+        with patch.object(self.api, "run", wraps=self.api.run) as run:
+            self.call("sample", "--oql", "get works where title has (telemedicine)", "--size", "3")
+            rows = run.call_args.args[0]["filter_rows"]
+            self.assertEqual(sum(r == {"column_id": "to_publication_date", "value": "2020-12-31"} for r in rows), 1)
+        from oasb.records import date_window, windowed
+        bound = {"column_id": "to_publication_date", "value": "2020-12-31"}
+        self.assertEqual(windowed({"filter_rows": [bound]}, date_window({"limits": {"to_date": "2020-12-31"}})),
+                         {"filter_rows": [bound]})                       # a row the query already has is not repeated
 
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note

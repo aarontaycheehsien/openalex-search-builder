@@ -1,12 +1,13 @@
 """Execute strategies, isolate failing clauses, and bind delivery to fresh evidence."""
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 
 from .api import PULLED_VIEWS, Error, check_translation, normalize_query, normalize_warnings, now
 from . import prisma
-from .records import PROTECTED, discovered_ids, exposed_holdouts, exposure, interval_text, summary
+from .records import DEVELOPMENT, PROTECTED, discovered_ids, exposed_holdouts, exposure, interval_text, summary, wilson
 from .store import digest, write
 from .strategy import (BARE_WORD, HYPHEN_PHRASE, assign, check, core, excluded, expected_leaves, expected_tokens, failing,
                        oql, parse_combine, pulled_view, spaced_phrase, term_text, tree_ids)
@@ -210,6 +211,42 @@ def save_eval(run, data):
     return run.snapshot("evaluations", data)
 
 
+PLACEHOLDER = re.compile(r"\{([a-z_]+)\}")
+NUMBER = re.compile(r"(?<![\d.,])\d{1,3}(?:,\d{3})+(?![\d,])|(?<![\d.,])\d+(?![\d,])")
+
+
+def critique_figures(uid, current):
+    """Development-only figures a critique may cite as {placeholders}; review fills them in, so a
+    critique cannot quote stale numbers. Holdout results are not offered to the builder."""
+    figures = {"evaluation_id": uid, "evaluated_at": current["at"], "final_count": f"{current['final']['count']:,}"}
+    if "pulled" in current:
+        figures["pulled_count"] = f"{current['pulled']['final_pulled_works']:,}"
+    found = resolved = 0
+    for role in sorted(DEVELOPMENT):
+        s = current["sets"][role]
+        figures[f"{role}_retrieved"], figures[f"{role}_resolved"] = str(s["retrieved"]), str(s["resolved"])
+        figures[f"{role}_recall"] = interval_text(s)
+        found, resolved = found + s["retrieved"], resolved + s["resolved"]
+    figures["development_retrieved"], figures["development_resolved"] = str(found), str(resolved)
+    figures["development_recall"] = interval_text({"relative_recall": found / resolved if resolved else None,
+                                                   "relative_recall_ci95": wilson(found, resolved)})
+    figures["development_missed"] = str(resolved - found)
+    if "abstract_stats" in current:
+        figures["without_abstract_pct"] = f"{current['abstract_stats']['final']['pct_without_abstract']}%"
+    return figures
+
+
+def earlier_counts(run, uid):
+    """Final counts of the workspace's other evaluations, for catching a critique that quotes them."""
+    out = set()
+    for p in (run.root / "evaluations").glob("*.json"):
+        if p.stem != uid:
+            count = json.loads(p.read_text(encoding="utf-8"))["final"]["count"]
+            if count >= 100 and not 1900 <= count <= 2100:   # skip small numbers and year-like values
+                out.add(count)
+    return out
+
+
 def review(run, path):
     uid, current = run.latest("evaluations")
     if current["input_hash"] != run.fingerprint():
@@ -221,7 +258,30 @@ def review(run, path):
             raise Error(f"The critique needs a finding and disposition for {section}.")
     if document.get("decision") != "ready":
         raise Error("Address outstanding findings, reevaluate, and submit the revised critique.")
-    return run.snapshot("reviews", {"at": now(), "evaluation": uid, "evidence": evidence(current), "critique": document})
+    figures = critique_figures(uid, current)
+    used, unknown = set(), set()
+
+    def fill(match):
+        name = match[1]
+        if name not in figures:
+            unknown.add(name)
+            return match[0]
+        used.add(name)
+        return figures[name]
+    filled = {k: PLACEHOLDER.sub(fill, v) if isinstance(v, str) else v for k, v in document.items()}
+    if unknown:
+        raise Error("Unknown critique placeholder(s): " + ", ".join(sorted(unknown))
+                    + ". Available: " + ", ".join("{" + k + "}" for k in figures) + ".")
+    cited = {int(n.replace(",", "")) for v in filled.values() if isinstance(v, str) for n in NUMBER.findall(v)}
+    stale = sorted(cited & earlier_counts(run, uid))
+    if stale and current["final"]["count"] not in cited:
+        raise Error(f"The critique cites {', '.join(f'{n:,}' for n in stale)} works, the final count of an earlier "
+                    f"evaluation, but not the current {current['final']['count']:,}. Update it, or write {{final_count}} "
+                    "and let review fill in the current figure.")
+    uid_review = run.snapshot("reviews", {"at": now(), "evaluation": uid, "evidence": evidence(current),
+                                          "critique": filled, "template": document,
+                                          "figures": {k: figures[k] for k in sorted(used)}})
+    return {"review": uid_review, "evaluation": uid, "placeholders_filled": sorted(used)}
 
 
 def pulled_text(p):
@@ -320,6 +380,9 @@ def report(run, api):
                      f"Lost: {', '.join(change.get('lost', [])) or 'none'}.")
     audit += ["", "## PRESS-structured internal critique", ""]
     audit += [f"- **{k}** — {v}" for k, v in critic["critique"].items() if k != "decision"]
+    if critic.get("figures"):
+        audit += ["", f"Figures in braces in the critique template were filled in by `review` from evaluation "
+                      f"{critic['evaluation']}: " + "; ".join(f"`{{{k}}}` = {v}" for k, v in critic["figures"].items()) + "."]
     checklist = prisma.items(run, fresh, critic, run.get("scope")["decision"])
     audit += [""] + prisma.section(checklist)
     audit += ["", "Draft for human peer review. OpenAlex metadata and counts can change.", ""]

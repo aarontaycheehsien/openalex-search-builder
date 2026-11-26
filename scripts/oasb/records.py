@@ -112,10 +112,29 @@ def mining(records):
 DISCOVERY_FIELDS = "id,display_name,publication_year,abstract_inverted_index"
 
 
+def date_window(strategy, any_date=False):
+    """The strategy's publication-date limits as filter rows, so discovery shows only works inside the
+    eligibility window. Works outside it cannot be eligible; in a blind benchmark the source review,
+    published after the cutoff, would otherwise turn up among citation neighbours."""
+    if any_date:
+        return []
+    limits = strategy.get("limits", {})
+    return [{"column_id": column, "value": limits[key]}
+            for key, column in (("from_date", "from_publication_date"), ("to_date", "to_publication_date"))
+            if key in limits]
+
+
+def windowed(obj, window):
+    rows = list(obj.get("filter_rows", []))
+    return dict(obj, filter_rows=rows + [w for w in window if w not in rows])
+
+
 def discover(run, api, args):
     protected = {k for k, v in run.get("records").items() if v["role"] not in DEVELOPMENT}
     strategy = run.get("strategy")
     api.include_pulled = PULLED_VIEWS[pulled_view(strategy)]
+    window = date_window(strategy, getattr(args, "any_date", False))
+    window_note = {r["column_id"].removesuffix("_publication_date"): r["value"] for r in window} or None
     if args.action == "neighbors":
         records = run.get("records")
         raw_ids = getattr(args, "work_ids", None) or [args.work_id]
@@ -142,6 +161,7 @@ def discover(run, api, args):
             obj = dict(parsed["oqo"])
             if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
                 raise Error("Discovery requires a query that lists works.")
+            obj = windowed(obj, window)
             cursor = start_cursor or "*"
             seen_cursors, seen_ids, rows = set(), set(), []
             pages, total, oql_echo, oqo_echo = 0, None, parsed["oql"], obj
@@ -182,10 +202,10 @@ def discover(run, api, args):
             rows, total, pages, cursor, oql_echo, oqo_echo = fetch_seed(wid, limit, cursor_arg or "*")
             complete = cursor is None
             data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wid,
-                    "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages,
+                    "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages, "date_window": window_note,
                     "complete": complete, "next_cursor": cursor, "rows": rows}
             uid = run.snapshot("discovery", data)
-            return {"discovery": uid, "candidates": rows, "total": total, "pages": pages,
+            return {"discovery": uid, "candidates": rows, "total": total, "pages": pages, "date_window": window_note,
                     "complete": complete, "next_cursor": cursor,
                     "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
 
@@ -214,10 +234,10 @@ def discover(run, api, args):
         ranked.sort(key=lambda r: (-r["seed_count"], -(r["year"] or 0), r["id"]))
         rows = ranked if fetch_all else ranked[:args.size]
         data = {"at": now(), "route": "neighbors", "direction": args.direction, "seed": wids[0],
-                "seeds": wids, "per_seed_totals": per_seed_totals, "pages": total_pages,
+                "seeds": wids, "per_seed_totals": per_seed_totals, "pages": total_pages, "date_window": window_note,
                 "complete": all_complete, "rows": rows}
         uid = run.snapshot("discovery", data)
-        return {"discovery": uid, "seeds": wids, "candidates": rows, "total_unique": len(ranked),
+        return {"discovery": uid, "seeds": wids, "candidates": rows, "total_unique": len(ranked), "date_window": window_note,
                 "pages": total_pages, "complete": all_complete,
                 "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
 
@@ -232,10 +252,12 @@ def discover(run, api, args):
     obj = dict(parsed["oqo"])
     if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
         raise Error("Discovery requires a query that lists works.")
+    obj = windowed(obj, window)
     obj.update(sample=args.size, seed=str(args.seed))
     result = api.run(obj, args.size, DISCOVERY_FIELDS)
     rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
              "abstract": abstract(w)} for w in result["rows"] if work_id(w) not in protected]
-    data = {"at": now(), "route": args.action, "oql": result["oql"], "oqo": result["oqo"], "rows": rows}
+    data = {"at": now(), "route": args.action, "oql": result["oql"], "oqo": result["oqo"], "date_window": window_note,
+            "rows": rows}
     uid = run.snapshot("discovery", data)
-    return {"discovery": uid, "candidates": rows}
+    return {"discovery": uid, "candidates": rows, "date_window": window_note}
