@@ -140,6 +140,10 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
         parts = rescue_queries(report_dir)   # checked against the rescue manifest
         found, counts = set(), {}
         for q in parts:
+            if "ids" in q:   # reference-list rescue: an ID list already restricted to the date window
+                counts[q["label"]] = len(q["ids"])
+                found |= set(q["ids"]) & test
+                continue
             check_limit(q["oqo"], case["to_date"])
             counts[q["label"]] = api.run(q["oqo"])["count"]
             found |= api.members(q["oqo"], test)

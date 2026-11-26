@@ -151,6 +151,14 @@ def rescue_queries(dest):
                                            "oqo": manifest["oqo"], "count": manifest["rescue_count"], "legacy": True}]
     queries = []
     for q in entries:
+        if q.get("method") == "references":   # an ID list built from reference lists, not a query
+            path = rdir / q["ids_file"]
+            if hashlib.sha256(path.read_bytes()).hexdigest() != q["ids_sha256"]:
+                raise Error("The rescue ID list differs from the rescue manifest. Rerun rescue.")
+            ids = json.loads(path.read_text(encoding="utf-8"))
+            queries.append({"label": q["direction"], "ids": ids, "oql": q["gate_oql"], "count": len(ids),
+                            "oqo": {"ids": ids}, "corpus": manifest.get("corpus", "core")})
+            continue
         stem = "rescue-query" if q.get("legacy") else f"rescue-query-{q['direction']}"
         oqo = json.loads((rdir / (stem + ".json")).read_text(encoding="utf-8"))
         oql = (rdir / (stem + ".oql")).read_text(encoding="utf-8").strip()
@@ -197,12 +205,15 @@ def estimate(run, api, report_id=None, rescue=False):
         state = None   # belongs to an earlier query; export will refuse to resume it
     parts, changed_any = [], False
     for i, q in enumerate(queries):
-        parsed = api.validate(q["oql"])
-        # export pages the stored query object, so a changed translation of the text only
-        # makes OpenAlex's cost check describe a different query: fall back to the documented price.
-        changed = normalize_query(parsed["oqo"]) != normalize_query(q["oqo"])
+        if "ids" in q:
+            changed, (per_request, basis) = False, (1, "lookup by ID, 1 credit per 100 IDs")
+        else:
+            parsed = api.validate(q["oql"])
+            # export pages the stored query object, so a changed translation of the text only
+            # makes OpenAlex's cost check describe a different query: fall back to the documented price.
+            changed = normalize_query(parsed["oqo"]) != normalize_query(q["oqo"])
+            per_request, basis = request_cost(q["oqo"], None if changed else parsed.get("check"))
         changed_any |= changed
-        per_request, basis = request_cost(q["oqo"], None if changed else parsed.get("check"))
         pages = max(1, math.ceil(q["count"] / PAGE_SIZE))
         if state is None:
             remaining = pages
@@ -259,7 +270,14 @@ def export(run, api, report_id=None, max_pages=None, rescue=False):
                 break
             index, cursor = state.get("query_index", 0), state["cursor"]
             seen_key = cursor if index == 0 else f"{index}:{cursor}"
-            page = api.page(queries[index]["oqo"], cursor)
+            q = queries[index]
+            if "ids" in q:
+                start = 0 if cursor == "*" else int(cursor)
+                rows = api.lookup(q["ids"][start:start + PAGE_SIZE], corpus=q["corpus"], select=None) if q["ids"] else []
+                page = {"rows": rows, "count": len(q["ids"]),
+                        "next_cursor": str(start + PAGE_SIZE) if start + PAGE_SIZE < len(q["ids"]) else None}
+            else:
+                page = api.page(q["oqo"], cursor)
             nxt = page["next_cursor"]
             if nxt and (nxt == cursor or (nxt if index == 0 else f"{index}:{nxt}") in state["seen_cursors"]):
                 raise Error("Repeated cursor; export stopped to prevent an infinite loop.")

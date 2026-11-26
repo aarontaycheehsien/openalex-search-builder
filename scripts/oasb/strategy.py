@@ -473,3 +473,17 @@ def rescue_expectation(strategy, direction="both", topics=None):
     count = 1 + gate_leaves + sets * expected_leaves(blocks, limits, ex) + limit_leaves(limits)
     words = tokens(False) + gate_tokens + sets * expected_tokens(blocks, limits, ex) + limit_tokens(limits)
     return count, words
+
+
+def rescue_gate(strategy, topics=None):
+    """The rescue gate alone (no abstract, any-block or topic gate, limits), for checking candidate IDs found
+    from reference lists. Returns the OQL, its leaf count and the words it must keep (see check_translation)."""
+    check(strategy)
+    blocks, limits = core(strategy), strategy.get("limits", {})
+    gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in blocks) + ")"
+    query = ("get works" + CORPORA[strategy.get("corpus", "core")] + " where "
+             + " and ".join(["it doesn't have an abstract", gate, *limit_clauses(limits).values()]))
+    gate_leaves = len(topic_ids(topics)) if topics else sum(block_leaves(b) for b in blocks)
+    gate_tokens = [t for tid in topic_ids(topics) for t in tokens(tid)] if topics else \
+        [t for b in blocks for t in block_tokens(b)]
+    return query, 1 + gate_leaves + limit_leaves(limits), tokens(False) + gate_tokens + limit_tokens(limits)

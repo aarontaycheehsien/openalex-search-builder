@@ -82,6 +82,10 @@ def parser():
     c.add_argument("--direction", choices=["cited-by", "citing", "both"], default="cited-by",
                    help="Citation link direction from the delivered Boolean set (default: cited-by, works the set "
                         "cites). both runs cited-by and citing as two queries, deduplicated on export.")
+    c.add_argument("--method", choices=["references", "walk"], default="references",
+                   help="How to find cited-by works: from the delivered works' matched reference lists (default; "
+                        "no citation-set query) or with OpenAlex's citation-set query. citing always uses the query.")
+    c.add_argument("--estimate", action="store_true", help="Report expected credits without running the rescue.")
     c.add_argument("--topic", action="append", default=[],
                    help="Optional OpenAlex Topic ID (e.g. T10102) to gate rescue instead of the default any-block text gate. Repeatable.")
     c = cmds.add_parser("vocab", help="Look up OpenAlex keywords or topics for vocabulary development.")
@@ -257,7 +261,8 @@ def dispatch(run, api, a):
             raise Error("--max-pages must be at least 1.")
         return export(run, api, a.report, a.max_pages, rescue=a.rescue)
     if a.action == "rescue":
-        return rescue(run, api, a.report, direction=a.direction, topics=a.topic or None)
+        return rescue(run, api, a.report, direction=a.direction, topics=a.topic or None, method=a.method,
+                      estimate_only=a.estimate)
     records = run.get("records")
     if a.action == "resolve":
         result = [add(api, records, i, a.role, a.source) for i in a.identifiers]

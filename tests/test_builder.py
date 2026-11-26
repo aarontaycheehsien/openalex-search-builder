@@ -59,6 +59,24 @@ class Index:
         return set(ids) & self.pulled_ids
 
     links = {}   # per-work overrides of matched-reference and citation counts
+    reference_line_data = {}   # per-work printed reference lines (/works/{id}/references)
+    lookup_index = {}          # work ID -> {"has_abstract": bool, "year": int} for ID lookups
+
+    def reference_lines(self, wid):
+        return self.reference_line_data.get(wid, [])
+
+    def lookup(self, ids, filters=(), corpus="core", select="id"):
+        out = []
+        for wid in ids:
+            w = self.lookup_index.get(wid)
+            if w is None:
+                continue
+            if "has_abstract:false" in filters and w["has_abstract"]:
+                continue
+            if any(f.startswith("to_publication_date:") and w["year"] > int(f.split(":")[1][:4]) for f in filters):
+                continue
+            out.append({"id": f"https://openalex.org/{wid}", "display_name": f"Rescued {wid}"})
+        return out
 
     def link_counts(self, wid):
         return self.links.get(wid, {"referenced_works_count": 5, "cited_by_count": 5})
@@ -520,7 +538,7 @@ class WorkspaceTests(unittest.TestCase):
         with patch.object(self.api, "validate", side_effect=fake_val), \
              patch.object(self.api, "run", side_effect=fake_run), \
              patch.object(self.api, "members", side_effect=fake_members):
-            out = self.call("rescue", "--direction", "cited-by")
+            out = self.call("rescue", "--direction", "cited-by", "--method", "walk")
         self.assertEqual(out["report"], report.name)
         self.assertEqual(out["gate"], "any-block")
         self.assertEqual(out["rescue_count"], 2)
@@ -548,7 +566,7 @@ class WorkspaceTests(unittest.TestCase):
             return real_val(q)
         with patch.object(self.api, "validate", side_effect=fake_val):
             with self.assertRaisesRegex(Error, "kept 8 of 9"):
-                self.call("rescue", "--direction", "cited-by")
+                self.call("rescue", "--direction", "cited-by", "--method", "walk")
 
     def test_relative_recall_interval_in_eval_and_audit(self):
         sets = self.call("eval")["sets"]
@@ -666,8 +684,8 @@ class WorkspaceTests(unittest.TestCase):
         report = self.deliver()
         a, b, c = self.patch_rescue({"cited-by": 2, "citing": 3}, slow={"citing"})
         with a, b, c:
-            self.assertEqual(self.call("rescue")["direction"], "cited-by")          # new default
-            out = self.call("rescue", "--direction", "both")
+            self.assertEqual(self.call("rescue", "--method", "walk")["direction"], "cited-by")   # default direction
+            out = self.call("rescue", "--direction", "both", "--method", "walk")
         self.assertEqual(out["counts_by_direction"], {"cited-by": 2, "citing": 3})
         self.assertIsNone(out["rescue_count"])
         self.assertEqual(out["rescue_count_upper_bound"], 5)
@@ -713,7 +731,7 @@ class WorkspaceTests(unittest.TestCase):
         with a, b, c:
             with self.assertRaisesRegex(Error, r"citing rescue query timed out.*9.0s of a 10.0s budget.*"
                                                r"cited-by direction completed.*--direction cited-by.*does not shorten it.*neighbors"):
-                self.call("rescue", "--direction", "both")
+                self.call("rescue", "--direction", "both", "--method", "walk")
 
     def test_term_counts_flag_stemming_and_hyphen_phrases(self):
         self.run.put("strategy", {"blocks": [
@@ -898,6 +916,68 @@ class WorkspaceTests(unittest.TestCase):
         self.assertIn("2 batch(es) of OpenAlex citation links (1 citing, 1 references)", items["Citation searching"]["text"])
         self.assertIn("about 82% of references", items["Citation searching"]["text"])
         self.assertIn("1 batch(es) of OpenAlex related works", items["Other methods"]["text"])
+
+    def test_reference_list_rescue_end_to_end(self):
+        self.strategy["limits"] = {"to_date": "2020-12-31"}
+        self.reconfirm(self.strategy)
+        report = self.deliver()
+        delivered_rows = [{"id": "https://openalex.org/W1", "display_name": "Delivered",
+                           "referenced_works": ["https://openalex.org/W1", "https://openalex.org/W8", "https://openalex.org/W9",
+                                                "https://openalex.org/W10", "https://openalex.org/W11"]}]
+        paged = []
+        def page(oqo, cursor="*", size=100, select=None):
+            paged.append(select)
+            return {"count": 1, "rows": delivered_rows, "next_cursor": None, "oqo": oqo, "oql": "delivered"}
+        self.api.page = page
+        self.api.lookup_index = {"W1": {"has_abstract": False, "year": 2015},   # delivered already: never rescued
+                                 "W8": {"has_abstract": False, "year": 2015},   # rescued
+                                 "W9": {"has_abstract": True, "year": 2015},    # has an abstract
+                                 "W10": {"has_abstract": False, "year": 2024},  # after the cutoff
+                                 "W11": {"has_abstract": False, "year": 2010}}  # fails the text gate
+        self.api.reference_line_data = {"W1": [{"raw_reference_string": "Grey report 1999", "raw_doi": None, "work_id": None},
+                                               {"raw_reference_string": "Linked", "raw_doi": None, "work_id": "https://openalex.org/W8"}]}
+        real_val = self.api.validate
+        def fake_val(q):
+            if "doesn't have an abstract" in q and "in the set" not in q:   # the gate alone
+                out = real_val(q.replace("it doesn't have an abstract and ", ""))
+                return dict(out, oqo=dict(out["oqo"], filter_rows=[{"column_id": "has_abstract", "value": False},
+                                                                   *out["oqo"]["filter_rows"]], tag="gate"))
+            return real_val(q)
+        def fake_members(obj, ids, include_pulled=None, batch_size=25):
+            if obj.get("tag") == "gate":
+                return set(ids) & {"W8", "W1"}
+            return Index.members(self.api, obj, ids, include_pulled)
+        with patch.object(self.api, "validate", side_effect=fake_val), patch.object(self.api, "members", side_effect=fake_members):
+            est = self.call("rescue", "--estimate")
+            self.assertEqual((est["parts"][0]["method"], est["parts"][0]["paging_credits"] > 0), ("references", True))
+            self.assertFalse((report / "rescue").exists())                         # an estimate writes nothing
+            out = self.call("rescue")
+        self.assertEqual((out["method"], out["rescue_count"]), ("references", 1))
+        self.assertEqual(out["stages"]["cited-by"], {"delivered_works": 1, "with_matched_references": 1, "reference_links": 5,
+                                                     "cited_outside_delivered": 4, "without_abstract_in_window": 2,
+                                                     "passing_gate": 1})
+        self.assertEqual(paged, ["id,referenced_works"])                         # no export yet: paged
+        rdir = Path(out["rescue_dir"])
+        self.assertEqual(json.loads((rdir / "rescue-ids-cited-by.json").read_text()), ["W8"])
+        self.assertEqual(json.loads((rdir / "unlinked-references.json").read_text()),
+                         [{"cited_by": "W1", "raw_reference_string": "Grey report 1999", "raw_doi": None}])
+        self.assertTrue(any("matched references" in n for n in out["notes"]))
+        from oasb.export import rescue_queries
+        self.assertEqual(rescue_queries(report)[0]["ids"], ["W8"])
+        est = self.call("export", "--rescue", "--estimate")
+        self.assertEqual((est["credits_per_page"], est["basis"]), (1, "lookup by ID, 1 credit per 100 IDs"))
+        exp = self.call("export", "--rescue")
+        self.assertEqual((exp["complete"], exp["unique_records"]), (True, 1))
+        # With a complete primary export, reference lists come from it and the search is not paged again.
+        self.call("export")
+        paged.clear()
+        with patch.object(self.api, "validate", side_effect=fake_val), patch.object(self.api, "members", side_effect=fake_members):
+            self.call("rescue")
+        manifest = json.loads((rdir / "rescue-manifest.json").read_text())
+        self.assertEqual((paged, manifest["queries"][0]["source"]["from"]), ([], "export"))
+        (rdir / "rescue-ids-cited-by.json").write_text('["W9"]')
+        with self.assertRaisesRegex(Error, "rescue ID list differs"):
+            self.call("export", "--rescue")
 
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note

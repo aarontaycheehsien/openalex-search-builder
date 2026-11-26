@@ -40,7 +40,7 @@ Edit the vocabulary and rerun `eval` to see gained or lost known works and the c
 | Record a candidate's eligibility | `screen BATCH WORK_ID include --reason "Meets population and delivery criteria"` |
 | Attach a completed internal critique | `review critique.json` |
 | Revalidate and deliver | `report` |
-| Optional citation-set rescue for works lacking abstracts | `rescue` (default `--direction cited-by`; `citing`, or `both` as two deduplicated queries; `--topic T...`) |
+| Optional citation rescue for works lacking abstracts | `rescue --estimate`, then `rescue` (default: cited-by works from the delivered works' matched reference lists; `--direction citing` or `--method walk` for OpenAlex's citation-set query; `--topic T...`) |
 | Estimate export pages and credits without downloading (free) | `export --estimate` (optionally `--rescue`) |
 | Download every retrieved record (resumable) | `export` (optionally `--report ID`, `--max-pages N`, `--rescue`) |
 

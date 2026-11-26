@@ -183,11 +183,11 @@ class API:
             work_id(record)
         return alias, record
 
-    def members(self, query, ids, include_pulled=None):
+    def members(self, query, ids, include_pulled=None, batch_size=25):
         hits = set()
         ordered = sorted(set(ids))
-        for start in range(0, len(ordered), 25):
-            batch = ordered[start:start + 25]
+        for start in range(0, len(ordered), batch_size):
+            batch = ordered[start:start + batch_size]
             choices = [{"column_id": "ids.openalex", "value": wid} for wid in batch]
             restriction = choices[0] if len(choices) == 1 else {"join": "or", "filters": choices}
             scoped = dict(query, filter_rows=[*query.get("filter_rows", []), restriction])
@@ -197,6 +197,24 @@ class API:
                 raise Error("Incomplete or inconsistent OpenAlex ID intersection.")
             hits.update(found)
         return hits
+
+    def lookup(self, ids, filters=(), corpus="core", select="id"):
+        """Works among up to 100 IDs that also pass plain filters such as has_abstract:false.
+        1 credit per request, whatever the page size (https://help.openalex.org/access/example-costs/)."""
+        ids = list(ids)
+        if not 1 <= len(ids) <= 100:
+            raise Error("lookup takes 1 to 100 work IDs.")
+        params = {"filter": ",".join(["ids.openalex:" + "|".join(ids), *filters]), "per-page": 100,
+                  "corpus": corpus, **self.pulled_param(), **({"select": select} if select else {})}
+        reply = self.request("/works", params)
+        rows, count = reply.get("results"), (reply.get("meta") or {}).get("count")
+        if not isinstance(rows, list) or count != len(rows):
+            raise Error("Incomplete OpenAlex ID lookup.")
+        return rows
+
+    def reference_lines(self, wid):
+        """Every printed reference line of a work, matched or not (free; /works/{id}/references)."""
+        return (self.request(f"/works/{wid}/references") or {}).get("references") or []
 
     def link_counts(self, wid):
         """Matched references and citations of one work (a free single-work request)."""
