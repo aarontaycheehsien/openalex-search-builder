@@ -13,7 +13,7 @@ that reach different parts of the literature (citations from older seeds, say) m
 Citation links are incomplete (about 82% of references to works in OpenAlex are linked). In ten blind
 runs (2026-11-26) the overlap between routes was 0-5 works, the estimates were 31-125 works with wide
 intervals, and the agents' eligible works overlapped the reviews' included studies by 0-63% (median 6%),
-so the estimate could not be checked against gold. Use it as a signal of how complete discovery is by
+so the estimate could not be checked against gold (a review's included set can be only part of the eligible literature, so low overlap need not mean over-inclusion). Use it as a signal of how complete discovery is by
 the workflow's own eligibility judgements, not as a count of a review's studies.
 
   Chapman, D. G. (1951). Some properties of the hypergeometric distribution with applications to

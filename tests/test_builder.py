@@ -1470,7 +1470,20 @@ class ClientTests(unittest.TestCase):
                                                                         "exclude/x": line("x"), "limit/to_date": line("lim")}},
                                                "records": {}})
             (report / "final-query.oql").write_text("FINAL\n")
+            gold_ids = [f"W{zlib.crc32(r['ids'][0].encode()) + 1}" for r in case["gold"] if r["ids"]]
+            g0, g1 = gold_ids[0], gold_ids[1]
+            write(folder / "run/discovery" / ("c" * 32 + ".json"), {"route": "sample", "rows": [{"id": g0}, {"id": g1}, {"id": "W1"}],
+                                                                 "protected_hits": [gold_ids[2]]})   # a hidden validation work
+            write(folder / "run/screening.json", {
+                "c/" + g0: {"work_id": g0, "decision": "exclude", "reason": "first look"},
+                "d/" + g0: {"work_id": g0, "decision": "include", "reason": "on reflection"},   # an include anywhere counts
+                "c/" + g1: {"work_id": g1, "decision": "unclear", "reason": "design unclear"},
+                "c/W1": {"work_id": "W1", "decision": "include", "reason": "not in the review"}})
             row = bench.score(case, folder, FakeBench(), report, explain=True)
+            sc = row["screening"]
+            self.assertEqual((sc["gold_seen_in_discovery"], sc["gold_screened"], sc["gold_included"], sc["gold_unclear"],
+                              sc["gold_excluded"], sc["agent_eligible"], sc["agent_eligible_gold"]), (3, 2, 1, 1, 0, 2, 1))
+            self.assertEqual([(g["work"], g["decision"], g["reason"]) for g in sc["gold_not_included"]], [(g1, "unclear", "design unclear")])
         order, ex = state["order"], row["explain"]
         by = {w["work"]: w for w in ex["works"]}
         self.assertEqual(ex["misses"], row["tested"] - row["hits"])

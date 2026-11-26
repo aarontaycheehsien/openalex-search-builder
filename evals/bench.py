@@ -79,6 +79,32 @@ def check_limit(oqo, cutoff):
         raise Error("The reported strategy must apply the fixture publication cutoff.")
 
 
+def screening_vs_gold(run, gold, titles):
+    """Evaluator-only comparison of the agent's discovery and screening with the gold set: how many gold works
+    discovery surfaced, how the agent decided on those it screened (an include anywhere counts), and how many
+    of the works it judged eligible are gold. Gold sets can be incomplete, so a low last share does not by
+    itself mean the agent over-included."""
+    folder, path = run.root / "discovery", run.root / "screening.json"
+    if not path.is_file():
+        return None
+    seen = set()
+    for p in folder.glob("*.json") if folder.is_dir() else []:
+        batch = json.loads(p.read_text(encoding="utf-8"))
+        seen |= {r["id"] for r in batch.get("rows", [])} | set(batch.get("protected_hits", []))
+    decisions = {}
+    for e in json.loads(path.read_text(encoding="utf-8")).values():
+        decisions.setdefault(e["work_id"], []).append(e)
+    final = {w: next((e for e in es if e["decision"] == "include"), es[-1]) for w, es in decisions.items()}
+    eligible = {w for w, e in final.items() if e["decision"] == "include"}
+    screened_gold = {w: e for w, e in final.items() if w in gold}
+    tally = Counter(e["decision"] for e in screened_gold.values())
+    return {"gold": len(gold), "gold_seen_in_discovery": len(seen & gold), "gold_screened": len(screened_gold),
+            "gold_included": tally["include"], "gold_unclear": tally["unclear"], "gold_excluded": tally["exclude"],
+            "agent_eligible": len(eligible), "agent_eligible_gold": len(eligible & gold),
+            "gold_not_included": [{"work": w, "title": titles.get(w), "decision": e["decision"], "reason": e["reason"]}
+                                  for w, e in sorted(screened_gold.items()) if e["decision"] != "include"]}
+
+
 def explain_misses(archive, api, misses, items):
     """Evaluator-only diagnosis of missed gold works from the delivery's archived search lines: the blocks
     each fails (honouring combine), exclusions that removed it, limits it falls outside, and whether
@@ -221,7 +247,9 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
             "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced,
             **({"rescue": rescue} if rescue is not None else {}),
             **({"explain": explanation} if explanation is not None else {}),
-            **({"capture_recapture": dict(capture_recapture(run), gold_in_window=len(dated))} if report_dir else {})}
+            **({"capture_recapture": dict(capture_recapture(run), gold_in_window=len(dated))} if report_dir else {}),
+            **({"screening": screen} if (screen := screening_vs_gold(
+                run, dated, {w: (items.get(w) or {}).get("display_name") for w in dated})) is not None else {})}
 
 
 def list_cases(suite=None):

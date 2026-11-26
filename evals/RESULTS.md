@@ -130,6 +130,27 @@ Computed afterwards, with no API calls, from each blind run's own discovery batc
 | Cinquin 2018 | `78399d7` | 16 | 3 | 0 | 67 (19–146) | 28% | 1/19 | 27 |
 | Cinquin 2018 | `d0f174f` | 24 | 23 | 5 | 99 (43–155) | 42% | 3/42 | 27 |
 
-- **The agents screen far more generously than the reviews did.** Of the works each agent judged eligible, 0–63% (median 6%) are among the review's included studies; for Kapuka 2021 none are. So development recall, protected validation recall and this estimate all describe the agent's own eligibility, which is much broader than the reviews' final inclusion (which also reflects full-text screening, quality criteria and scope decisions not stated in the fixture's question and eligibility text). That is the main reason those figures said nothing about gold recall.
+- **Low overlap with gold is ambiguous.** Of the works each agent judged eligible, 0–63% (median 6%) are among the review's included studies. That could mean over-inclusion, or that a review's included set is only part of the eligible literature (its final inclusion also reflects full-text screening and scope decisions not stated in the fixture). The screening check below separates the two.
 - **The estimate is very uncertain here.** Only 0–5 eligible works were found by both routes, so the intervals are wide, and the five reruns predate the recording of hidden validation works, which can push their estimates up. Low completeness (20–50%) consistently signalled that discovery was incomplete by the agent's own standard; it cannot be checked against gold because the agents' eligibility differs from the reviews'.
-- **Next step suggested by this:** calibrate eligibility screening against the review's criteria (for example, a SKILL.md rule to apply every eligibility criterion strictly when screening, and a benchmark check of agent include decisions against gold) before relying on any development-based recall figure.
+
+### Agent screening of gold works (2026-11-26)
+
+From `bench.py score`'s `screening` measure: how many of each review's included studies discovery surfaced, and how the agent decided on those it screened (an include in any batch counts).
+
+| Review | Skill | Gold | Seen in discovery | Screened | Included | Unclear | Excluded | Agent's eligible works that are gold |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Kapuka 2021 | `78399d7` | 27 | 0 | 0 | 0 | 0 | 0 | 0/12 |
+| Kapuka 2021 | `d0f174f` | 27 | 1 | 1 | 0 | 1 | 0 | 0/22 |
+| Filges 2022 | `78399d7` | 28 | 6 | 5 | 4 | 1 | 0 | 4/17 |
+| Filges 2022 | `d0f174f` | 28 | 2 | 1 | 1 | 0 | 0 | 1/13 |
+| Noetel 2021 | `78399d7` | 28 | 14 | 14 | 13 | 1 | 0 | 13/28 |
+| Noetel 2021 | `d0f174f` | 28 | 13 | 13 | 12 | 1 | 0 | 12/19 |
+| Verdugo-Castro 2022 | `78399d7` | 26 | 1 | 1 | 1 | 0 | 0 | 1/25 |
+| Verdugo-Castro 2022 | `d0f174f` | 26 | 1 | 1 | 1 | 0 | 0 | 1/33 |
+| Cinquin 2018 | `78399d7` | 27 | 1 | 1 | 1 | 0 | 0 | 1/19 |
+| Cinquin 2018 | `d0f174f` | 27 | 4 | 3 | 3 | 0 | 0 | 3/42 |
+| **Total** | | | **43** | **40** | **36** | **4** | **0** | |
+
+- **Screening is not the problem.** The agents included 36 of the 40 gold works they screened, marked 4 unclear and excluded none. The unclear ones were borderline (a meta-analysis of a learner trait, a review of eye-tracking studies, a reef study whose countries were uncertain), so stricter screening would have lost them.
+- **Discovery reach is.** Discovery surfaced 0–14 of each review's 26–28 included studies (Kapuka 2021: 0 and 1), while the final searches retrieved 59–93% of them. The development set is a small, vocabulary-bound corner of the eligible literature, which is why development and protected-validation recall said nothing about gold recall.
+- **Correction:** an earlier version of this section concluded that the agents screen too generously and suggested stricter screening; the screening data above do not support that, and SKILL.md no longer says it.
