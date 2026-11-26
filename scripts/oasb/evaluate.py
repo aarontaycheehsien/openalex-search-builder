@@ -215,6 +215,72 @@ PLACEHOLDER = re.compile(r"\{([a-z_]+)\}")
 NUMBER = re.compile(r"(?<![\d.,])\d{1,3}(?:,\d{3})+(?![\d,])|(?<![\d.,])\d+(?![\d,])")
 
 
+BROADEN_SHARE, BROADEN_MIN = 0.20, 500   # growth that needs evidence: +20% and at least 500 more works
+SAMPLE_KEYS = ("sample", "seed")
+
+
+def revision_cost(data, dev):
+    """What the latest revision cost: the count change against development works gained and lost.
+    Only development works are used, so holdout results stay hidden from the builder."""
+    change = data.get("change")
+    if not change:
+        return None
+    gained, lost = sorted(dev & set(change["gained"])), sorted(dev & set(change["lost"]))
+    delta, count = change["count_delta"], data["final"]["count"]
+    previous = count - delta
+    out = {"count_delta": delta, "previous_count": previous, "development_gained": gained, "development_lost": lost,
+           "works_per_gained_development_work": round(delta / len(gained)) if gained and delta > 0 else None}
+    if delta > max(BROADEN_MIN, BROADEN_SHARE * previous) and not gained:
+        out["warning"] = {"code": "broadening_without_gain",
+                          "message": f"The search grew by {delta:,} works ({100 * delta / max(previous, 1):.0f}%) without "
+                                     "gaining a development work. Keep the broadening only if `sample --added` shows "
+                                     "eligible works among the added records; otherwise revert it."}
+    return out
+
+
+def precision(run, final_oqo, count):
+    """Share of eligible records in screened random samples of exactly this search, with 95% Wilson
+    intervals, counting 'unclear' as ineligible (strict) and as eligible (lenient)."""
+    folder = run.root / "discovery"
+    screening = run.get("screening") if (run.root / "screening.json").is_file() else {}
+    target = normalize_query(final_oqo)
+    decisions, matching, stale = [], [], 0
+    for p in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        batch = json.loads(p.read_text(encoding="utf-8"))
+        if batch.get("route") != "sample":
+            continue
+        oqo = {k: v for k, v in (batch.get("oqo") or {}).items() if k not in SAMPLE_KEYS}
+        if normalize_query(oqo) != target:
+            stale += 1
+            continue
+        matching.append(p.stem)
+        decisions += [e["decision"] for k, e in screening.items() if k.startswith(p.stem + "/")]
+    n = len(decisions)
+    if not n:
+        return {"screened": 0, "samples": len(matching), "samples_of_earlier_strategies": stale,
+                "note": "No screened random sample of this exact search: run `sample --from-strategy` and screen it."}
+    inc, unc = decisions.count("include"), decisions.count("unclear")
+
+    def view(eligible):
+        lo, hi = wilson(eligible, n)
+        return {"eligible": eligible, "precision": round(eligible / n, 4), "ci95": [lo, hi],
+                "estimated_eligible_records": [round(lo * count), round(eligible / n * count), round(hi * count)]}
+    return {"screened": n, "include": inc, "unclear": unc, "exclude": decisions.count("exclude"),
+            "samples": len(matching), "samples_of_earlier_strategies": stale,
+            "strict": view(inc), "lenient": view(inc + unc)}
+
+
+def precision_text(p):
+    if not p["screened"]:
+        return p["note"]
+    s, l = p["strict"], p["lenient"]
+    return (f"{s['eligible']} of {p['screened']} screened records eligible: {100 * s['precision']:.0f}% "
+            f"(95% CI {100 * s['ci95'][0]:.0f}–{100 * s['ci95'][1]:.0f}%), about {s['estimated_eligible_records'][1]:,} "
+            f"eligible records (range {s['estimated_eligible_records'][0]:,}–{s['estimated_eligible_records'][2]:,}). "
+            f"Counting {p['unclear']} unclear as eligible: {100 * l['precision']:.0f}% "
+            f"({100 * l['ci95'][0]:.0f}–{100 * l['ci95'][1]:.0f}%).")
+
+
 def critique_figures(uid, current):
     """Development-only figures a critique may cite as {placeholders}; review fills them in, so a
     critique cannot quote stale numbers. Holdout results are not offered to the builder."""
@@ -360,6 +426,9 @@ def report(run, api):
         audit += ["Known holdouts previously returned in this workspace's discovery batches: "
                   + ", ".join(seen_holdouts) + ". These are not blinded to the development agent."]
     audit += ["For separate-context validation use holdout-split and holdout-score in an isolated reviewer workspace.", ""]
+    prec = precision(run, query["oqo"], query["count"])
+    audit += ["## Precision", "", "From screened random samples of exactly this search (`sample --from-strategy`). "
+              + precision_text(prec), ""]
     audit += ["## Missed works", ""]
     audit += [f"- {wid} — {', '.join(reasons)}" for wid, reasons in fresh["misses"].items()] or ["No resolved known works missed."]
     audit += [f"- Unresolved ({role}) — {alias}" for role, s in fresh["sets"].items() for alias in s["unresolved"]]
@@ -400,7 +469,8 @@ def report(run, api):
                                           "records": run.get("records"), "scope": scope, "review": critic,
                                           "history": history, "scope_approval": run.get("scope"),
                                           "screening": run.get("screening") if (run.root / "screening.json").is_file() else {},
-                                          "post_exposure": post, "discovery_exposed_holdouts": seen_holdouts})
+                                          "post_exposure": post, "discovery_exposed_holdouts": seen_holdouts,
+                                          "precision": prec})
         if run.fingerprint() != fresh["input_hash"]:
             raise Error("Inputs changed before delivery.")
         os.replace(stage, dest)

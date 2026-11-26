@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from .api import API, Error, check_translation, now
-from .evaluate import evaluate, report, review, save_eval, term_counts
+from .evaluate import evaluate, precision, report, review, revision_cost, save_eval, term_counts
 from .export import estimate, export
 from .holdouts import split_holdouts, score_holdouts
 from .records import DEVELOPMENT, ROLES, add, discover, exposed_holdouts, mining
@@ -47,6 +47,8 @@ def parser():
     c.add_argument("--oql", help="OQL query to sample (mutually exclusive with --from-strategy).")
     c.add_argument("--from-strategy", action="store_true",
                    help="Sample directly from the current strategy.json instead of passing --oql.")
+    c.add_argument("--added", action="store_true",
+                   help="Sample only the records the latest evaluated revision added (in this search, not in the previous one).")
     c.add_argument("--size", type=int, default=10)
     c.add_argument("--seed", type=int, default=42)
     c.add_argument("--any-date", action="store_true",
@@ -234,6 +236,8 @@ def dispatch(run, api, a):
                "change": {k: sorted(dev.intersection(v)) if isinstance(v, list) else v
                           for k, v in data.get("change", {}).items()}, "usage": data["usage"],
                "strategy_warnings": lint(run.get("strategy"))["warnings"]}
+        out["revision"] = revision_cost(data, dev)
+        out["precision"] = precision(run, data["final"]["oqo"], data["final"]["count"])
         out["pulled"] = {"view": data["pulled"]["view"], "final_pulled_works": data["pulled"]["final_pulled_works"],
                          "development_pulled": sorted(dev.intersection(data["pulled"]["known_pulled"]))}
         if "abstract_stats" in data:
@@ -285,8 +289,10 @@ def dispatch(run, api, a):
     if a.action == "sample":
         if not 1 <= a.size <= 100:
             raise Error("--size must be between 1 and 100.")
-        if bool(a.oql) == bool(a.from_strategy):
-            raise Error("Pass either --oql or --from-strategy (not both).")
+        if sum(map(bool, (a.oql, a.from_strategy, a.added))) != 1:
+            raise Error("Pass exactly one of --oql, --from-strategy or --added.")
+        if a.added and a.size > 20:
+            raise Error("--added draws five times --size from the search; use --size 20 or less.")
         return discover(run, api, a)
     if a.action == "neighbors":
         if not a.all and a.size < 1:

@@ -1,4 +1,5 @@
 """Known-work identity, eligibility, provenance and development-only vocabulary."""
+import json
 import math
 import re
 from collections import Counter
@@ -142,6 +143,41 @@ def windowed(obj, window):
     return dict(obj, filter_rows=rows + [w for w in window if w not in rows])
 
 
+def sample_added(run, api, args, protected, window):
+    """A random sample of the records the latest evaluated revision added: drawn from the current search,
+    keeping those the previous evaluation's search does not retrieve. Screen it to judge a broadening."""
+    if not (run.root / "latest-evaluations.json").is_file():
+        raise Error("--added compares two evaluations: run eval, revise the strategy and run eval again first.")
+    uid, current = run.latest("evaluations")
+    # The evaluation before the latest: by timestamp, with file time breaking ties within a second.
+    earlier = sorted(((json.loads(p.read_text(encoding="utf-8")), p.stat().st_mtime_ns)
+                      for p in (run.root / "evaluations").glob("*.json") if p.stem != uid),
+                     key=lambda x: (x[0]["at"], x[1]))
+    if not earlier:
+        raise Error("--added compares two evaluations: revise the strategy and run eval again first.")
+    previous = earlier[-1][0]
+    if current["input_hash"] != run.fingerprint():
+        raise Error("The latest evaluation is stale: run eval on the current strategy first.")
+    draw = min(100, args.size * 5)
+    obj = windowed(dict(current["final"]["oqo"]), window)
+    obj.update(sample=draw, seed=str(args.seed))
+    result = api.run(obj, draw, DISCOVERY_FIELDS)
+    drawn = [w for w in result["rows"] if work_id(w) not in protected]
+    old = api.members(previous["final"]["oqo"], [work_id(w) for w in drawn]) if drawn else set()
+    added = [w for w in drawn if work_id(w) not in old]
+    rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
+             "abstract": abstract(w)} for w in added[:args.size]]
+    data = {"at": now(), "route": "sample-added", "route_kind": "text", "oql": result["oql"], "oqo": result["oqo"],
+            "previous_oql": previous["final"]["oql"], "previous_at": previous["at"], "current_at": current["at"],
+            "drawn": len(drawn), "added_in_draw": len(added), "rows": rows}
+    uid = run.snapshot("discovery", data)
+    share = len(added) / len(drawn) if drawn else 0
+    return {"discovery": uid, "candidates": rows, "drawn": len(drawn), "added_in_draw": len(added),
+            "count_delta": current["final"]["count"] - previous["final"]["count"],
+            "note": f"{len(added)} of {len(drawn)} sampled records ({100 * share:.0f}%) are new in this revision. "
+                    "Screen them: keep the broadening only if some are eligible."}
+
+
 def discover(run, api, args):
     protected = {k for k, v in run.get("records").items() if v["role"] not in DEVELOPMENT}
     strategy = run.get("strategy")
@@ -280,6 +316,8 @@ def discover(run, api, args):
                 "pages": total_pages, "complete": all_complete,
                 "usage": {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6)}}
 
+    if getattr(args, "added", False):
+        return sample_added(run, api, args, protected, window)
     if getattr(args, "from_strategy", False):
         check(strategy)
         query, expected = final_query(strategy)

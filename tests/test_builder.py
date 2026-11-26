@@ -456,9 +456,9 @@ class WorkspaceTests(unittest.TestCase):
         samp = self.call("sample", "--from-strategy", "--size", "5")
         self.assertTrue(samp["discovery"])
         self.assertIsInstance(samp["candidates"], list)
-        with self.assertRaisesRegex(Error, "either --oql or --from-strategy"):
+        with self.assertRaisesRegex(Error, "exactly one of --oql, --from-strategy or --added"):
             self.call("sample", "--size", "5")
-        with self.assertRaisesRegex(Error, "either --oql or --from-strategy"):
+        with self.assertRaisesRegex(Error, "exactly one of --oql, --from-strategy or --added"):
             self.call("sample", "--oql", "get works", "--from-strategy", "--size", "5")
 
         # 3. eval reports matched screened-out irrelevant works from screening.json
@@ -978,6 +978,49 @@ class WorkspaceTests(unittest.TestCase):
         (rdir / "rescue-ids-cited-by.json").write_text('["W9"]')
         with self.assertRaisesRegex(Error, "rescue ID list differs"):
             self.call("export", "--rescue")
+
+    def test_broadening_needs_evidence(self):
+        from oasb.evaluate import revision_cost
+        dev = {"W1", "W2"}
+        grew = {"final": {"count": 3000}, "change": {"count_delta": 1000, "gained": ["W3"], "lost": []}}
+        out = revision_cost(grew, dev)                                # W3 is a holdout: not counted, not shown
+        self.assertEqual((out["development_gained"], out["warning"]["code"]), ([], "broadening_without_gain"))
+        self.assertIn("grew by 1,000 works (50%)", out["warning"]["message"])
+        self.assertNotIn("warning", revision_cost({"final": {"count": 2400}, "change": {"count_delta": 400, "gained": [], "lost": []}}, dev))
+        paid = revision_cost({"final": {"count": 3000}, "change": {"count_delta": 1000, "gained": ["W1", "W2"], "lost": []}}, dev)
+        self.assertEqual((paid["works_per_gained_development_work"], "warning" in paid), (500, False))
+        self.assertIsNone(revision_cost({"final": {"count": 3}}, dev))  # first evaluation: nothing to compare
+
+        first = self.call("eval")                                     # final retrieves W1
+        self.assertIsNone(first["revision"])
+        self.assertEqual(first["precision"]["screened"], 0)
+        sample = self.call("sample", "--from-strategy", "--size", "3")
+        self.call("screen", sample["discovery"], "W1", "include", "--reason", "eligible")
+        self.call("screen", sample["discovery"], "W2", "exclude", "--reason", "not rural")
+        prec = self.call("eval")["precision"]
+        self.assertEqual((prec["screened"], prec["strict"]["precision"], prec["strict"]["ci95"]), (2, 0.5, wilson(1, 2)))
+        self.assertEqual(prec["strict"]["estimated_eligible_records"][1], 0)   # 50% of 1 record rounds to 0
+        self.strategy["blocks"][1]["terms"].append("hospital")         # broadening that adds W2
+        self.reconfirm(self.strategy)
+        second = self.call("eval")
+        self.assertEqual(second["revision"]["development_gained"], ["W2"])
+        self.assertEqual(second["precision"]["samples_of_earlier_strategies"], 1)   # old sample is stale now
+        added = self.call("sample", "--added", "--size", "5")
+        self.assertEqual(([c["id"] for c in added["candidates"]], added["drawn"], added["added_in_draw"]), (["W2"], 2, 1))
+        self.call("screen", added["discovery"], "W2", "include", "--reason", "eligible after all")
+        fresh = self.call("sample", "--from-strategy", "--size", "3", "--seed", "7")
+        self.call("screen", fresh["discovery"], "W1", "include", "--reason", "eligible")
+        self.call("screen", fresh["discovery"], "W2", "unclear", "--reason", "setting unclear")
+        self.call("eval")
+        self.attach_critique()
+        report = Path(self.call("report")["report"])
+        audit = (report / "audit.md").read_text()
+        self.assertIn("## Precision", audit)
+        self.assertIn("1 of 2 screened records eligible: 50%", audit)
+        self.assertIn("Counting 1 unclear as eligible: 100%", audit)
+        self.assertEqual(json.loads((report / "validation.json").read_text())["precision"]["samples"], 1)
+        with self.assertRaisesRegex(Error, "exactly one of"):
+            self.call("sample", "--added", "--from-strategy")
 
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
