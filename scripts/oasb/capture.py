@@ -31,6 +31,10 @@ import json
 import math
 
 TEXT, CITATION = "text", "citation"
+# Demoted to a diagnostic (2026-11-26): in ten blind runs the overlap was 0-5 works, the 95% intervals spanned
+# 1.1-2 times the estimate, two runs on one review differed up to twofold, and discovery completeness tracked
+# gold recall only weakly (Spearman 0.31, n=10). Below these counts it reports "not estimable".
+MIN_ROUTE, MIN_BOTH = 20, 10
 Z = 1.959964
 CAVEAT = ("It counts works this workflow judges eligible, not a review's included studies, and it is rough: the two "
           "routes are not independent, so the bias can go either way, and citation links are incomplete (about 82% of "
@@ -81,28 +85,15 @@ def capture_recapture(run):
     if legacy:
         out["note"] = (f"{legacy} discovery batch(es) predate the recording of hidden validation works, so a validation "
                        "work found again by them is not counted as a recapture (the estimate may be too high).")
-    if not n1 or not n2:
+    if n1 < MIN_ROUTE or n2 < MIN_ROUTE or m < MIN_BOTH:
         out["estimate"] = None
-        out["message"] = ("No estimate: it needs eligible works found by both a text route (sample, related) and a "
-                          "citation route (neighbors citing or references).")
+        out["message"] = (f"Not estimable: needs at least {MIN_ROUTE} eligible works from each route and {MIN_BOTH} found "
+                          f"by both (found {n1} by text routes, {n2} by citation routes, {m} by both). A diagnostic only, "
+                          "not for reporting.")
         return out
     estimate, ci = chapman(n1, n2, m)
     observed = n1 + n2 - m
     out.update({"observed": observed, "estimate": round(estimate, 1), "ci95": [round(ci[0], 1), round(ci[1], 1)],
                 "discovery_completeness": round(observed / estimate, 3) if estimate else None})
-    if m == 0:
-        out["message"] = ("No work was found by both routes, so the estimate is unstable. Keep discovering by both routes "
-                          "before relying on it.")
-    elif m < 5:
-        out["message"] = f"Only {m} work(s) found by both routes: the interval is wide."
+    out["message"] = "A diagnostic only, not for reporting: it counts works by the workflow's own eligibility judgements."
     return out
-
-
-def text(c):
-    if c.get("estimate") is None:
-        return c["message"]
-    line = (f"{c['observed']} eligible works were found during discovery: {c['text_route']} by text routes, "
-            f"{c['citation_route']} by citation routes, {c['both_routes']} by both. Capture–recapture estimates about "
-            f"{c['estimate']:.0f} relevant works (95% CI {c['ci95'][0]:.0f}–{c['ci95'][1]:.0f}), so discovery found about "
-            f"{100 * c['discovery_completeness']:.0f}% of them. {c['caveat']}")
-    return line + (" " + c["message"] if c.get("message") else "") + (" " + c["note"] if c.get("note") else "")

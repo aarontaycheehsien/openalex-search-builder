@@ -245,7 +245,8 @@ def dispatch(run, api, a):
                "strategy_warnings": lint(run.get("strategy"))["warnings"]}
         out["revision"] = revision_cost(data, dev)
         out["precision"] = precision(run, data["final"]["oqo"], data["final"]["count"])
-        out["capture_recapture"] = capture_recapture(run)
+        cr = capture_recapture(run)   # compact when not estimable, to keep eval output short
+        out["capture_recapture"] = cr if cr["estimate"] is not None else {"diagnostic": cr["message"]}
         out["pulled"] = {"view": data["pulled"]["view"], "final_pulled_works": data["pulled"]["final_pulled_works"],
                          "development_pulled": sorted(dev.intersection(data["pulled"]["known_pulled"]))}
         if "abstract_stats" in data:

@@ -1047,20 +1047,29 @@ class WorkspaceTests(unittest.TestCase):
                                                                  ("b", "W13", "include"), ("b", "W11", "include")]})
         c = capture_recapture(self.run)
         # text: W10, W11, W12; citation: W11, W13 and the hidden validation work W12 -> both: W11, W12
-        self.assertEqual((c["text_route"], c["citation_route"], c["both_routes"], c["observed"]), (3, 3, 2, 4))
-        self.assertAlmostEqual(c["estimate"], round(4 * 4 / 3 - 1, 1))
-        self.assertEqual(c["discovery_completeness"], round(4 / (4 * 4 / 3 - 1), 3))
-        self.assertIn("Only 2 work(s) found by both routes", c["message"])
+        self.assertEqual((c["text_route"], c["citation_route"], c["both_routes"]), (3, 3, 2))
+        self.assertIsNone(c["estimate"])                                    # far below the minimum overlap
+        self.assertIn("Not estimable: needs at least 20 eligible works from each route and 10 found by both", c["message"])
         batch = json.loads((self.run.root / "discovery" / ("b" * 32 + ".json")).read_text())
         del batch["protected_hits"]                                         # a batch saved before the field existed
         write(self.run.root / "discovery" / ("b" * 32 + ".json"), batch)
         c = capture_recapture(self.run)
         self.assertEqual((c["both_routes"], "predate" in c["note"]), (1, True))
-        self.call("eval")
+        self.assertEqual(self.call("eval")["capture_recapture"], {"diagnostic": c["message"]})   # compact in eval
         self.attach_critique()
-        audit = (Path(self.call("report")["report"]) / "audit.md").read_text()
-        self.assertIn("## Estimated number of relevant works (capture–recapture)", audit)
-        self.assertIn("discovery found about", audit)
+        report = Path(self.call("report")["report"])
+        self.assertNotIn("capture–recapture", (report / "audit.md").read_text())                   # not reported
+        self.assertIn("capture_recapture", json.loads((report / "validation.json").read_text()))   # archived
+        # Enough overlap gives an estimate: 25 text, 25 citation, 12 both.
+        text_ids, cite_ids = [f"W{100 + i}" for i in range(25)], [f"W{113 + i}" for i in range(25)]
+        write(self.run.root / "discovery" / ("a" * 32 + ".json"), {"route": "sample", "rows": rows(text_ids), "protected_hits": []})
+        write(self.run.root / "discovery" / ("b" * 32 + ".json"), {"route": "neighbors", "direction": "citing", "rows": rows(cite_ids), "protected_hits": []})
+        write(self.run.root / "screening.json", {f"x/{w}": {"work_id": w, "discovery": "x", "decision": "include", "reason": "r"}
+                                                 for w in set(text_ids) | set(cite_ids)})
+        c = capture_recapture(self.run)
+        self.assertEqual((c["both_routes"], c["observed"]), (12, 38))
+        self.assertAlmostEqual(c["estimate"], round(26 * 26 / 13 - 1, 1))
+        self.assertIn("A diagnostic only", c["message"])
 
     def test_discovery_records_hidden_validation_works(self):
         def page(oqo, cursor="*", size=100, select=None):

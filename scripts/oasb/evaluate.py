@@ -434,8 +434,7 @@ def report(run, api):
     prec = precision(run, query["oqo"], query["count"])
     audit += ["## Precision", "", "From screened random samples of exactly this search (`sample --from-strategy`). "
               + precision_text(prec), ""]
-    estimate = capture.capture_recapture(run)
-    audit += ["## Estimated number of relevant works (capture–recapture)", "", capture.text(estimate), ""]
+    estimate = capture.capture_recapture(run)   # diagnostic: archived in validation.json, not shown in the audit
     audit += ["## Missed works", ""]
     audit += [f"- {wid} — {', '.join(reasons)}" for wid, reasons in fresh["misses"].items()] or ["No resolved known works missed."]
     audit += [f"- Unresolved ({role}) — {alias}" for role, s in fresh["sets"].items() for alias in s["unresolved"]]
