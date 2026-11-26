@@ -38,6 +38,7 @@ Edit the vocabulary and rerun `eval` to see gained or lost known works and the c
 | Find works citing, referenced by, or related to a seed (cursor-paged) | `neighbors W2618851878 --direction citing\|references\|related --size 200` (or `--all`, `--cursor`, `--max-pages`) |
 | Save a random screening pilot | `sample --oql "get works about telemedicine" --seed 42 --size 10` |
 | Sample only the records the latest revision added, to judge a broadening | `sample --added --size 10` |
+| Screen the best-matching records first (relevance order), for development works | `sample --from-strategy --top --size 20` |
 | Record a candidate's eligibility | `screen BATCH WORK_ID include --reason "Meets population and delivery criteria"` |
 | Attach a completed internal critique | `review critique.json` |
 | Revalidate and deliver | `report` |

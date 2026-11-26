@@ -1076,6 +1076,21 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.run.get("discovery/" + sample["discovery"])["protected_hits"], ["W3"])
         self.assertIn("capture_recapture", self.call("eval"))
 
+    def test_sample_top_is_ranked_and_kept_out_of_precision(self):
+        with patch.object(self.api, "run", wraps=self.api.run) as run:
+            out = self.call("sample", "--from-strategy", "--top", "--size", "3")
+            sent = run.call_args.args[0]
+        self.assertNotIn("sample", sent)                                  # first page in OpenAlex's order, not random
+        self.assertEqual(out["order"], "best matches first")
+        batch = self.run.get("discovery/" + out["discovery"])
+        self.assertEqual((batch["route"], batch["order"]), ("sample-top", "best matches first"))
+        self.call("screen", out["discovery"], "W1", "include", "--reason", "eligible")
+        self.assertEqual(self.call("eval")["precision"]["screened"], 0)   # a ranked sample is not a random one
+        out = self.call("sample", "--oql", "get works where publication_date >= 2000-01-01", "--top", "--size", "3")
+        self.assertIn("orders it by citations", out["note"])
+        with self.assertRaisesRegex(Error, "--top works with --oql or --from-strategy"):
+            self.call("sample", "--added", "--top")
+
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
         real_run = self.api.run

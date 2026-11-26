@@ -51,6 +51,9 @@ def parser():
     c.add_argument("--oql", help="OQL query to sample (mutually exclusive with --from-strategy).")
     c.add_argument("--from-strategy", action="store_true",
                    help="Sample directly from the current strategy.json instead of passing --oql.")
+    c.add_argument("--top", action="store_true",
+                   help="With --oql or --from-strategy: take the best-matching records (OpenAlex's relevance order for a "
+                        "text search) instead of a random sample. Not used for the precision estimate.")
     c.add_argument("--added", action="store_true",
                    help="Sample only the records the latest evaluated revision added (in this search, not in the previous one).")
     c.add_argument("--size", type=int, default=10)
@@ -296,6 +299,8 @@ def dispatch(run, api, a):
             raise Error("--size must be between 1 and 100.")
         if sum(map(bool, (a.oql, a.from_strategy, a.added))) != 1:
             raise Error("Pass exactly one of --oql, --from-strategy or --added.")
+        if a.top and a.added:
+            raise Error("--top works with --oql or --from-strategy, not --added.")
         if a.added and a.size > 20:
             raise Error("--added draws five times --size from the search; use --size 20 or less.")
         return discover(run, api, a)

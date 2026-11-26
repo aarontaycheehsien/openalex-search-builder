@@ -154,3 +154,25 @@ From `bench.py score`'s `screening` measure: how many of each review's included 
 - **Screening is not the problem.** The agents included 36 of the 40 gold works they screened, marked 4 unclear and excluded none. The unclear ones were borderline (a meta-analysis of a learner trait, a review of eye-tracking studies, a reef study whose countries were uncertain), so stricter screening would have lost them.
 - **Discovery reach is.** Discovery surfaced 0–14 of each review's 26–28 included studies (Kapuka 2021: 0 and 1), while the final searches retrieved 59–93% of them. The development set is a small, vocabulary-bound corner of the eligible literature, which is why development and protected-validation recall said nothing about gold recall.
 - **Correction:** an earlier version of this section concluded that the agents screen too generously and suggested stricter screening; the screening data above do not support that, and SKILL.md no longer says it.
+
+### Why discovery reaches so few included studies (2026-11-26)
+
+For each blind run: the agent's development works, the review's included studies (gold, resolved), gold works one citation step from the development works (cited by or citing them), gold works that cite or are cited by another gold work, and gold works among the first 200 records of the delivered search in OpenAlex's relevance order compared with a random sample of 200. Citation checks used matched references (`referenced_works`).
+
+| Review | Skill | Development works | Gold | Gold one step from development | Gold linked to other gold | Gold in top 200 | Random 200 would hold |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Kapuka 2021 | `78399d7` | 12 | 27 | 2 | 6 | 2 | 0.5 |
+| Kapuka 2021 | `d0f174f` | 22 | 27 | 4 | 6 | 0 | 0.3 |
+| Filges 2022 | `78399d7` | 17 | 28 | 7 | 9 | 0 | 0.1 |
+| Filges 2022 | `d0f174f` | 13 | 28 | 5 | 9 | 0 | 0.2 |
+| Noetel 2021 | `78399d7` | 28 | 28 | 20 | 21 | 16 | 3.2 |
+| Noetel 2021 | `d0f174f` | 19 | 28 | 17 | 21 | 13 | 0.7 |
+| Verdugo-Castro 2022 | `78399d7` | 25 | 26 | 4 | 8 | 1 | 0.1 |
+| Verdugo-Castro 2022 | `d0f174f` | 33 | 26 | 4 | 8 | 0 | 0.1 |
+| Cinquin 2018 | `78399d7` | 19 | 27 | 0 | 6 | 5 | 0.6 |
+| Cinquin 2018 | `d0f174f` | 42 | 27 | 4 | 6 | 2 | 0.7 |
+
+- **Random samples cannot reach the included studies.** They make up 0.1–1.6% of these searches, so a 20–100 record screening sample rarely holds one.
+- **Snowballing helps only where the studies cite each other.** In four of the five reviews just 6–9 of 26–28 included studies are linked to another included study, and one citation step from the agents' development works reached 0–7 of them. Noetel 2021, an umbrella review whose included meta-analyses cite each other, is the exception (17–20).
+- **Relevance ranking helps, modestly.** The top 200 held 39 included studies against 6.5 expected from random samples (6 times as many), but 29 of the 39 were Noetel's; for the other four reviews it was 10 against 2.6 (about 4 times), 0–5 per run. `sample --top` now screens best matches first.
+- **The structural remedy is seeds:** known eligible studies from the reviewer. A seedless run's development set is a vocabulary aid, not a recall check; the seeded benchmark condition has not yet been run blind.

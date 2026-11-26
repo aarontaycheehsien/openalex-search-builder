@@ -336,12 +336,20 @@ def discover(run, api, args):
     if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
         raise Error("Discovery requires a query that lists works.")
     obj = windowed(obj, window)
-    obj.update(sample=args.size, seed=str(args.seed))
+    top = getattr(args, "top", False)
+    if not top:
+        obj.update(sample=args.size, seed=str(args.seed))
+    # With a text search OpenAlex lists best matches first; without one, most cited first (adjusted for age).
+    order = ("best matches first" if ".search" in json.dumps(obj) else "most cited first") if top else "random sample"
     result = api.run(obj, args.size, DISCOVERY_FIELDS)
     rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
              "abstract": abstract(w)} for w in result["rows"] if work_id(w) not in protected]
-    data = {"at": now(), "route": args.action, "route_kind": "text", "oql": result["oql"], "oqo": result["oqo"],
-            "date_window": window_note, "rows": rows,
+    # "sample-top" batches are not random, so precision() (which reads route "sample") ignores them.
+    data = {"at": now(), "route": "sample-top" if top else args.action, "route_kind": "text", "order": order,
+            "oql": result["oql"], "oqo": result["oqo"], "date_window": window_note, "rows": rows,
             "protected_hits": sorted({work_id(w) for w in result["rows"]} & protected)}
     uid = run.snapshot("discovery", data)
-    return {"discovery": uid, "candidates": rows, "date_window": window_note}
+    out = {"discovery": uid, "candidates": rows, "date_window": window_note, "order": order}
+    if top and order != "best matches first":
+        out["note"] = "This query has no text search, so OpenAlex orders it by citations, not by relevance."
+    return out
