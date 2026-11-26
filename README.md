@@ -60,6 +60,14 @@ See [SKILL.md](SKILL.md) for the workflow, strategy schema and critique format. 
 
 Every compiled query, including the rescue query, is checked after OpenAlex translates it. The run fails if the corpus of the query or of any nested citation set differs, if the canonical query keeps a different number of terms and limit values than the strategy defines, or if a word from a strategy term is missing from the query object (which catches a dropped term hidden by a split elsewhere). On 2026-11-24 the translator dropped `and is_xpac is false` without a validation error. On 2026-11-25 it accepted `(works (all corpora) where ...)` as a nested set but dropped the corpus, so rescue sets are now written as `(get works (all corpora) where ...)`. This check catches both kinds of loss.
 
+## Hold out discovered papers for evaluation
+
+There are two options. Use `screen BATCH WORK_ID include --role validation --reason "Eligible"` to allocate a newly screened candidate directly to the local validation set. Its retrieval is hidden during development, but the agent has already seen the candidate's content.
+
+For genuinely blinded validation, use a separate human or fresh-context agent with a private, non-nested reviewer workspace. The reviewer discovers and screens citation candidates, runs `holdout-split --development-workspace PATH` to seal approximately half and shares only the development IDs. After the builder delivers its query, the reviewer runs `holdout-score --report PATH` once. The scorer excludes works rediscovered by the builder, measures relative recall with a Wilson interval, and keeps individual results private. A revised strategy needs a new independent set. See [the separate-context workflow](SKILL.md#separate-context-holdout-validation) for exact steps and isolation requirements.
+
+The CLI enforces allocation and one-time scoring, not operating-system permissions or independent agent contexts.
+
 ## Outputs
 
 Each delivery under `reports/<evaluation-id>/` includes the exact executable `final-query.oql`, its OpenAlex query object in `final-query.json`, a human-readable `audit.md` (ending with a draft PRISMA-S search reporting checklist, also saved as `prisma-s.json`) and a `validation.json` archive with counts, role-specific retrieval, unresolved citations, critique and revision history. Earlier deliveries remain identifiable as earlier snapshots.

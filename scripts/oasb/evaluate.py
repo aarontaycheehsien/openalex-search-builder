@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .api import PULLED_VIEWS, Error, check_translation, normalize_query, normalize_warnings, now
 from . import prisma
-from .records import PROTECTED, exposed_holdouts, exposure, interval_text, summary
+from .records import PROTECTED, discovered_ids, exposed_holdouts, exposure, interval_text, summary
 from .store import digest, write
 from .strategy import (BARE_WORD, HYPHEN_PHRASE, assign, check, core, excluded, expected_leaves, expected_tokens, failing,
                        oql, parse_combine, pulled_view, spaced_phrase, term_text, tree_ids)
@@ -292,6 +292,14 @@ def report(run, api):
         audit += ["", "Exposed works: " + ", ".join(exposed), ""]
     else:
         audit += ["## Holdout exposure", "", "No validation or benchmark result had been shown in an earlier delivery.", ""]
+    seen_holdouts = sorted(discovered_ids(run) & {k for k, v in records.items() if v["role"] in PROTECTED})
+    audit += ["", "## Holdout selection and blinding", "",
+              "Local validation and benchmark roles are protected from intermediate CLI output and mining, "
+              "not from an agent with filesystem access. A local holdout is not necessarily blinded."]
+    if seen_holdouts:
+        audit += ["Known holdouts previously returned in this workspace's discovery batches: "
+                  + ", ".join(seen_holdouts) + ". These are not blinded to the development agent."]
+    audit += ["For separate-context validation use holdout-split and holdout-score in an isolated reviewer workspace.", ""]
     audit += ["## Missed works", ""]
     audit += [f"- {wid} — {', '.join(reasons)}" for wid, reasons in fresh["misses"].items()] or ["No resolved known works missed."]
     audit += [f"- Unresolved ({role}) — {alias}" for role, s in fresh["sets"].items() for alias in s["unresolved"]]
@@ -329,7 +337,7 @@ def report(run, api):
                                           "records": run.get("records"), "scope": scope, "review": critic,
                                           "history": history, "scope_approval": run.get("scope"),
                                           "screening": run.get("screening") if (run.root / "screening.json").is_file() else {},
-                                          "post_exposure": post})
+                                          "post_exposure": post, "discovery_exposed_holdouts": seen_holdouts})
         if run.fingerprint() != fresh["input_hash"]:
             raise Error("Inputs changed before delivery.")
         os.replace(stage, dest)
