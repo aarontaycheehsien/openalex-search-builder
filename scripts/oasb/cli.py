@@ -7,6 +7,7 @@ from pathlib import Path
 from .api import API, Error, check_translation, now
 from .evaluate import evaluate, report, review, save_eval, term_counts
 from .export import estimate, export
+from .holdouts import split_holdouts, score_holdouts
 from .records import DEVELOPMENT, ROLES, add, discover, exposed_holdouts, mining
 from .rescue import rescue
 from .store import Run, digest, write
@@ -60,6 +61,13 @@ def parser():
     c.add_argument("work_id")
     c.add_argument("decision", choices=["include", "exclude", "unclear"])
     c.add_argument("--reason", required=True)
+    c.add_argument("--role", choices=["relevant", "validation"],
+                   help="Allocate an included candidate directly; validation is not blinded if the builder saw it.")
+    c = cmds.add_parser("holdout-split", help="Allocate citation-discovered eligible works in a separate reviewer workspace.")
+    c.add_argument("--development-workspace", required=True, type=Path)
+    c.add_argument("--seed", type=int, default=42)
+    c = cmds.add_parser("holdout-score", help="Score sealed holdouts once, outside the development workspace, after delivery.")
+    c.add_argument("--report", required=True, type=Path)
     c = cmds.add_parser("export", help="Page the delivered query into resumable CSV, RIS and JSONL files.")
     c.add_argument("--report", help="Report ID under reports/ (default: the latest delivery).")
     c.add_argument("--max-pages", type=int, help="Stop after this many 100-record pages; rerun to resume.")
@@ -234,6 +242,10 @@ def dispatch(run, api, a):
         return {"review": review(run, a.file)}
     if a.action == "report":
         return report(run, api)
+    if a.action == "holdout-split":
+        return split_holdouts(run, a.development_workspace, a.seed)
+    if a.action == "holdout-score":
+        return score_holdouts(run, api, a.report)
     if a.action == "export":
         if a.estimate:
             return estimate(run, api, a.report, rescue=a.rescue)
@@ -282,12 +294,18 @@ def dispatch(run, api, a):
         if wid not in {r["id"] for r in data["rows"]}:
             raise Error("This candidate is absent from the discovery batch.")
         decisions = run.get("screening") if (run.root / "screening.json").exists() else {}
+        if a.role and a.decision != "include":
+            raise Error("--role is only valid with an include decision.")
+        if a.role and wid in records and records[wid]["role"] != a.role:
+            raise Error("This record already has a different role; do not relabel an exposed development work.")
         event = {"work_id": wid, "discovery": a.discovery, "decision": a.decision, "reason": a.reason}
+        if a.role:
+            event["role"] = a.role
         key = a.discovery + "/" + wid
         if key in decisions and decisions[key] != event:
             raise Error("This candidate already has a decision in this batch.")
         if a.decision == "include" and wid not in records:
-            added = add(api, records, wid, "relevant", "screened from " + key + ": " + a.reason)
+            added = add(api, records, wid, a.role or "relevant", "screened from " + key + ": " + a.reason)
             if not added["work_id"]:
                 raise Error("The screened work could not be resolved. Retry after checking its ID.")
             run.put("records", records)
