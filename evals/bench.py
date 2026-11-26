@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from oasb.api import API, PULLED_VIEWS, Error, identifier, normalize_query, now, work_id
 from oasb.store import Run, digest, write
 from oasb.export import rescue_queries
+from oasb.capture import capture_recapture
 from oasb.records import wilson
 from oasb.strategy import failing, parse_combine, pulled_view
 from collections import Counter
@@ -219,7 +220,8 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
             "build_usd_reported": round(sum(float(e.get("cost_usd") or 0) for e in costs), 6),
             "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced,
             **({"rescue": rescue} if rescue is not None else {}),
-            **({"explain": explanation} if explanation is not None else {})}
+            **({"explain": explanation} if explanation is not None else {}),
+            **({"capture_recapture": dict(capture_recapture(run), gold_in_window=len(dated))} if report_dir else {})}
 
 
 def list_cases(suite=None):

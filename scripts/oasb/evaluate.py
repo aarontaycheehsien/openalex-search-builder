@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from .api import PULLED_VIEWS, Error, check_translation, normalize_query, normalize_warnings, now
-from . import prisma
+from . import capture, prisma
 from .records import DEVELOPMENT, PROTECTED, discovered_ids, exposed_holdouts, exposure, interval_text, summary, wilson
 from .store import digest, write
 from .strategy import (BARE_WORD, HYPHEN_PHRASE, assign, check, core, excluded, expected_leaves, expected_tokens, failing,
@@ -434,6 +434,8 @@ def report(run, api):
     prec = precision(run, query["oqo"], query["count"])
     audit += ["## Precision", "", "From screened random samples of exactly this search (`sample --from-strategy`). "
               + precision_text(prec), ""]
+    estimate = capture.capture_recapture(run)
+    audit += ["## Estimated number of relevant works (capture–recapture)", "", capture.text(estimate), ""]
     audit += ["## Missed works", ""]
     audit += [f"- {wid} — {', '.join(reasons)}" for wid, reasons in fresh["misses"].items()] or ["No resolved known works missed."]
     audit += [f"- Unresolved ({role}) — {alias}" for role, s in fresh["sets"].items() for alias in s["unresolved"]]
@@ -475,7 +477,7 @@ def report(run, api):
                                           "history": history, "scope_approval": run.get("scope"),
                                           "screening": run.get("screening") if (run.root / "screening.json").is_file() else {},
                                           "post_exposure": post, "discovery_exposed_holdouts": seen_holdouts,
-                                          "precision": prec})
+                                          "precision": prec, "capture_recapture": estimate})
         if run.fingerprint() != fresh["input_hash"]:
             raise Error("Inputs changed before delivery.")
         os.replace(stage, dest)

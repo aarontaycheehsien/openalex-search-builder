@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from .api import API, Error, check_translation, now
+from .capture import capture_recapture
 from .evaluate import evaluate, precision, report, review, revision_cost, save_eval, term_counts
 from .export import estimate, export
 from .holdouts import split_holdouts, score_holdouts
@@ -241,6 +242,7 @@ def dispatch(run, api, a):
                "strategy_warnings": lint(run.get("strategy"))["warnings"]}
         out["revision"] = revision_cost(data, dev)
         out["precision"] = precision(run, data["final"]["oqo"], data["final"]["count"])
+        out["capture_recapture"] = capture_recapture(run)
         out["pulled"] = {"view": data["pulled"]["view"], "final_pulled_works": data["pulled"]["final_pulled_works"],
                          "development_pulled": sorted(dev.intersection(data["pulled"]["known_pulled"]))}
         if "abstract_stats" in data:

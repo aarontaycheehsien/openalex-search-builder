@@ -112,3 +112,24 @@ The same five fixtures, rebuilt blind with the latest committed skill (`d0f174f`
 - **Workload:** 36% more records in total. The newer guidance against pruning core synonyms produced broader searches in three reviews (Noetel 1.3× → 6.2×, Kapuka 16.5× → 36.0×, Verdugo-Castro 7.0× → 12.8×) for at most two more gold works each; Filges narrowed (5.0× → 3.0×) and Cinquin was unchanged.
 - **Protected validation is not a recall estimate:** four of the five agents scored 100% on their own validation works (the fifth 75%), while gold recall was 63–93%. Works the agent finds through its own citation searches share its blind spots; SKILL.md's label "protected, not blinded" is accurate and should stay prominent.
 - **Blinding:** log checks as for the first batch found no leakage. Kapuka 2021 (again W4200017961) and Verdugo-Castro 2022 (W4292874629) surfaced possible source reviews in citation lists; Filges 2022 surfaced a review protocol (W3146159216). None was used (logs confirm). Two agents wrote scratch files to `/tmp` outside their folder, a minor departure from the instructions that gives no access to answers.
+
+### Capture–recapture and the agents' eligibility judgements (2026-11-26)
+
+Computed afterwards, with no API calls, from each blind run's own discovery batches and screening decisions: eligible works found by text routes (keyword samples, related works) and by citation routes, the overlap, Chapman's estimate of the total with a 95% interval, and the share of that estimate discovery reached. The last two columns compare the works each agent screened as eligible with the review's included studies (resolved in OpenAlex).
+
+| Review | Skill | Text route | Citation route | Both | Estimated eligible works (95% CI) | Discovery completeness | Agent's eligible works that are gold | Gold |
+|---|---|---:|---:|---:|---|---:|---:|---:|
+| Kapuka 2021 | `78399d7` | 9 | 3 | 0 | 39 (12–84) | 31% | 0/12 | 27 |
+| Kapuka 2021 | `d0f174f` | 9 | 14 | 1 | 74 (22–145) | 30% | 0/22 | 27 |
+| Filges 2022 | `78399d7` | 7 | 11 | 1 | 47 (17–90) | 36% | 4/17 | 28 |
+| Filges 2022 | `d0f174f` | 7 | 7 | 1 | 31 (13–58) | 42% | 1/13 | 28 |
+| Noetel 2021 | `78399d7` | 15 | 17 | 4 | 57 (28–89) | 50% | 13/28 | 28 |
+| Noetel 2021 | `d0f174f` | 10 | 11 | 2 | 43 (19–75) | 44% | 12/19 | 28 |
+| Verdugo-Castro 2022 | `78399d7` | 20 | 5 | 0 | 125 (25–281) | 20% | 1/25 | 26 |
+| Verdugo-Castro 2022 | `d0f174f` | 13 | 22 | 2 | 106 (33–193) | 31% | 1/33 | 26 |
+| Cinquin 2018 | `78399d7` | 16 | 3 | 0 | 67 (19–146) | 28% | 1/19 | 27 |
+| Cinquin 2018 | `d0f174f` | 24 | 23 | 5 | 99 (43–155) | 42% | 3/42 | 27 |
+
+- **The agents screen far more generously than the reviews did.** Of the works each agent judged eligible, 0–63% (median 6%) are among the review's included studies; for Kapuka 2021 none are. So development recall, protected validation recall and this estimate all describe the agent's own eligibility, which is much broader than the reviews' final inclusion (which also reflects full-text screening, quality criteria and scope decisions not stated in the fixture's question and eligibility text). That is the main reason those figures said nothing about gold recall.
+- **The estimate is very uncertain here.** Only 0–5 eligible works were found by both routes, so the intervals are wide, and the five reruns predate the recording of hidden validation works, which can push their estimates up. Low completeness (20–50%) consistently signalled that discovery was incomplete by the agent's own standard; it cannot be checked against gold because the agents' eligibility differs from the reviews'.
+- **Next step suggested by this:** calibrate eligibility screening against the review's criteria (for example, a SKILL.md rule to apply every eligibility criterion strictly when screening, and a benchmark check of agent include decisions against gold) before relying on any development-based recall figure.

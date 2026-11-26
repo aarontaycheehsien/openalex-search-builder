@@ -1035,6 +1035,47 @@ class WorkspaceTests(unittest.TestCase):
         self.attach_critique()
         self.call("report")
 
+    def test_capture_recapture_from_discovery(self):
+        from oasb.capture import capture_recapture
+        self.assertIsNone(capture_recapture(self.run)["estimate"])          # nothing discovered yet
+        rows = lambda ids: [{"id": i} for i in ids]
+        write(self.run.root / "discovery" / ("a" * 32 + ".json"), {"route": "sample", "route_kind": "text", "rows": rows(["W10", "W11", "W12"]), "protected_hits": []})
+        write(self.run.root / "discovery" / ("b" * 32 + ".json"), {"route": "neighbors", "direction": "citing", "route_kind": "citation",
+                                                               "rows": rows(["W11", "W13"]), "protected_hits": ["W12"]})
+        write(self.run.root / "screening.json", {f"{b * 32}/{w}": {"work_id": w, "discovery": b * 32, "decision": d, "reason": "r"}
+                                                 for b, w, d in [("a", "W10", "include"), ("a", "W11", "include"), ("a", "W12", "include"),
+                                                                 ("b", "W13", "include"), ("b", "W11", "include")]})
+        c = capture_recapture(self.run)
+        # text: W10, W11, W12; citation: W11, W13 and the hidden validation work W12 -> both: W11, W12
+        self.assertEqual((c["text_route"], c["citation_route"], c["both_routes"], c["observed"]), (3, 3, 2, 4))
+        self.assertAlmostEqual(c["estimate"], round(4 * 4 / 3 - 1, 1))
+        self.assertEqual(c["discovery_completeness"], round(4 / (4 * 4 / 3 - 1), 3))
+        self.assertIn("Only 2 work(s) found by both routes", c["message"])
+        batch = json.loads((self.run.root / "discovery" / ("b" * 32 + ".json")).read_text())
+        del batch["protected_hits"]                                         # a batch saved before the field existed
+        write(self.run.root / "discovery" / ("b" * 32 + ".json"), batch)
+        c = capture_recapture(self.run)
+        self.assertEqual((c["both_routes"], "predate" in c["note"]), (1, True))
+        self.call("eval")
+        self.attach_critique()
+        audit = (Path(self.call("report")["report"]) / "audit.md").read_text()
+        self.assertIn("## Estimated number of relevant works (capture–recapture)", audit)
+        self.assertIn("discovery found about", audit)
+
+    def test_discovery_records_hidden_validation_works(self):
+        def page(oqo, cursor="*", size=100, select=None):
+            return {"count": 2, "rows": [{"id": "W3", "display_name": "validation"}, {"id": "W40", "display_name": "new"}],
+                    "next_cursor": None, "oqo": oqo, "oql": "neighbors"}
+        self.api.page = page
+        out = self.call("neighbors", "W1", "--direction", "citing")
+        self.assertEqual([c["id"] for c in out["candidates"]], ["W40"])       # W3 (validation) is not shown
+        batch = self.run.get("discovery/" + out["discovery"])
+        self.assertEqual(batch["protected_hits"], ["W3"])
+        self.assertNotIn("protected_hits", out)                             # not echoed to the builder
+        sample = self.call("sample", "--oql", "get works where title has (telemedicine)", "--size", "3")
+        self.assertEqual(self.run.get("discovery/" + sample["discovery"])["protected_hits"], ["W3"])
+        self.assertIn("capture_recapture", self.call("eval"))
+
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
         real_run = self.api.run
@@ -1172,6 +1213,18 @@ class StrategyTests(unittest.TestCase):
         self.assertEqual(codes, [("hyphenated_phrase", '"open-field"'), ("unquoted_hyphen", "open-field"),
                                  ("hyphenated_phrase", '"COVID-19"')])
         self.assertIn('Write "open field" for the phrase', lint(s)["warnings"][0]["message"])
+
+    def test_chapman_estimate_and_routes(self):
+        from oasb.capture import chapman, route_of
+        estimate, ci = chapman(10, 10, 5)
+        self.assertAlmostEqual(estimate, 121 / 6 - 1)                       # (n1+1)(n2+1)/(m+1) - 1
+        variance = 11 * 11 * 5 * 5 / (6 ** 2 * 7)
+        self.assertAlmostEqual(ci[1], estimate + 1.959964 * variance ** 0.5)
+        self.assertEqual(ci[0], 15)                                         # floored at the 15 works observed
+        self.assertEqual([route_of(b) for b in (
+            {"route": "sample"}, {"route": "sample-added", "route_kind": "text"}, {"route": "neighbors", "direction": "related"},
+            {"route": "neighbors", "direction": "citing"}, {"route_kind": "citation"}, {"route_kind": "text-similarity"})],
+            ["text", "text", "text", "citation", "citation", "text"])
 
     def test_wilson_interval(self):
         self.assertEqual(wilson(3, 3), [0.4385, 1.0])

@@ -163,13 +163,14 @@ def sample_added(run, api, args, protected, window):
     obj.update(sample=draw, seed=str(args.seed))
     result = api.run(obj, draw, DISCOVERY_FIELDS)
     drawn = [w for w in result["rows"] if work_id(w) not in protected]
+    hidden = sorted({work_id(w) for w in result["rows"]} & protected)
     old = api.members(previous["final"]["oqo"], [work_id(w) for w in drawn]) if drawn else set()
     added = [w for w in drawn if work_id(w) not in old]
     rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
              "abstract": abstract(w)} for w in added[:args.size]]
     data = {"at": now(), "route": "sample-added", "route_kind": "text", "oql": result["oql"], "oqo": result["oqo"],
             "previous_oql": previous["final"]["oql"], "previous_at": previous["at"], "current_at": current["at"],
-            "drawn": len(drawn), "added_in_draw": len(added), "rows": rows}
+            "drawn": len(drawn), "added_in_draw": len(added), "rows": rows, "protected_hits": hidden}
     uid = run.snapshot("discovery", data)
     share = len(added) / len(drawn) if drawn else 0
     return {"discovery": uid, "candidates": rows, "drawn": len(drawn), "added_in_draw": len(added),
@@ -183,6 +184,7 @@ def discover(run, api, args):
     strategy = run.get("strategy")
     api.include_pulled = PULLED_VIEWS[pulled_view(strategy)]
     window = date_window(strategy, getattr(args, "any_date", False))
+    hidden = set()   # protected works a batch surfaced but did not show; kept for capture-recapture only
     window_note = {r["column_id"].removesuffix("_publication_date"): r["value"] for r in window} or None
     if args.action == "neighbors":
         records = run.get("records")
@@ -251,7 +253,10 @@ def discover(run, api, args):
                     oqo_echo = page["oqo"]
                 for w in page["rows"]:
                     r_id = work_id(w)
-                    if r_id in protected or r_id in seen_ids:
+                    if r_id in protected:
+                        hidden.add(r_id)
+                        continue
+                    if r_id in seen_ids:
                         continue
                     seen_ids.add(r_id)
                     rows.append({"id": r_id, "title": w.get("display_name"), "year": w.get("publication_year"),
@@ -275,7 +280,8 @@ def discover(run, api, args):
             complete = cursor is None
             data = {"at": now(), "route": "neighbors", "direction": args.direction, "route_kind": route_kind(args.direction),
                     "seed": wid, "seed_links": seed_links, "oql": oql_echo, "oqo": oqo_echo, "total": total, "pages": pages,
-                    "date_window": window_note, "complete": complete, "next_cursor": cursor, "rows": rows}
+                    "date_window": window_note, "complete": complete, "next_cursor": cursor, "rows": rows,
+                    "protected_hits": sorted(hidden)}
             uid = run.snapshot("discovery", data)
             return {"discovery": uid, "seed": wid, "candidates": rows, "total": total, "pages": pages, "date_window": window_note,
                     "route_kind": route_kind(args.direction), "seed_links": seed_links, "skipped_seeds": skipped,
@@ -309,7 +315,7 @@ def discover(run, api, args):
         data = {"at": now(), "route": "neighbors", "direction": args.direction, "route_kind": route_kind(args.direction),
                 "seed": wids[0], "seeds": wids, "seed_links": seed_links, "skipped_seeds": skipped,
                 "per_seed_totals": per_seed_totals, "pages": total_pages, "date_window": window_note,
-                "complete": all_complete, "rows": rows}
+                "complete": all_complete, "rows": rows, "protected_hits": sorted(hidden)}
         uid = run.snapshot("discovery", data)
         return {"discovery": uid, "seeds": wids, "candidates": rows, "total_unique": len(ranked), "date_window": window_note,
                 "route_kind": route_kind(args.direction), "seed_links": seed_links, "skipped_seeds": skipped, "notes": notes,
@@ -335,6 +341,7 @@ def discover(run, api, args):
     rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
              "abstract": abstract(w)} for w in result["rows"] if work_id(w) not in protected]
     data = {"at": now(), "route": args.action, "route_kind": "text", "oql": result["oql"], "oqo": result["oqo"],
-            "date_window": window_note, "rows": rows}
+            "date_window": window_note, "rows": rows,
+            "protected_hits": sorted({work_id(w) for w in result["rows"]} & protected)}
     uid = run.snapshot("discovery", data)
     return {"discovery": uid, "candidates": rows, "date_window": window_note}
