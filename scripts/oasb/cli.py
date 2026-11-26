@@ -38,6 +38,9 @@ def parser():
     c.add_argument("--block", help="Only this block's terms.")
     cmds.add_parser("validate")
     c = cmds.add_parser("eval")
+    c.add_argument("--quick", action="store_true",
+                   help="Skip the ablation lines (without/, drop-route/, with/) to save requests while developing. "
+                        "review needs a full eval.")
     c.add_argument("--abstract-stats", action="store_true",
                    help="Also measure missing-abstract counts for final and each search block (1 extra API call per line).")
     c = cmds.add_parser("review")
@@ -221,7 +224,7 @@ def dispatch(run, api, a):
                           expected_tokens(core(strategy), strategy.get("limits", {}), excluded(strategy)))
         return dict(result, submitted=query, leaves_checked=expected, strategy_warnings=lint(strategy)["warnings"])
     if a.action == "eval":
-        data = evaluate(run, api, abstract_stats=getattr(a, "abstract_stats", False))
+        data = evaluate(run, api, abstract_stats=getattr(a, "abstract_stats", False), quick=getattr(a, "quick", False))
         uid = save_eval(run, data)
         records = run.get("records")
         dev = {k for k, v in records.items() if v["role"] in DEVELOPMENT}

@@ -1022,6 +1022,19 @@ class WorkspaceTests(unittest.TestCase):
         with self.assertRaisesRegex(Error, "exactly one of"):
             self.call("sample", "--added", "--from-strategy")
 
+    def test_quick_eval_skips_ablation_and_review_needs_full(self):
+        quick = self.call("eval", "--quick")
+        self.assertEqual(sorted(quick["lines"]), ["block/delivery", "block/setting"])
+        self.assertEqual(quick["ablation"], "not run (quick evaluation)")
+        with self.assertRaisesRegex(Error, "was --quick.*Run eval without --quick"):
+            self.attach_critique()
+        full = self.call("eval")
+        self.assertGreater(len(full["lines"]), len(quick["lines"]))
+        self.assertIn("without/delivery", full["lines"])
+        self.assertEqual(full["ablation"], "assessed")
+        self.attach_critique()
+        self.call("report")
+
     def test_eval_abstract_stats_and_audit(self):
         # Mock no-abstract counts: final has 0/1 (0%), while blocks have 1/2 (50%) -> triggers attrition_note
         real_run = self.api.run
@@ -1367,6 +1380,56 @@ class ClientTests(unittest.TestCase):
             write(report / "rescue/rescue-query-cited-by.json", final)        # tampered rescue file
             with self.assertRaisesRegex(Error, "differ from the rescue manifest"):
                 bench.score(case, folder, FakeBench(), report, with_rescue=True)
+
+    def test_benchmark_explains_misses(self):
+        import zlib
+        case = bench.load_case("Bos_2018")
+        bound = {"column_id": "to_publication_date", "value": case["to_date"]}
+        final = {"get_rows": "works", "filter_rows": [bound], "tag": "final"}
+        def line(tag): return {"oqo": {"get_rows": "works", "filter_rows": [bound], "tag": tag}}
+        state = {}
+        class FakeBench:
+            include_pulled, cost_usd, unpriced = False, 0.0, 0
+            def validate(self, q): return {"oqo": final}
+            def run(self, obj, *a, **k): return {"count": 100, "oql": "q"}
+            def resolve(self, raw):
+                item = {"id": f"https://openalex.org/W{zlib.crc32(raw.encode()) + 1}", "display_name": raw}
+                if zlib.crc32(raw.encode()) % 2:
+                    item["abstract_inverted_index"] = {"text": [0]}
+                return identifier(raw), item
+            def pulled(self, ids): return set()
+            def members(self, obj, ids, include_pulled=None):
+                if obj.get("tag") is None:
+                    return set(ids)                                   # the date-window check
+                order = state.setdefault("order", sorted(ids))
+                pick = {"final": order[:3], "a": order[:6], "b": order[:3] + order[6:8], "x": order[4:5],
+                        "lim": [w for w in order if w != order[8]]}.get(obj.get("tag"))
+                return set(ids) if pick is None else set(ids) & set(pick)
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / "bos"
+            bench.prepare(case, "seedless", folder)
+            report = folder / "run/reports/R1"
+            report.mkdir(parents=True)
+            strategy = {"blocks": [{"id": "a", "role": "search"}, {"id": "b", "role": "search"},
+                                   {"id": "x", "role": "exclude"}], "limits": {"to_date": case["to_date"]}}
+            write(report / "validation.json", {"evaluation": {"final": {"oql": "FINAL", "oqo": final}, "strategy": strategy,
+                                                              "lines": {"block/a": line("a"), "block/b": line("b"),
+                                                                        "exclude/x": line("x"), "limit/to_date": line("lim")}},
+                                               "records": {}})
+            (report / "final-query.oql").write_text("FINAL\n")
+            row = bench.score(case, folder, FakeBench(), report, explain=True)
+        order, ex = state["order"], row["explain"]
+        by = {w["work"]: w for w in ex["works"]}
+        self.assertEqual(ex["misses"], row["tested"] - row["hits"])
+        self.assertEqual((by[order[3]]["failed_blocks"], by[order[3]]["excluded_by"]), (["b"], []))
+        self.assertEqual(by[order[4]]["excluded_by"], ["x"])
+        self.assertEqual(by[order[6]]["failed_blocks"], ["a"])
+        self.assertEqual((by[order[8]]["failed_blocks"], by[order[8]]["outside_limits"]), (["a", "b"], ["to_date"]))
+        self.assertEqual(ex["causes"]["block b"], sum("b" in w["failed_blocks"] for w in ex["works"]))
+        self.assertEqual(ex["without_abstract"], sum(not w["has_abstract"] for w in ex["works"]))
+        self.assertTrue(0 < ex["without_abstract"] < ex["misses"])
+        with self.assertRaisesRegex(Error, "pass --report"):
+            bench.explain_misses(None, FakeBench(), ["W1"], {})
 
     def test_all_benchmark_fixtures_valid_and_leak_free(self):
         from datetime import date

@@ -13,7 +13,7 @@ from .strategy import (BARE_WORD, HYPHEN_PHRASE, assign, check, core, excluded, 
                        oql, parse_combine, pulled_view, spaced_phrase, term_text, tree_ids)
 
 
-def evaluate(run, api, abstract_stats=False):
+def evaluate(run, api, abstract_stats=False, quick=False):
     run.approved()
     strategy, records = run.get("strategy"), run.get("records")
     start_hash = run.fingerprint()
@@ -54,28 +54,31 @@ def evaluate(run, api, abstract_stats=False):
     for key in limits:
         lines["limit/" + key] = measure((), {key: limits[key]})
     notes = []
-    if tree is None and len(blocks) > 1:
-        for b in blocks:
-            lines["without/" + b["id"]] = measure([x for x in blocks if x != b], limits, excludes)
-    elif tree is not None:
-        # without/X: X relaxed (always satisfied), what X costs. drop-route/X: X removed as an
-        # entry route (never satisfied), what X adds; only meaningful for a block under an OR.
-        for b in blocks:
-            for prefix, value in (("without/", True), ("drop-route/", False)):
-                rest = assign(tree, b["id"], value)
-                if rest is True:
-                    notes.append(f"without/{b['id']} not assessed: relaxing it leaves no search block.")
-                elif rest is not False:
-                    use = [x for x in blocks if x["id"] in tree_ids(rest)]
-                    lines[prefix + b["id"]] = measure(use, limits, excludes, rest)
-    for b in excludes:
-        lines["without/" + b["id"]] = measure(blocks, limits, [x for x in excludes if x != b], tree)
-    for b in strategy["blocks"]:
-        if b["role"] == "optional":
-            if tree is None:
-                lines["with/" + b["id"]] = measure([*blocks, b], limits, excludes)
-            else:
-                lines["with/" + b["id"]] = measure([*blocks, b], limits, excludes, ("and", [tree, b["id"]]))
+    # --quick skips the ablation lines (without/, drop-route/, with/) to save requests during development;
+    # the block, exclusion and limit lines stay because miss explanations depend on them.
+    if not quick:
+        if tree is None and len(blocks) > 1:
+            for b in blocks:
+                lines["without/" + b["id"]] = measure([x for x in blocks if x != b], limits, excludes)
+        elif tree is not None:
+            # without/X: X relaxed (always satisfied), what X costs. drop-route/X: X removed as an
+            # entry route (never satisfied), what X adds; only meaningful for a block under an OR.
+            for b in blocks:
+                for prefix, value in (("without/", True), ("drop-route/", False)):
+                    rest = assign(tree, b["id"], value)
+                    if rest is True:
+                        notes.append(f"without/{b['id']} not assessed: relaxing it leaves no search block.")
+                    elif rest is not False:
+                        use = [x for x in blocks if x["id"] in tree_ids(rest)]
+                        lines[prefix + b["id"]] = measure(use, limits, excludes, rest)
+        for b in excludes:
+            lines["without/" + b["id"]] = measure(blocks, limits, [x for x in excludes if x != b], tree)
+        for b in strategy["blocks"]:
+            if b["role"] == "optional":
+                if tree is None:
+                    lines["with/" + b["id"]] = measure([*blocks, b], limits, excludes)
+                else:
+                    lines["with/" + b["id"]] = measure([*blocks, b], limits, excludes, ("and", [tree, b["id"]]))
 
     def explain(wid):
         if wid in pulled_known and view == "exclude":
@@ -97,7 +100,7 @@ def evaluate(run, api, abstract_stats=False):
     matching = (other - final["count"]) if view == "exclude" else (final["count"] - other)
     out = {"at": now(), "input_hash": start_hash, "final": final, "lines": lines, "misses": missed,
            "sets": summary(records, hits), "strategy": strategy, "corpus": corpus,
-           "ablation": "assessed", "ablation_notes": notes,
+           "ablation": "not run (quick evaluation)" if quick else "assessed", "ablation_notes": notes, "quick": quick,
            "pulled": {"view": view, "include_pulled": PULLED_VIEWS[view], "final_pulled_works": matching,
                       "known_pulled": sorted(pulled_known)}}
     if abstract_stats:
@@ -317,6 +320,8 @@ def review(run, path):
     uid, current = run.latest("evaluations")
     if current["input_hash"] != run.fingerprint():
         raise Error("Evaluate the updated workspace before reviewing.")
+    if current.get("quick"):
+        raise Error("The latest evaluation was --quick and has no ablation lines. Run eval without --quick, then review.")
     document = json.loads(Path(path).read_text(encoding="utf-8"))
     sections = ("scope", "vocabulary", "boolean_and_fields", "limits", "retrieval", "limitations")
     for section in sections:

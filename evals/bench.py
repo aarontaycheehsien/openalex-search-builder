@@ -13,7 +13,8 @@ from oasb.api import API, PULLED_VIEWS, Error, identifier, normalize_query, now,
 from oasb.store import Run, digest, write
 from oasb.export import rescue_queries
 from oasb.records import wilson
-from oasb.strategy import pulled_view
+from oasb.strategy import failing, parse_combine, pulled_view
+from collections import Counter
 
 
 def fixture_index():
@@ -77,7 +78,40 @@ def check_limit(oqo, cutoff):
         raise Error("The reported strategy must apply the fixture publication cutoff.")
 
 
-def score(case, folder, api, report_dir=None, reference=False, with_rescue=False):
+def explain_misses(archive, api, misses, items):
+    """Evaluator-only diagnosis of missed gold works from the delivery's archived search lines: the blocks
+    each fails (honouring combine), exclusions that removed it, limits it falls outside, and whether
+    OpenAlex holds an abstract. Never written into the build workspace."""
+    if archive is None:
+        raise Error("--explain diagnoses a delivered report; pass --report.")
+    if not misses:
+        return {"misses": 0, "works": []}
+    strategy, lines = archive["evaluation"]["strategy"], archive["evaluation"]["lines"]
+    blocks = [b["id"] for b in strategy["blocks"] if b["role"] == "search"]
+    tree = parse_combine(strategy["combine"], blocks) if "combine" in strategy else None
+    hits = {name: api.members(line["oqo"], misses) for name, line in lines.items()
+            if name.startswith(("block/", "exclude/", "limit/"))}
+    works, causes = [], Counter()
+    for wid in misses:
+        values = {b: wid in hits["block/" + b] for b in blocks}
+        failed = failing(tree, values) if tree else [b for b, ok in values.items() if not ok]
+        excluded = [n[8:] for n, h in hits.items() if n.startswith("exclude/") and wid in h]
+        outside = [n[6:] for n, h in hits.items() if n.startswith("limit/") and wid not in h]
+        item = items.get(wid) or {}
+        has_abstract = bool(item.get("abstract_inverted_index"))
+        works.append({"work": wid, "title": item.get("display_name"), "year": item.get("publication_year"),
+                      "has_abstract": has_abstract, "failed_blocks": failed, "excluded_by": excluded,
+                      "outside_limits": outside})
+        causes.update(f"block {b}" for b in failed)
+        causes.update(f"exclusion {e}" for e in excluded)
+        causes.update(f"limit {l}" for l in outside)
+        if not (failed or excluded or outside):
+            causes["matched every line"] += 1   # index drift since delivery, or a pulled work
+    return {"misses": len(misses), "without_abstract": sum(not w["has_abstract"] for w in works),
+            "causes": dict(causes.most_common()), "works": works}
+
+
+def score(case, folder, api, report_dir=None, reference=False, with_rescue=False, explain=False):
     intake = json.loads((folder / "intake.json").read_text())
     given = assignment(case, intake["condition"])
     if intake["fixture_hash"] != digest(case) or given != intake["seeds"]:
@@ -85,6 +119,7 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
     run = Run(folder / "run")
     mined = set()
     view = "exclude"   # comparator queries use OpenAlex's default view
+    archive = None
     if report_dir:
         if report_dir.resolve().parent != (run.root / "reports").resolve():
             raise Error("Select a delivery from the prepared workspace.")
@@ -108,7 +143,7 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
     check_limit(obj, case["to_date"])
     api.include_pulled = PULLED_VIEWS[view]
     result = api.run(obj)
-    known, seed_works = set(), set()
+    known, seed_works, items = set(), set(), {}
     unresolved = []
     for row in case["gold"]:
         item = None
@@ -120,6 +155,7 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
             unresolved.append(row["row"])
             continue
         wid = work_id(item)
+        items[wid] = item
         if any(identifier(a) in given for a in row["ids"]):
             seed_works.add(wid)
         known.add(wid)
@@ -133,6 +169,7 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
     test = dated - seed_works - unretrievable
     hits = api.members(obj, test)
     unseen = test - mined
+    explanation = explain_misses(archive, api, sorted(test - hits), items) if explain else None
     rescue = None
     if with_rescue:
         if not report_dir:
@@ -181,7 +218,8 @@ def score(case, folder, api, report_dir=None, reference=False, with_rescue=False
             "works_per_test_hit": result["count"]/len(hits) if hits else None,
             "build_usd_reported": round(sum(float(e.get("cost_usd") or 0) for e in costs), 6),
             "scoring_usd_reported": round(api.cost_usd, 6), "scoring_responses_without_cost": api.unpriced,
-            **({"rescue": rescue} if rescue is not None else {})}
+            **({"rescue": rescue} if rescue is not None else {}),
+            **({"explain": explanation} if explanation is not None else {})}
 
 
 def list_cases(suite=None):
@@ -211,6 +249,8 @@ def main():
     p.add_argument("--suite", help="Filter `list` by fixture suite (e.g. frozen, synergy, clef-tar-2018).")
     p.add_argument("--condition", choices=["seeded", "seedless"], default="seedless")
     p.add_argument("--report", type=Path)
+    p.add_argument("--explain", action="store_true",
+                   help="With score: list, for the evaluator only, why each missed gold work was missed.")
     p.add_argument("--with-rescue", action="store_true",
                    help="With score: also score the report's saved rescue queries (union recall, volume upper bound).")
     args = p.parse_args()
@@ -224,7 +264,7 @@ def main():
     if args.action == "score" and not args.report:
         p.error("score requires --report pointing to the delivered report directory")
     return score(case, args.directory, API(), args.report if args.action == "score" else None,
-                 reference=args.action == "reference", with_rescue=args.with_rescue)
+                 reference=args.action == "reference", with_rescue=args.with_rescue, explain=args.explain)
 
 
 if __name__ == "__main__":
