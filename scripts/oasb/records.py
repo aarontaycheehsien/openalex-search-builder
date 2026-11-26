@@ -11,6 +11,12 @@ DEVELOPMENT = {"seed", "relevant"}
 PROTECTED = ("validation", "benchmark")
 
 
+def discovered_ids(run):
+    """IDs shown in discovery batches, whether or not they were subsequently screened."""
+    return {row["id"] for path in (run.root / "discovery").glob("*.json")
+            for row in run.get("discovery/" + path.stem)["rows"]}
+
+
 def exposure(run):
     """Earlier deliveries whose audit showed validation or benchmark results."""
     return run.get("exposure")["events"] if (run.root / "exposure.json").is_file() else []

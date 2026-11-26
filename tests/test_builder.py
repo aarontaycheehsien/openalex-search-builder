@@ -185,6 +185,17 @@ class WorkspaceTests(unittest.TestCase):
         self.call("develop", "W3", "--reason", "Used this work for revision")
         self.assertIn("W3", {r["id"] for r in self.call("terms")["records"]})
 
+    def test_screen_can_allocate_local_validation_directly(self):
+        uid = self.run.snapshot("discovery", {"route": "neighbors", "rows": [{"id": "W50"}]})
+        result = self.call("screen", uid, "W50", "include", "--role", "validation", "--reason", "Eligible")
+        self.assertEqual(result["role"], "validation")
+        self.assertEqual(self.run.get("records")["W50"]["role"], "validation")
+        self.assertNotIn("W50", {r["id"] for r in self.call("terms")["records"]})
+        with self.assertRaises(Error):
+            self.call("screen", uid, "W50", "include", "--role", "relevant", "--reason", "Change role")
+        with self.assertRaises(Error):
+            self.call("screen", uid, "W50", "exclude", "--role", "validation", "--reason", "Invalid")
+
     def test_aliases_and_unresolved_records(self):
         self.call("resolve", "10.1234/abc", "--role", "seed", "--source", "DOI")
         self.assertEqual(len(self.run.get("records")), 4)
