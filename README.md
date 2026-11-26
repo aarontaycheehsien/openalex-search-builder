@@ -25,19 +25,71 @@ See [**OpenAlex Search Pitfalls**](docs/openalex-pitfalls.md) for the concrete l
 
 ---
 
-## How the workflow runs
+## Step-by-step: what happens at each stage
 
-```mermaid
-flowchart LR
-    A["1. Intake & Scope\n(Reviewer approves blocks,\ncorpus, limits, pulled view)"] --> B["2. Discovery & Vocabulary\n(Seeds, pilot samples,\nmulti-seed citation neighbors,\nterm-counts)"]
-    B --> C["3. Live Eval & Ablation\n(Per-block counts, without/ID,\nmiss diagnosis, broadening check)"]
-    C -->|Revise| B
-    C --> D["4. Internal PRESS Critique\n(6 domains with live\nplaceholder figures)"]
-    D --> E["5. Revalidated Delivery\n(final-query.oql, audit.md,\ndraft PRISMA-S)"]
-    E --> F["6. Optional Rescue & Export\n(No-abstract citation rescue,\nresumable CSV / RIS / JSONL)"]
-```
+![OpenAlex Search Builder 9-Step Audited Workflow](docs/images/workflow-overview.jpg)
 
-Every run lives in an auditable workspace (`-w runs/<name>`). You remain in control at the key methodological checkpoints: approving the concept scope before evaluation, reviewing the delivered audit and draft PRISMA-S checklist, and deciding whether to run the optional no-abstract citation rescue and full record export.
+Every run lives in a stateful workspace (`-w runs/<name>`) where every query, screening decision, evaluation, and critique is saved as immutable JSON snapshots tied together by cryptographic fingerprints. You stay in control at the key methodological checkpoints while the CLI enforces measurement and guardrails underneath.
+
+### Step 1 — Intake (`init`)
+- **What happens:** You give the agent your review question, eligibility criteria, required limits (such as date range), optional known papers (DOIs, PMIDs, PMCIDs, or OpenAlex Work IDs), and desired depth (`quick`, `standard`, or `thorough`).
+- **Under the hood:** `init` creates the workspace and records the protocol in `protocol.json`. If you are updating a previous search, the agent opens the existing workspace and inspects its last delivered report instead of starting over.
+
+### Step 2 — Scope lock (`scope`, `scope --confirm`) — *Reviewer checkpoint*
+- **What happens:** The agent proposes a compact concept table assigning each concept a role — `search`, `optional`, `screen`, or `exclude` — and asks you to confirm before running live evaluations. Outcomes, study designs, and open-ended *"any X"* facets are kept at `screen` unless single-concept volume is genuinely unscreenable, so sensitive concepts are not prematurely cut.
+- **Under the hood:** You and the agent also lock two OpenAlex-specific scope decisions in `strategy.json`:
+  - **`corpus`:** `core` (default), `all` (core plus OpenAlex's expansion corpus), or `expansion`.
+  - **`pulled`:** `exclude` (default — retracted, withdrawn, and removed works stay out) or `include`.
+- `scope --confirm --note "..."` hashes the approved blocks, roles, protocol, limits, corpus, and `pulled` view into `scope.json`. `eval` refuses to run until scope is approved, and if any of those inputs change later, it stops and names exactly what changed (editing a block's rationale text alone does not trigger re-confirmation).
+
+### Step 3 — Known works, discovery & holdout separation (`resolve`, `sample`, `neighbors`, `screen`)
+
+![Inside Step 3: Dual-Route Discovery and Holdout Separation](docs/images/discovery-holdout-barrier.jpg)
+
+- **What happens:** Known eligible papers are registered first via `resolve --role seed`. Whenever you have known studies, supplying them is strongly recommended: in seedless runs, discovery reaches only a small corner of the eligible literature, so reviewer seeds remain the most reliable recall check. If enough known papers exist, a subset can be allocated to `validation` (or prior-review included studies to `benchmark`) *before* reading titles or mining vocabulary.
+- **Discovery routes (standard & thorough depth):**
+  - **Relevance-ordered & pilot text sampling:** `sample --from-strategy --top` screens the draft search's best matches first in OpenAlex relevance order (the most productive way to find development works); `sample --oql` pilots targeted exploratory queries.
+  - **Multi-seed citation snowballing:** `neighbors ID ... --direction citing|references` follows OpenAlex's matched reference lists from screened development works, deduplicating and ranking co-linked candidates first. Because OpenAlex links ~82% of references and many older items lack reference lists, the CLI checks each seed's link counts (free) and refuses dead-end seeds before spending paid requests. `neighbors --direction related` returns up to 10 text-similarity neighbors (never reviews or retracted works) and is tracked as a text route rather than citation searching.
+  - **Date-window guard:** Both `sample` and `neighbors` automatically apply the strategy's publication-date limits so post-cutoff works (including source reviews in blind benchmarks) do not leak into candidate pools.
+- **Screening & protection barrier:** Candidates are judged against your written eligibility criteria via `screen` (`include`, `exclude`, or `unclear`). Included development works go into `relevant`; excluded works are retained so `eval` can measure how many irrelevant works your query still matches. Works marked `validation` or `benchmark` stay hidden from term mining and intermediate `eval` output until final delivery (`report`). For true blinding against filesystem access, the CLI also supports an isolated separate-context reviewer workspace (`holdout-split` / `holdout-score`).
+
+### Step 4 — Vocabulary mining & trap checks (`terms`, `vocab`, `term-counts`)
+- **What happens:** The agent builds candidate synonyms, phrases, and spelling variants from the development works (`seed` + `relevant` only — never holdouts) and from OpenAlex's own taxonomy.
+- **Under the hood:**
+  - `terms` extracts recurring words, bigrams, and OpenAlex keywords from development titles and reconstructed abstracts.
+  - `vocab keywords` and `vocab topics` query OpenAlex live for keyword `alternatives` and topic keyword lists. Because OpenAlex keywords and topics are algorithmically assigned labels rather than MeSH headings, there is no controlled-heading explosion — alternatives must be spelled out explicitly.
+  - Strategies start on `title-abstract` and pilot `title-abstract-keywords` (or `fulltext`) selectively so you can measure the recall vs. volume tradeoff.
+  - When a block's count looks unexpectedly large, `term-counts --block ID` tests each term individually to flag OpenAlex-specific traps — bare words whose stem collides with unrelated common words, and quoted hyphenated terms that OpenAlex executes as an `AND` of their parts rather than a phrase.
+
+### Step 5 — Live validation, evaluation, ablation & revision (`validate`, `eval`, `sample --added`, `sample --from-strategy`)
+
+![Inside Step 5: What Happens Every Time eval Runs](docs/images/eval-ablation-loop.jpg)
+
+- **Compile & translation guard:** `validate` and `eval` compile `strategy.json` into canonical OQL, submit it to OpenAlex `/query`, and run `check_translation()` on the returned OpenAlex Query Object (OQO). If OpenAlex silently drops a corpus flag, a term, a word, or a limit value, the CLI fails fast rather than running a weaker query. Every live execution passes `include_pulled` explicitly so known-work recall checks see the exact same works the search returns.
+- **Ablation & diagnostics (`eval`):** Each full `eval` executes the final query plus diagnostic lines:
+  - **Per-block & leave-one-out ablation:** `block/<id>` (each block alone), `without/<id>` (relaxing a block to see what it costs in known works and volume), `drop-route/<id>` (for `combine` OR branches, showing what each entry route adds), `with/<id>` (testing `optional` blocks), and `exclude/<id>` (showing any known works dropped by a `NOT` block). Use `eval --quick` between revisions to skip ablation lines and save credits, then run a full `eval` before critique.
+  - **Per-miss diagnosis (`miss_details`):** For every missed development work, reports the exact failing block(s), title, keywords, whether OpenAlex has an abstract, and whether the work is `pulled`. A `pulled` miss cannot be fixed with vocabulary; a missing-abstract miss flags an indexing gap rather than a missing synonym.
+  - **Missing-abstract attrition (`--abstract-stats`):** Measures `% without abstract` for the final query and each search block, flagging when ANDing blocks disproportionately drops abstract-less records — prompting either a conditional `has_abstract: false` fallback branch via `combine` or Step 8 rescue.
+  - **Broadening guard & pilot precision:** Every `eval` after the first reports `revision` (count change, development works gained/lost, works per gained hit) and warns `broadening_without_gain` if volume jumps by >20% and >500 works without gaining a development work. The agent then runs `sample --added` to screen *only* the newly added records and keeps the broadening only if it brings in eligible studies. Screening a random sample (`sample --from-strategy --size 20`) gives strict and lenient precision estimates with 95% Wilson intervals and exposes abstract boilerplate collisions (such as CC-BY license footers).
+
+### Step 6 — Tamper-resistant internal PRESS critique (`review`)
+- **What happens:** Before delivery, a fresh-context agent (or human reviewer) evaluates the strategy across the six PRESS domains: `scope`, `vocabulary`, `boolean_and_fields`, `limits`, `retrieval`, and `limitations` (see [`examples/critique-template.json`](examples/critique-template.json)).
+- **Under the hood:** `review critique.json` refuses to run if the last evaluation was `--quick` (ablation is required) or if the strategy changed since the last `eval`. Instead of letting the agent type numbers from memory, the critique uses live brace placeholders (`{final_count}`, `{development_recall}`, `{development_missed}`, `{pulled_count}`, `{without_abstract_pct}`), which `review` fills directly from the current evaluation — rejecting unknown placeholders, hiding holdout figures, and refusing any critique that quotes a stale count from an earlier revision.
+
+### Step 7 — Live-revalidated delivery (`report`) — *Reviewer checkpoint*
+- **What happens:** The agent runs `report` to produce a dated, peer-reviewable package and hands over the query, live hit count, recall with 95% Wilson intervals, precision estimate, misses, pulled-work count, limitations, and draft PRISMA-S checklist.
+- **Under the hood:** `report` re-executes the full strategy live against OpenAlex and checks that the live evidence fingerprint still matches the approved critique (if OpenAlex's interpretation or matches changed, it stops and requires a fresh review). It writes an atomic snapshot under `reports/<evaluation-id>/`, reveals holdout (`validation`/`benchmark`) retrieval for the first time, and records which holdouts were shown in `exposure.json` so any later delivery is labelled **`post_exposure`** and scores newly added holdouts separately.
+
+### Step 8 — Optional no-abstract citation rescue (`rescue --estimate`, `rescue`)
+
+![Inside Step 8: Missing-Abstract Attrition and Reference-List Rescue](docs/images/missing-abstract-rescue.jpg)
+
+- **What happens:** Right after delivery, the agent offers an optional supplementary citation rescue specifically targeting works that lack abstracts in OpenAlex and were dropped by the multi-block Boolean `AND`. `rescue --estimate` shows the expected credit cost first without running anything.
+- **Under the hood:** The default `--direction cited-by --method references` reads the delivered works' matched `referenced_works` (reusing a completed primary export if available, or paging the delivered search for IDs and references) rather than embedding the full Boolean query inside an OpenAlex citation-set subquery — avoiding timeouts on large strategies. It filters cited works outside the delivered set that have `has_abstract: false` and fall within the date window, then applies an any-block (`OR`) or `--topic` gate to save a dated ID list. Every rescue also saves **`unlinked-references.json`** (printed reference strings of development works that OpenAlex could not link) as leads for other databases and grey literature. Keep the rescue separate from the primary Boolean search in PRISMA reporting.
+
+### Step 9 — Cost-estimated, resumable export (`export --estimate`, `export`)
+- **What happens:** When you are ready to screen records in Zotero, EndNote, Rayyan, or Covidence, the agent runs `export --estimate` (free) to state the total record count, 100-record pages, credits, and estimated USD cost before downloading.
+- **Under the hood:** `export` cursor-pages the exact delivered `final-query.json` (and optionally `export --rescue` for Step 8's rescued IDs), checkpointing every page in `checkpoint.sqlite3` and deduplicating by OpenAlex Work ID. It verifies OpenAlex executed the exact query object on every page, escapes spreadsheet-formula-like CSV cells while preserving raw records in JSONL, writes `results.csv`, `results.ris`, `results.jsonl`, and `export-manifest.json` (with SHA-256 hashes and any `count_discrepancy`). If a run hits a budget or `--max-pages` limit, it writes `results.partial.*` and resumes cleanly from the saved cursor when rerun.
 
 ---
 
