@@ -1,0 +1,38 @@
+{
+  "get_rows": "works",
+  "filter_rows": [
+    {
+      "column_id": "title_and_abstract.search",
+      "value": "telemedicine",
+      "operator": "has"
+    },
+    {
+      "column_id": "title_and_abstract.search",
+      "value": "telehealth",
+      "operator": "has"
+    },
+    {
+      "column_id": "title_and_abstract.search",
+      "value": "\"video consultation\"",
+      "operator": "has"
+    },
+    {
+      "column_id": "title_and_abstract.search",
+      "value": "rural",
+      "operator": "has"
+    },
+    {
+      "column_id": "title_and_abstract.search",
+      "value": "remote",
+      "operator": "has"
+    },
+    {
+      "column_id": "from_publication_date",
+      "value": "2015-01-01"
+    },
+    {
+      "column_id": "to_publication_date",
+      "value": "2025-12-31"
+    }
+  ]
+}

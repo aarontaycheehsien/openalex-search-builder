@@ -1,0 +1,9 @@
+{
+  "scope": "Concept blocks align with the approved review question and eligibility criteria. Population/outcomes left at screening to avoid unnecessary sensitivity loss. Corpus and pulled-work view ({pulled_count} pulled works excluded) match the confirmed scope.",
+  "vocabulary": "Synonyms, phrasing variants, and OpenAlex keyword coverage were checked against development works and term-counts. Replace this sentence with specific findings (e.g., hyphenated phrases, stemming collisions, or domain terms added) and disposition.",
+  "boolean_and_fields": "Block combinations, field choices (title-abstract vs. title-abstract-keywords), proximity operators, and any exclusions were checked against block counts and leave-one-out ablation (without/ID). State any changes made or why accepted.",
+  "limits": "Date, language, work-type, topic, and abstract-presence limits match the approved protocol without unjustified restrictions. State any API translation warnings reviewed.",
+  "retrieval": "Final query retrieves {final_count} works and {development_recall} on development works ({development_missed} missed). Review any missed development works (distinguishing vocabulary gaps from missing abstracts or pulled works), sample precision, and broadening evidence.",
+  "limitations": "OpenAlex is a single multidisciplinary source; relative recall on known development works is not an estimate of absolute recall, and live index counts can change over time. Missing-abstract share in the final query is {without_abstract_pct}. Consider post-delivery no-abstract citation rescue and human librarian peer review.",
+  "decision": "ready"
+}

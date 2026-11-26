@@ -1,0 +1,1 @@
+get works where title-abstract has (telemedicine OR telehealth OR "video consultation") and title-abstract has (rural OR remote) and publication_date >= 2015-01-01 and publication_date <= 2025-12-31
