@@ -178,3 +178,35 @@ For each blind run: the agent's development works, the review's included studies
 - **The structural remedy is seeds:** known eligible studies from the reviewer. A seedless run's development set is a vocabulary aid, not a recall check; the seeded benchmark condition has not yet been run blind.
 
 - **Capture–recapture demoted (2026-11-26):** discovery completeness tracked gold recall only weakly across these ten runs (Spearman 0.31, n = 10), the intervals spanned 1.1–2 times the estimate, and two runs on one review differed up to twofold. The tool now reports it only with at least 20 eligible works from each route and 10 found by both, as a diagnostic outside the audit.
+
+### Recall levers tested on the blind deliveries (2026-11-26)
+
+**Dropping a whole block.** 21 of the archived `without/` lines gained gold works, but most multiplied the search 15–500 times. The only ones under five times the volume:
+
+| Review | Run | Block dropped | Gold gained | Volume | Extra records per gold work |
+|---|---:|---|---:|---:|---:|
+| Filges 2022 | 1 | `population` | +3 | 1.8× | 8,214 |
+| Verdugo-Castro 2022 | 2 | `hied` | +4 | 2.3× | 17,050 |
+| Noetel 2021 | 2 | `learning` | +1 | 3.1× | 14,988 |
+| Filges 2022 | 2 | `k12` | +4 | 4.5× | 16,787 |
+
+These are population or setting blocks, and even they take the searches to 9–29 times the original reviews' screening loads. Dropping the blocks where most misses concentrate (region in Kapuka, e-learning in Cinquin) costs 39–241 times the volume. No rule to move setting blocks to screening is justified.
+
+**Adding OpenAlex keywords to a block** (`title-abstract-keywords`), tested on every title or title-abstract search block of the five reruns (13 blocks):
+
+| Review | Block | Field before | Gold gained | Volume | Extra records per gold work |
+|---|---|---|---:|---:|---:|
+| Filges 2022 | `sl` | title-abstract | +2 | 1.33× | 3,166 |
+| Cinquin 2018 | `cognitive` | title-abstract | +2 | 1.10× | 248 |
+| Cinquin 2018 | `disab_title` | title | +2 | 3.01× | 4,949 |
+
+The other 10 blocks gained nothing (most at little or no extra volume; two title-only blocks rose 3–3.7 times). This supports SKILL.md's advice to pilot the keywords field block by block.
+
+**No-abstract citation rescue** (reference-list method, `cited-by`), run on the two Cinquin 2018 deliveries, each with 7 of its misses lacking an abstract:
+
+| Review | Run | Gold before | Gold with rescue (95% CI) | Abstract-less misses recovered | Records (search + rescue) | Rescue records per gold work |
+|---|---:|---:|---|---:|---:|---:|
+| Cinquin 2018 | 1 | 16/27 | 18/27 (67%; 48–81%) | +2 of 7 | 5,091 + 3,763 | 1,882 |
+| Cinquin 2018 | 2 | 17/27 | 19/27 (70%; 52–84%) | +2 of 7 | 4,918 + 4,083 | 2,042 |
+
+Each run cost about $0.22, matching `rescue --estimate`. The other eight deliveries' rescues are estimated at $0.07–2.48 each ($7.6 in total) and are queued in ROADMAP.md.
