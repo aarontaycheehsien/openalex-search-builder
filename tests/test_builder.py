@@ -456,9 +456,9 @@ class WorkspaceTests(unittest.TestCase):
         samp = self.call("sample", "--from-strategy", "--size", "5")
         self.assertTrue(samp["discovery"])
         self.assertIsInstance(samp["candidates"], list)
-        with self.assertRaisesRegex(Error, "exactly one of --oql, --from-strategy or --added"):
+        with self.assertRaisesRegex(Error, "exactly one of --oql, --from-strategy, --added or --removed"):
             self.call("sample", "--size", "5")
-        with self.assertRaisesRegex(Error, "exactly one of --oql, --from-strategy or --added"):
+        with self.assertRaisesRegex(Error, "exactly one of --oql, --from-strategy, --added or --removed"):
             self.call("sample", "--oql", "get works", "--from-strategy", "--size", "5")
 
         # 3. eval reports matched screened-out irrelevant works from screening.json
@@ -1120,6 +1120,124 @@ class WorkspaceTests(unittest.TestCase):
         self.assertIn("## Missing-abstract attrition", audit)
         self.assertIn("disproportionately dropping", audit)
 
+    def test_query_cache_delivery_estimate_and_graceful_placeholder(self):
+        with patch.object(self.api, "run", wraps=self.api.run) as run_spy:
+            ev1 = self.call("eval")
+            first_calls = run_spy.call_count
+            self.assertEqual(ev1["cache"], {"reused_lines": 0, "queried_lines": 3, "enabled": True})
+            self.assertGreater(ev1["delivery_estimate"]["estimated_credits"], 0)
+            # Re-evaluating after editing only 1 block reuses unchanged block/without lines
+            self.strategy["blocks"][0]["terms"] = ["telemedicine"]
+            self.run.put("strategy", self.strategy)
+            ev2 = self.call("eval")
+            self.assertGreater(ev2["cache"]["reused_lines"], 0)
+            self.assertLess(run_spy.call_count - first_calls, first_calls)
+            # --no-cache forces live queries on every line
+            ev3 = self.call("eval", "--no-cache")
+            self.assertEqual((ev3["cache"]["enabled"], ev3["cache"]["reused_lines"]), (False, 0))
+        # {without_abstract_pct} fills gracefully instead of failing when --abstract-stats was not run
+        file = self.run.root / "critique.json"
+        base = dict.fromkeys(("scope", "vocabulary", "boolean_and_fields", "limits", "retrieval"), "Reviewed.") | {"decision": "ready"}
+        write(file, dict(base, limitations="No-abstract share: {without_abstract_pct}."))
+        rev = self.call("review", str(file))
+        self.assertIn("without_abstract_pct", rev["placeholders_filled"])
+        # report always re-executes live (uncached)
+        with patch.object(self.api, "run", wraps=self.api.run) as report_spy:
+            deliver = self.call("report")
+            self.assertGreaterEqual(report_spy.call_count, 3)
+        self.assertIn("not measured (eval ran without --abstract-stats)", (Path(deliver["report"]) / "audit.md").read_text())
+
+    def test_term_impact_high_cost_broadening_and_sample_removed(self):
+        from oasb.evaluate import revision_cost
+        costly = {"final": {"count": 12000}, "change": {"count_delta": 9000, "gained": ["W1"], "lost": []}}
+        warn = revision_cost(costly, {"W1", "W2"})["warning"]
+        self.assertEqual(warn["code"], "high_cost_broadening")
+        self.assertIn("9,000 extra works per gained development work", warn["message"])
+
+        # Broaden setting block with "hospital" (adds W2), then narrow back and check sample --removed
+        self.strategy["blocks"][1]["terms"].append("hospital")
+        self.reconfirm(self.strategy)
+        broad = self.call("eval", "--term-impact")
+        by_term = { (r["block"], r["term"]): r for r in broad["term_impact"]["terms"] }
+        self.assertEqual(by_term[("setting", "hospital")]["records_only_here"], 1)
+        self.assertEqual(by_term[("setting", "hospital")]["development_only_here"], ["W2"])
+        self.assertEqual(by_term[("setting", "remote")]["records_only_here"], 0)
+
+        # Narrow: drop "hospital" -> W2 is removed
+        self.strategy["blocks"][1]["terms"] = ["rural", "remote"]
+        self.run.put("strategy", self.strategy)
+        self.call("eval")
+        rem = self.call("sample", "--removed", "--size", "5")
+        self.assertEqual(([c["id"] for c in rem["candidates"]], rem["removed_in_draw"]), (["W2"], 1))
+        with self.assertRaisesRegex(Error, "--prior-reviews works with --oql or --from-strategy"):
+            self.call("sample", "--removed", "--prior-reviews")
+
+    def test_prior_reviews_and_independence_tiers(self):
+        self.strategy["limits"] = {"to_date": "2020-12-31"}
+        self.reconfirm(self.strategy)
+        # Seedless workspace where all development works come from keyword sampling triggers independence warning
+        ws = Run(self.run.root.parent / "seedless")
+        ws.init("Q?", [], "standard")
+        ws.put("strategy", self.strategy)
+        cli.dispatch(ws, self.api, cli.parser().parse_args(["-w", str(ws.root), "scope", "--confirm", "--note", "ok"]))
+        s = cli.dispatch(ws, self.api, cli.parser().parse_args(["-w", str(ws.root), "sample", "--from-strategy", "--size", "3"]))
+        cli.dispatch(ws, self.api, cli.parser().parse_args(["-w", str(ws.root), "screen", s["discovery"], "W1", "include", "--reason", "hit"]))
+        ev = cli.dispatch(ws, self.api, cli.parser().parse_args(["-w", str(ws.root), "eval"]))
+        self.assertEqual(ev["independence"]["wording_independent"], [])
+        self.assertEqual(ev["independence"]["keyword_derived"], ["W1"])
+        self.assertIn("All development works came from keyword", ev["independence"]["warning"])
+
+        # sample --prior-reviews adds type=review, applies date window, and reports referenced_works_count
+        sent = []
+        real_run = self.api.run
+        def spy_run(q, size=1, fields="id", include_pulled=None):
+            sent.append((q, fields))
+            if isinstance(q, dict) and {"column_id": "type", "value": "review"} in q.get("filter_rows", []):
+                return {"oqo": q, "oql": "reviews", "count": 1,
+                        "rows": [{"id": "https://openalex.org/W1", "display_name": "Review 1",
+                                  "publication_year": 2019, "referenced_works_count": 44, "cited_by_count": 12}]}
+            return real_run(q, size, fields, include_pulled)
+        with patch.object(self.api, "run", side_effect=spy_run):
+            pr = self.call("sample", "--from-strategy", "--prior-reviews", "--size", "5")
+        self.assertEqual(pr["candidates"][0]["referenced_works_count"], 44)
+        self.assertIn("referenced_works_count", sent[-1][1])
+        self.assertIn({"column_id": "to_publication_date", "value": "2020-12-31"}, sent[-1][0]["filter_rows"])
+
+    def test_rescue_min_links_and_keywords_gate(self):
+        from oasb.strategy import rescue_gate
+        gate_q, _, _ = rescue_gate(self.strategy, keywords_gate=True)
+        self.assertIn("title-abstract-keywords has (telemedicine OR telehealth)", gate_q)
+
+        self.strategy["limits"] = {"to_date": "2020-12-31"}
+        self.reconfirm(self.strategy)
+        report = self.deliver()
+        delivered_rows = [
+            {"id": "https://openalex.org/W1", "referenced_works": ["https://openalex.org/W8", "https://openalex.org/W11"]},
+            {"id": "https://openalex.org/W2", "referenced_works": ["https://openalex.org/W8"]},
+        ]
+        self.api.page = lambda oqo, cursor="*", size=100, select=None: {
+            "count": 2, "rows": delivered_rows, "next_cursor": None, "oqo": oqo, "oql": "delivered"}
+        self.api.lookup_index = {"W8": {"has_abstract": False, "year": 2015},
+                                 "W11": {"has_abstract": False, "year": 2015}}
+        real_val = self.api.validate
+        def fake_val(q):
+            if "doesn't have an abstract" in q:
+                out = real_val(q.replace("it doesn't have an abstract and ", ""))
+                return dict(out, oqo=dict(out["oqo"], filter_rows=[{"column_id": "has_abstract", "value": False},
+                                                                   *out["oqo"]["filter_rows"]], tag="gate"))
+            return real_val(q)
+        def fake_members(obj, ids, include_pulled=None, batch_size=100):
+            if obj.get("tag") == "gate":
+                return set(ids) & {"W8", "W11"}
+            return Index.members(self.api, obj, ids, include_pulled)
+        with patch.object(self.api, "validate", side_effect=fake_val), patch.object(self.api, "members", side_effect=fake_members):
+            out = self.call("rescue", "--min-links", "2", "--keywords-gate")
+        self.assertEqual((out["rescue_count"], out["gate"], out["min_links"]), (1, "any-block-keywords", 2))
+        self.assertEqual(out["stages"]["cited-by"]["at_least_min_links"], 1)
+        self.assertEqual(out["co_citations"]["cited-by"], {"1_or_more": 2, "2_or_more": 1, "3_or_more": 0, "min_links_applied": 2})
+        with self.assertRaisesRegex(Error, "--min-links requires"):
+            self.call("rescue", "--direction", "citing", "--min-links", "2")
+
 
 class StrategyTests(unittest.TestCase):
     def block(self, terms, role="search", field="title-abstract", id="a"):
@@ -1141,6 +1259,13 @@ class StrategyTests(unittest.TestCase):
         self.assertIn("(title has (telemedicine) and topic is T10912 and it doesn't have an abstract)", q)
         self.assertIn("topic is (T10102 or T10912)", q)
         self.assertEqual(n, 8)  # 1 + 1 + (1+1+1) + (1+2)
+        s_any = {"blocks": [{"id": "fb", "role": "search", "field": "title", "terms": ["telemedicine"],
+                             "any_topics": ["T11806", "T11998"], "rationale": "r"}],
+                 "limits": {"any_topic": ["T10726"]}}
+        q_any, n_any = final_query(s_any)
+        self.assertIn("topics is (T11806 or T11998)", q_any)
+        self.assertIn("topics is T10726", q_any)
+        self.assertEqual(n_any, 4)
         with self.assertRaises(Error):
             check({"blocks": [self.block(["a1"])], "limits": {"has_abstract": "false"}})
         with self.assertRaises(Error):
@@ -1332,6 +1457,13 @@ class ClientTests(unittest.TestCase):
         ids = {f"W{i}" for i in range(1, 62)}
         with patch.object(api, "run", side_effect=reply) as req:
             self.assertEqual(api.members({"get_rows": "works"}, ids), ids)
+            self.assertEqual(req.call_count, 1)   # default batch_size=100
+        with patch.object(api, "run", side_effect=reply) as req:
+            self.assertEqual(api.members({"get_rows": "works"}, ids, batch_size=25), ids)
+            self.assertEqual(req.call_count, 3)
+        many = {f"W{i}" for i in range(1, 206)}
+        with patch.object(api, "run", side_effect=reply) as req:
+            self.assertEqual(api.members({"get_rows": "works"}, many), many)
             self.assertEqual(req.call_count, 3)
         with patch.object(api, "run", return_value={"rows": [], "count": 1}):
             with self.assertRaisesRegex(Error, "intersection"):
@@ -1556,6 +1688,41 @@ class ClientTests(unittest.TestCase):
                 self.assertNotIn("original_screening_load_source", given)
                 self.assertFalse((folder / "skill/evals").exists())
                 self.assertEqual(given["seeds"], bench.assignment(case, "seeded"))
+
+    def test_replay_refuses_frozen_and_runs_modes(self):
+        import replay
+        with self.assertRaisesRegex(Error, "Refusing frozen held-out fixture"):
+            replay.load_non_frozen("Cohen_2006_ADHD")
+        case = {"id": "Synth_2020", "suite": "openalex-native", "question": "Q?", "to_date": "2020-12-31",
+                "gold": [{"row": 1, "ids": ["W1"]}, {"row": 2, "ids": ["W2"]}, {"row": 3, "ids": ["W3"]}]}
+        class FakeReplayAPI(Index):
+            def request(self, path, params=None, body=None, allow_missing=False):
+                wid = path.rsplit("/", 1)[-1]
+                return {
+                    "id": f"https://openalex.org/{wid}", "publication_date": "2019-05-01",
+                    "type": "article", "language": "en",
+                    "abstract_inverted_index": {"text": [0]} if wid == "W1" else None,
+                    "keywords": [{"display_name": "Telemedicine"}] if wid in {"W1", "W2"} else [],
+                    "has_fulltext": wid == "W3",
+                    "primary_topic": {"id": "https://openalex.org/T10912", "display_name": "Telemedicine"},
+                    "topics": [{"id": "https://openalex.org/T10912", "display_name": "Telemedicine"},
+                               {"id": "https://openalex.org/T10102", "display_name": "Rural Health"}],
+                    "referenced_works": ["https://openalex.org/W2"] if wid in {"W1", "W3"} else [],
+                }
+            def resolve(self, raw):
+                wid = identifier(raw)
+                return wid, {"id": f"https://openalex.org/{wid}", "display_name": wid}
+        fapi = FakeReplayAPI()
+        prof = replay.gold_profile(case, fapi)
+        self.assertEqual((prof["in_window"], prof["without_abstract"], prof["without_abstract_with_keywords"],
+                          prof["without_abstract_with_fulltext"], prof["gold_cited_by_2plus_gold"]), (3, 2, 1, 1, 1))
+        strat = json.loads((ROOT / "examples/telehealth.json").read_text())
+        strat["blocks"][1]["terms"].append("hospital")
+        imp = replay.replay_impact(case, strat, fapi)
+        by_term = {(r["block"], r["term"]): r for r in imp["terms"]}
+        self.assertEqual(by_term[("setting", "hospital")]["gold_only_here"], ["W2"])
+        kw = replay.replay_keywords(case, strat, fapi)
+        self.assertEqual(len(kw["keyword_trials"]), 2)
 
 
 if __name__ == "__main__":

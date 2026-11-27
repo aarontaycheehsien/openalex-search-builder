@@ -44,6 +44,10 @@ def parser():
                         "review needs a full eval.")
     c.add_argument("--abstract-stats", action="store_true",
                    help="Also measure missing-abstract counts for final and each search block (1 extra API call per line).")
+    c.add_argument("--term-impact", action="store_true",
+                   help="Also measure marginal records and development hits uniquely contributed by each term.")
+    c.add_argument("--no-cache", action="store_true",
+                   help="Bypass query-cache.json and re-run every query line live.")
     c = cmds.add_parser("review")
     c.add_argument("file", type=Path, help="JSON critique, see SKILL.md")
     cmds.add_parser("report")
@@ -54,8 +58,13 @@ def parser():
     c.add_argument("--top", action="store_true",
                    help="With --oql or --from-strategy: take the best-matching records (OpenAlex's relevance order for a "
                         "text search) instead of a random sample. Not used for the precision estimate.")
+    c.add_argument("--prior-reviews", action="store_true",
+                   help="With --oql or --from-strategy: restrict to review works (`type is review`) within the date window "
+                        "and report each review's matched-reference count for wording-independent snowballing.")
     c.add_argument("--added", action="store_true",
                    help="Sample only the records the latest evaluated revision added (in this search, not in the previous one).")
+    c.add_argument("--removed", action="store_true",
+                   help="Sample only the records the latest evaluated revision dropped (in the previous search, not in this one).")
     c.add_argument("--size", type=int, default=10)
     c.add_argument("--seed", type=int, default=42)
     c.add_argument("--any-date", action="store_true",
@@ -94,6 +103,11 @@ def parser():
     c.add_argument("--method", choices=["references", "walk"], default="references",
                    help="How to find cited-by works: from the delivered works' matched reference lists (default; "
                         "no citation-set query) or with OpenAlex's citation-set query. citing always uses the query.")
+    c.add_argument("--min-links", type=int, default=1,
+                   help="With --direction cited-by --method references: require at least N delivered works to cite a candidate.")
+    c.add_argument("--keywords-gate", action="store_true",
+                   help="Upgrade title / title-abstract blocks in the rescue gate to title-abstract-keywords so abstract-less "
+                        "works can match OpenAlex keywords.")
     c.add_argument("--estimate", action="store_true", help="Report expected credits without running the rescue.")
     c.add_argument("--topic", action="append", default=[],
                    help="Optional OpenAlex Topic ID (e.g. T10102) to gate rescue instead of the default any-block text gate. Repeatable.")
@@ -228,7 +242,8 @@ def dispatch(run, api, a):
                           expected_tokens(core(strategy), strategy.get("limits", {}), excluded(strategy)))
         return dict(result, submitted=query, leaves_checked=expected, strategy_warnings=lint(strategy)["warnings"])
     if a.action == "eval":
-        data = evaluate(run, api, abstract_stats=getattr(a, "abstract_stats", False), quick=getattr(a, "quick", False))
+        data = evaluate(run, api, abstract_stats=getattr(a, "abstract_stats", False), quick=getattr(a, "quick", False),
+                        term_impact=getattr(a, "term_impact", False), use_cache=not getattr(a, "no_cache", False))
         uid = save_eval(run, data)
         records = run.get("records")
         dev = {k for k, v in records.items() if v["role"] in DEVELOPMENT}
@@ -242,6 +257,8 @@ def dispatch(run, api, a):
                "miss_details": miss_details(records, data["misses"], dev),
                "change": {k: sorted(dev.intersection(v)) if isinstance(v, list) else v
                           for k, v in data.get("change", {}).items()}, "usage": data["usage"],
+               "cache": data["cache"], "delivery_estimate": data["delivery_estimate"],
+               "independence": data["independence"],
                "strategy_warnings": lint(run.get("strategy"))["warnings"]}
         out["revision"] = revision_cost(data, dev)
         out["precision"] = precision(run, data["final"]["oqo"], data["final"]["count"])
@@ -249,10 +266,9 @@ def dispatch(run, api, a):
         out["capture_recapture"] = cr if cr["estimate"] is not None else {"diagnostic": cr["message"]}
         out["pulled"] = {"view": data["pulled"]["view"], "final_pulled_works": data["pulled"]["final_pulled_works"],
                          "development_pulled": sorted(dev.intersection(data["pulled"]["known_pulled"]))}
-        if "abstract_stats" in data:
-            out["abstract_stats"] = data["abstract_stats"]
-        if "irrelevant" in data:
-            out["irrelevant"] = data["irrelevant"]
+        for opt_key in ("abstract_stats", "irrelevant", "term_impact", "large_result"):
+            if opt_key in data:
+                out[opt_key] = data[opt_key]
         if exposed := exposed_holdouts(run, records):
             out["holdout_exposure"] = {
                 "exposed": len(exposed),
@@ -275,7 +291,8 @@ def dispatch(run, api, a):
         return export(run, api, a.report, a.max_pages, rescue=a.rescue)
     if a.action == "rescue":
         return rescue(run, api, a.report, direction=a.direction, topics=a.topic or None, method=a.method,
-                      estimate_only=a.estimate)
+                      estimate_only=a.estimate, min_links=getattr(a, "min_links", 1),
+                      keywords_gate=getattr(a, "keywords_gate", False))
     records = run.get("records")
     if a.action == "resolve":
         result = [add(api, records, i, a.role, a.source) for i in a.identifiers]
@@ -298,12 +315,16 @@ def dispatch(run, api, a):
     if a.action == "sample":
         if not 1 <= a.size <= 100:
             raise Error("--size must be between 1 and 100.")
-        if sum(map(bool, (a.oql, a.from_strategy, a.added))) != 1:
-            raise Error("Pass exactly one of --oql, --from-strategy or --added.")
-        if a.top and a.added:
-            raise Error("--top works with --oql or --from-strategy, not --added.")
-        if a.added and a.size > 20:
-            raise Error("--added draws five times --size from the search; use --size 20 or less.")
+        removed = getattr(a, "removed", False)
+        prior_reviews = getattr(a, "prior_reviews", False)
+        if sum(map(bool, (a.oql, a.from_strategy, a.added, removed))) != 1:
+            raise Error("Pass exactly one of --oql, --from-strategy, --added or --removed.")
+        if a.top and (a.added or removed):
+            raise Error("--top works with --oql or --from-strategy, not --added or --removed.")
+        if prior_reviews and (a.added or removed):
+            raise Error("--prior-reviews works with --oql or --from-strategy, not --added or --removed.")
+        if (a.added or removed) and a.size > 20:
+            raise Error("--added and --removed draw five times --size from the search; use --size 20 or less.")
         return discover(run, api, a)
     if a.action == "neighbors":
         if not a.all and a.size < 1:

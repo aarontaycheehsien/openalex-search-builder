@@ -1,5 +1,6 @@
 """Execute strategies, isolate failing clauses, and bind delivery to fresh evidence."""
 import json
+import math
 import os
 import re
 import tempfile
@@ -7,13 +8,99 @@ from pathlib import Path
 
 from .api import PULLED_VIEWS, Error, check_translation, normalize_query, normalize_warnings, now
 from . import capture, prisma
-from .records import DEVELOPMENT, PROTECTED, discovered_ids, exposed_holdouts, exposure, interval_text, summary, wilson
+from .records import (DEVELOPMENT, PROTECTED, discovered_ids, exposed_holdouts, exposure, independence,
+                      interval_text, summary, wilson)
 from .store import digest, write
 from .strategy import (BARE_WORD, HYPHEN_PHRASE, assign, check, core, excluded, expected_leaves, expected_tokens, failing,
                        oql, parse_combine, pulled_view, spaced_phrase, term_text, tree_ids)
 
+MAX_CACHE = 300
+LARGE_RESULT = 10_000
+USD_PER_CREDIT = 0.0001
 
-def evaluate(run, api, abstract_stats=False, quick=False):
+
+def full_eval_queries(strategy):
+    """Unique OQL strings a full uncached evaluation executes (used by delivery_estimate)."""
+    blocks, excludes = core(strategy), excluded(strategy)
+    limits = strategy.get("limits", {})
+    corpus = strategy.get("corpus", "core")
+    tree = parse_combine(strategy["combine"], [b["id"] for b in blocks]) if "combine" in strategy else None
+    queries = [oql(blocks, limits, corpus, excludes, tree)]
+    queries += [oql([b], None, corpus) for b in [*blocks, *excludes]]
+    queries += [oql([], {k: limits[k]}, corpus) for k in limits]
+    if tree is None and len(blocks) > 1:
+        queries += [oql([x for x in blocks if x != b], limits, corpus, excludes) for b in blocks]
+    elif tree is not None:
+        for b in blocks:
+            for value in (True, False):
+                rest = assign(tree, b["id"], value)
+                if rest not in (True, False):
+                    use = [x for x in blocks if x["id"] in tree_ids(rest)]
+                    queries.append(oql(use, limits, corpus, excludes, rest))
+    queries += [oql(blocks, limits, corpus, [x for x in excludes if x != b], tree) for b in excludes]
+    for b in strategy["blocks"]:
+        if b["role"] == "optional":
+            comb = None if tree is None else ("and", [tree, b["id"]])
+            queries.append(oql([*blocks, b], limits, corpus, excludes, comb))
+    return list(dict.fromkeys(queries))
+
+
+def delivery_estimate(strategy, records, abstract_stats=False):
+    """Estimated credits and USD for `report` (which re-executes a full uncached evaluation)."""
+    queries = full_eval_queries(strategy)
+    n_ids = sum(1 for v in records.values() if v.get("work"))
+    batches = math.ceil(n_ids / 100) if n_ids else 0
+    credits = batches   # api.pulled(ids): 1 credit per 100 IDs
+    for q in queries:
+        per_call = 10 if " has (" in q else 1
+        credits += per_call * (1 + batches)
+    final_q = queries[0]
+    credits += 10 if " has (" in final_q else 1   # opposite include_pulled count
+    if abstract_stats:
+        credits += (1 + len(core(strategy))) * 10
+    return {"unique_queries": len(queries), "estimated_credits": credits,
+            "estimated_usd": round(credits * USD_PER_CREDIT, 4),
+            "note": "Reserve at least this budget for report, which re-executes a full uncached evaluation."}
+
+
+def compute_term_impact(run, start_hash, strategy, final, dev_hits, measure):
+    """Marginal records and development hits uniquely contributed by each term in multi-term search blocks."""
+    blocks, excludes = core(strategy), excluded(strategy)
+    limits = strategy.get("limits", {})
+    tree = parse_combine(strategy["combine"], [b["id"] for b in blocks]) if "combine" in strategy else None
+    rows = []
+    for block in blocks:
+        terms = block.get("terms") or []
+        if len(terms) < 2:
+            continue   # a 1-term block is already covered by without/<block>
+        for idx, term in enumerate(terms):
+            mod = [dict(b, terms=[t for i, t in enumerate(terms) if i != idx]) if b["id"] == block["id"] else b
+                   for b in blocks]
+            rem = measure(mod, limits, excludes, tree)
+            only = max(final["count"] - rem["count"], 0)
+            dev_only = sorted(dev_hits - set(rem["hits"]))
+            rows.append({"block": block["id"], "term": term_text(term), "without_count": rem["count"],
+                         "records_only_here": only,
+                         "share_pct": round(100 * only / final["count"], 1) if final["count"] else 0.0,
+                         "development_only_here": dev_only})
+    rows.sort(key=lambda r: (-r["records_only_here"], r["block"], r["term"]))
+    suspects = [r for r in rows if r["records_only_here"] > 0 and not r["development_only_here"]]
+    top_share = round(sum(r["records_only_here"] for r in suspects[:5]) * 100 / final["count"], 1) if final["count"] else 0.0
+    reading = (
+        "No term adds unique records without also being the sole route to a development work."
+        if not suspects else
+        f"{len(suspects)} term(s) add unique records while being the sole route to 0 development works "
+        f"(top {min(len(suspects), 5)} account for {top_share}% of final count). Treat these as candidates to "
+        "inspect, not automatic cuts: keep terms that directly name an eligible protocol concept, tighten broad "
+        "single words into phrases or proximity, and check dropped records with `sample --removed`."
+    )
+    out = {"at": now(), "input_hash": start_hash, "final_count": final["count"],
+           "terms": rows, "suspect_count": len(suspects), "reading": reading}
+    run.snapshot("term-impact", out)
+    return {k: out[k] for k in ("final_count", "terms", "suspect_count", "reading")}
+
+
+def evaluate(run, api, abstract_stats=False, quick=False, term_impact=False, use_cache=True):
     run.approved()
     strategy, records = run.get("strategy"), run.get("records")
     start_hash = run.fingerprint()
@@ -28,20 +115,46 @@ def evaluate(run, api, abstract_stats=False, quick=False):
     # Pulled status changes nightly, so ask OpenAlex now rather than trusting stored records.
     pulled_known = api.pulled(ids)
     cache = {}
+    cache_path = run.root / "query-cache.json"
+    persisted = {}
+    if cache_path.is_file():
+        try:
+            persisted = json.loads(cache_path.read_text(encoding="utf-8")).get("entries") or {}
+        except (OSError, json.JSONDecodeError):
+            persisted = {}
+    cache_stats = {"reused_lines": 0, "queried_lines": 0}
 
     def measure(use=(), lims=None, ex=(), combine=None):
         query = oql(list(use), lims, corpus, list(ex), combine)
-        if query not in cache:
-            parsed = api.validate(query)
-            check_translation(parsed["oqo"], corpus, expected_leaves(use, lims, ex), expected_tokens(use, lims, ex))
-            result = api.run(parsed["oql"])
-            if normalize_query(result["oqo"]) != normalize_query(parsed["oqo"]):
-                raise Error("The executed query differs from the validated query object.")
-            hits = api.members(result["oqo"], ids) if result["count"] else set()
-            if len(hits) > result["count"]:
-                raise Error("Known-work matches exceed the total. Rerun the evaluation.")
-            cache[query] = {"oql": result["oql"], "oqo": result["oqo"], "count": result["count"],
-                            "hits": sorted(hits), "warnings": parsed["validation"].get("warnings", [])}
+        if query in cache:
+            return cache[query]
+        ckey = digest({"query": query, "include_pulled": api.include_pulled, "pulled_known": sorted(pulled_known)})
+        if use_cache and ckey in persisted:
+            entry = persisted[ckey]
+            unchecked = ids - set(entry.get("checked_ids") or [])
+            extra = api.members(entry["oqo"], unchecked) if (entry["count"] and unchecked) else set()
+            known_hits = (set(entry["hits"]) | extra) & ids
+            if len(known_hits) <= entry["count"]:
+                persisted[ckey] = dict(entry, at=now(), hits=sorted(set(entry["hits"]) | extra),
+                                       checked_ids=sorted(set(entry.get("checked_ids") or []) | ids))
+                cache_stats["reused_lines"] += 1
+                cache[query] = {"oql": entry["oql"], "oqo": entry["oqo"], "count": entry["count"],
+                                "hits": sorted(known_hits), "warnings": entry.get("warnings", [])}
+                return cache[query]
+        parsed = api.validate(query)
+        check_translation(parsed["oqo"], corpus, expected_leaves(use, lims, ex), expected_tokens(use, lims, ex))
+        result = api.run(parsed["oql"])
+        if normalize_query(result["oqo"]) != normalize_query(parsed["oqo"]):
+            raise Error("The executed query differs from the validated query object.")
+        hits = api.members(result["oqo"], ids) if result["count"] else set()
+        if len(hits) > result["count"]:
+            raise Error("Known-work matches exceed the total. Rerun the evaluation.")
+        warnings = parsed["validation"].get("warnings", [])
+        persisted[ckey] = {"at": now(), "oql": result["oql"], "oqo": result["oqo"], "count": result["count"],
+                           "hits": sorted(hits), "checked_ids": sorted(ids), "warnings": warnings}
+        cache_stats["queried_lines"] += 1
+        cache[query] = {"oql": result["oql"], "oqo": result["oqo"], "count": result["count"],
+                        "hits": sorted(hits), "warnings": warnings}
         return cache[query]
 
     final = measure(blocks, limits, excludes, tree)
@@ -96,13 +209,30 @@ def evaluate(run, api, abstract_stats=False, quick=False):
         raise Error("A retrieved work failed a required clause in its own line. Repeat against the current index.")
     if start_hash != run.fingerprint():
         raise Error("Inputs changed during evaluation. Rerun with the current files.")
-    other = api.run(final["oql"], include_pulled=not PULLED_VIEWS[view])["count"]
+    flip_key = digest({"pulled_flip": final["oql"], "include_pulled": not PULLED_VIEWS[view]})
+    if use_cache and flip_key in persisted and "flip_count" in persisted[flip_key]:
+        other = persisted[flip_key]["flip_count"]
+    else:
+        other = api.run(final["oql"], include_pulled=not PULLED_VIEWS[view])["count"]
+        persisted[flip_key] = {"at": now(), "flip_count": other}
     matching = (other - final["count"]) if view == "exclude" else (final["count"] - other)
     out = {"at": now(), "input_hash": start_hash, "final": final, "lines": lines, "misses": missed,
            "sets": summary(records, hits), "strategy": strategy, "corpus": corpus,
            "ablation": "not run (quick evaluation)" if quick else "assessed", "ablation_notes": notes, "quick": quick,
            "pulled": {"view": view, "include_pulled": PULLED_VIEWS[view], "final_pulled_works": matching,
-                      "known_pulled": sorted(pulled_known)}}
+                      "known_pulled": sorted(pulled_known)},
+           "cache": dict(cache_stats, enabled=use_cache)}
+    if term_impact:
+        dev_ids = {k for k, v in records.items() if v["role"] in DEVELOPMENT and v["work"]}
+        out["term_impact"] = compute_term_impact(run, start_hash, strategy, final, hits & dev_ids, measure)
+    elif final["count"] > LARGE_RESULT:
+        measured = (run.root / "latest-term-impact.json").is_file()
+        out["large_result"] = {
+            "count": final["count"], "threshold": LARGE_RESULT, "term_impact_measured": measured,
+            "advice": ("Result exceeds 10,000 works. Run `eval --term-impact` once before critique to see which "
+                       "individual terms add the most unique volume, tighten noisy single words into phrases or "
+                       "proximity, and verify with `sample --removed`.")
+        }
     if abstract_stats:
         def no_abs(line):
             total = line["count"]
@@ -133,6 +263,10 @@ def evaluate(run, api, abstract_stats=False, quick=False):
                 "match_rate": round(len(irrel_hits) / len(irrel_ids), 4),
                 "hits": irrel_hits,
             }
+    trimmed = dict(sorted(persisted.items(), key=lambda kv: kv[1].get("at", ""))[-MAX_CACHE:])
+    write(cache_path, {"updated_at": now(), "entries": trimmed})
+    out["independence"] = independence(run, records)
+    out["delivery_estimate"] = delivery_estimate(strategy, records, abstract_stats=abstract_stats)
     out["usage"] = {"credits_reported": api.credits, "usd_reported": round(api.cost_usd, 6),
                     "responses_without_cost_header": api.unpriced}
     return out
@@ -219,6 +353,7 @@ NUMBER = re.compile(r"(?<![\d.,])\d{1,3}(?:,\d{3})+(?![\d,])|(?<![\d.,])\d+(?![\
 
 
 BROADEN_SHARE, BROADEN_MIN = 0.20, 500   # growth that needs evidence: +20% and at least 500 more works
+HIGH_COST_PER_GAIN = 5000                # records per gained development work that flags disproportionate broadening
 SAMPLE_KEYS = ("sample", "seed")
 
 
@@ -231,13 +366,19 @@ def revision_cost(data, dev):
     gained, lost = sorted(dev & set(change["gained"])), sorted(dev & set(change["lost"]))
     delta, count = change["count_delta"], data["final"]["count"]
     previous = count - delta
+    per_gain = round(delta / len(gained)) if gained and delta > 0 else None
     out = {"count_delta": delta, "previous_count": previous, "development_gained": gained, "development_lost": lost,
-           "works_per_gained_development_work": round(delta / len(gained)) if gained and delta > 0 else None}
+           "works_per_gained_development_work": per_gain}
     if delta > max(BROADEN_MIN, BROADEN_SHARE * previous) and not gained:
         out["warning"] = {"code": "broadening_without_gain",
                           "message": f"The search grew by {delta:,} works ({100 * delta / max(previous, 1):.0f}%) without "
                                      "gaining a development work. Keep the broadening only if `sample --added` shows "
                                      "eligible works among the added records; otherwise revert it."}
+    elif delta > max(BROADEN_MIN, BROADEN_SHARE * previous) and per_gain is not None and per_gain >= HIGH_COST_PER_GAIN:
+        out["warning"] = {"code": "high_cost_broadening",
+                          "message": f"The search grew by {delta:,} works ({per_gain:,} extra works per gained development "
+                                     "work). Check `eval --term-impact` or tighten broad terms into phrases or proximity, "
+                                     "and verify with `sample --removed`."}
     return out
 
 
@@ -302,6 +443,8 @@ def critique_figures(uid, current):
     figures["development_missed"] = str(resolved - found)
     if "abstract_stats" in current:
         figures["without_abstract_pct"] = f"{current['abstract_stats']['final']['pct_without_abstract']}%"
+    else:
+        figures["without_abstract_pct"] = "not measured (eval ran without --abstract-stats)"
     return figures
 
 
@@ -369,7 +512,7 @@ def report(run, api):
     _, last = run.latest("evaluations")
     if critic["evidence"] != evidence(last) or last["input_hash"] != run.fingerprint():
         raise Error("The critique is stale. Evaluate and review the current strategy.")
-    fresh = evaluate(run, api, abstract_stats="abstract_stats" in last)
+    fresh = evaluate(run, api, abstract_stats="abstract_stats" in last, use_cache=False)
     uid = save_eval(run, fresh)
     if critic["evidence"] != evidence(fresh):
         raise Error("Live validation changed the retrieval evidence. Review the new evaluation.")

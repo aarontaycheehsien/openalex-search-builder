@@ -8,6 +8,7 @@ query (`it's cited by a work in the set (...)` or `it cites a work in the set (.
 On 2026-11-25 the union of matched reference lists reproduced the walk's cited-by set exactly once
 pulled works were excluded.
 """
+from collections import Counter
 import hashlib
 import json
 import math
@@ -93,30 +94,35 @@ def date_filters(limits):
                                                           ("to_date", "to_publication_date")) if key in limits]
 
 
-def references_rescue(run, api, dest, final_oqo, strategy, topics):
+def references_rescue(run, api, dest, final_oqo, strategy, topics, min_links=1, keywords_gate=False):
     lists, source = reference_lists(run, api, dest, final_oqo)
     delivered_ids = set(lists)
-    cited = sorted({r for refs in lists.values() for r in refs} - delivered_ids)
+    cite_counts = Counter(r for refs in lists.values() for r in set(refs) if r not in delivered_ids)
+    all_cited = sorted(cite_counts)
+    cited = [r for r in all_cited if cite_counts[r] >= min_links]
     corpus = strategy.get("corpus", "core")
     limits = strategy.get("limits", {})
     candidates = set()
     for start in range(0, len(cited), LOOKUP):
         rows = api.lookup(cited[start:start + LOOKUP], ["has_abstract:false", *date_filters(limits)], corpus)
         candidates |= {work_id(r) for r in rows}
-    gate_oql, leaves, words = rescue_gate(strategy, topics)
+    gate_oql, leaves, words = rescue_gate(strategy, topics, keywords_gate=keywords_gate)
     parsed = api.validate(gate_oql)
     check_translation(parsed["oqo"], corpus, leaves, words)
     rescued = api.members(parsed["oqo"], candidates, batch_size=LOOKUP) if candidates else set()
     stages = {"delivered_works": len(lists), "with_matched_references": sum(1 for v in lists.values() if v),
-              "reference_links": sum(len(v) for v in lists.values()), "cited_outside_delivered": len(cited),
+              "reference_links": sum(len(v) for v in lists.values()), "cited_outside_delivered": len(all_cited),
+              **({"at_least_min_links": len(cited)} if min_links > 1 else {}),
               "without_abstract_in_window": len(candidates), "passing_gate": len(rescued)}
+    co_citations = {"1_or_more": len(all_cited), "2_or_more": sum(1 for c in cite_counts.values() if c >= 2),
+                    "3_or_more": sum(1 for c in cite_counts.values() if c >= 3), "min_links_applied": min_links}
     return {"direction": "cited-by", "method": "references", "count": len(rescued), "ids": sorted(rescued),
-            "gate_oql": parsed["oql"], "stages": stages, "source": source,
+            "gate_oql": parsed["oql"], "stages": stages, "co_citations": co_citations, "source": source,
             "warnings": parsed["validation"].get("warnings", []), "time_estimate": {}}
 
 
-def walk_rescue(api, strategy, part, topics, done):
-    parsed = api.validate(rescue_oql(strategy, direction=part, topics=topics))
+def walk_rescue(api, strategy, part, topics, done, keywords_gate=False):
+    parsed = api.validate(rescue_oql(strategy, direction=part, topics=topics, keywords_gate=keywords_gate))
     # Same guard as the primary search, applied inside the nested citation set too.
     check_translation(parsed["oqo"], strategy.get("corpus", "core"),
                       *rescue_expectation(strategy, direction=part, topics=topics))
@@ -145,7 +151,7 @@ def unlinked_references(api, records):
     return lines
 
 
-def estimate(run, api, dest, final_oqo, strategy, direction, method):
+def estimate(run, api, dest, final_oqo, strategy, direction, method, min_links=1, keywords_gate=False):
     """Expected credits for a rescue, without running it. The reference pass is exact when an export exists."""
     parts, total = [], 0
     for part in DIRECTIONS[direction]:
@@ -156,23 +162,29 @@ def estimate(run, api, dest, final_oqo, strategy, direction, method):
                     lists = {}
                     for line in f:
                         record = json.loads(line)
-                        lists[work_id(record)] = record.get("referenced_works") or []
-                cited = len({r.rsplit("/", 1)[-1].upper() for v in lists.values() for r in v} - set(lists))
-                paging, basis = 0, "exact distinct cited works from the export"
+                        lists[work_id(record)] = [r.rsplit("/", 1)[-1].upper() for r in (record.get("referenced_works") or [])]
+                delivered_ids = set(lists)
+                cite_counts = Counter(r for v in lists.values() for r in set(v) if r not in delivered_ids)
+                cited = sum(1 for c in cite_counts.values() if c >= min_links)
+                paging, basis = 0, ("exact distinct cited works from the export"
+                                    + (f" (cited by >= {min_links} delivered works)" if min_links > 1 else ""))
             else:
                 delivered_count = json.loads((dest / "validation.json").read_text(encoding="utf-8"))["evaluation"]["final"]["count"]
                 cited = delivered_count * REFS_PER_WORK
+                if min_links > 1:
+                    cited = max(1, cited // (min_links * 2))
                 per_page, _ = request_cost(final_oqo, None)
                 paging = math.ceil(delivered_count / PAGE_SIZE) * per_page
                 basis = f"no export: paging the delivered search, and about {REFS_PER_WORK} cited works per delivered work"
             lookups = math.ceil(cited / LOOKUP)
             gate = math.ceil(cited * NO_ABSTRACT_SHARE / LOOKUP) * 10
             credits = paging + lookups + gate
-            parts.append({"direction": part, "method": "references", "paging_credits": paging, "cited_works": cited,
+            parts.append({"direction": part, "method": "references", "min_links": min_links,
+                          "paging_credits": paging, "cited_works": cited,
                           "lookup_credits": lookups, "gate_credits_estimate": gate, "credits": credits, "basis": basis
                           + f"; gate cost assumes {NO_ABSTRACT_SHARE:.0%} of cited works lack an abstract"})
         else:
-            parsed = api.validate(rescue_oql(strategy, direction=part))
+            parsed = api.validate(rescue_oql(strategy, direction=part, keywords_gate=keywords_gate))
             check = parsed.get("check") or {}
             credits = (check.get("cost") or {}).get("credits")
             parts.append({"direction": part, "method": "walk", "credits": credits, "time_estimate": check.get("estimate"),
@@ -184,7 +196,8 @@ def estimate(run, api, dest, final_oqo, strategy, direction, method):
             "note": "Nothing was run. Single-work lookups (reference lines) are free and not counted."}
 
 
-def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="references", estimate_only=False):
+def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="references", estimate_only=False,
+           min_links=1, keywords_gate=False):
     """Measure the delivered search's missing-abstract share and rescue abstract-less works linked to it by
     citation. Saves reproducible artifacts under reports/<report-id>/rescue/ without changing the delivered
     Boolean query. Only development records are shown in hit diagnostics."""
@@ -192,6 +205,10 @@ def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="
         raise Error("Rescue direction must be cited-by, citing, or both.")
     if method not in METHODS:
         raise Error("Rescue method must be references or walk.")
+    if type(min_links) is not int or min_links < 1:
+        raise Error("--min-links must be an integer >= 1.")
+    if min_links > 1 and not (direction == "cited-by" and method == "references"):
+        raise Error("--min-links requires --direction cited-by and --method references.")
     dest, archive, final_oqo = delivered(run, report_id)
     ev = archive["evaluation"]
     strategy = ev["strategy"]
@@ -199,7 +216,8 @@ def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="
     corpus = strategy.get("corpus", "core")
     final_count = ev["final"]["count"]
     if estimate_only:
-        return estimate(run, api, dest, final_oqo, strategy, direction, method)
+        return estimate(run, api, dest, final_oqo, strategy, direction, method,
+                        min_links=min_links, keywords_gate=keywords_gate)
     if final_count > MAX_SET_WORKS and method == "walk":
         raise Error(f"Delivered query has {final_count:,} works, exceeding OpenAlex's {MAX_SET_WORKS:,}-work set limit.")
 
@@ -217,10 +235,12 @@ def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="
     queries = []
     for part in DIRECTIONS[direction]:
         if part == "cited-by" and method == "references":
-            entry = references_rescue(run, api, dest, final_oqo, strategy, topics)
+            entry = references_rescue(run, api, dest, final_oqo, strategy, topics,
+                                      min_links=min_links, keywords_gate=keywords_gate)
             entry["hits"] = sorted(set(entry["ids"]) & resolved_ids)
         else:
-            entry = walk_rescue(api, strategy, part, topics, [q["direction"] for q in queries])
+            entry = walk_rescue(api, strategy, part, topics, [q["direction"] for q in queries],
+                                keywords_gate=keywords_gate)
             entry["hits"] = sorted(api.members(entry["oqo"], resolved_ids)) if (entry["count"] and resolved_ids) else []
         queries.append(entry)
 
@@ -244,14 +264,14 @@ def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="
         if q["method"] == "references":
             name = f"rescue-ids-{q['direction']}.json"
             write(folder / name, q["ids"])
-            saved.append({k: q[k] for k in ("direction", "method", "count", "gate_oql", "stages", "source")}
+            saved.append({k: q[k] for k in ("direction", "method", "count", "gate_oql", "stages", "co_citations", "source")}
                          | {"ids_file": name, "ids_sha256": hashlib.sha256((folder / name).read_bytes()).hexdigest()})
         else:
             (folder / f"rescue-query-{q['direction']}.oql").write_text(q["oql"] + "\n", encoding="utf-8", newline="\n")
             write(folder / f"rescue-query-{q['direction']}.json", q["oqo"])
             saved.append({k: q[k] for k in ("direction", "method", "oql", "oqo", "count", "time_estimate")})
     write(folder / "unlinked-references.json", leads)
-    gate = f"topic:{','.join(topics)}" if topics else "any-block"
+    gate = f"topic:{','.join(topics)}" if topics else ("any-block-keywords" if keywords_gate else "any-block")
     warnings = [w for q in queries for w in q["warnings"]]
     notes = []
     if any(q["method"] == "references" for q in queries):
@@ -267,6 +287,7 @@ def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="
                      "they are listed in unlinked-references.json as leads for other sources.")
     manifest = {
         "at": now(), "report": dest.name, "direction": direction, "method": method, "gate": gate,
+        "min_links": min_links, "keywords_gate": keywords_gate,
         "topics": list(topics or []), "corpus": corpus, "include_pulled": api.include_pulled,
         "final_count": final_count, "final_without_abstract": final_no_abs,
         "final_without_abstract_pct": final_no_abs_pct, "rescue_count": rescue_count,
@@ -279,12 +300,15 @@ def rescue(run, api, report_id=None, direction="cited-by", topics=None, method="
                 "primary Boolean search in PRISMA flow diagrams; deduplicate by OpenAlex Work ID against the primary export.",
     }
     write(folder / "rescue-manifest.json", manifest)
+    co_cites = {q["direction"]: q["co_citations"] for q in queries if "co_citations" in q}
     return {
         "report": dest.name, "rescue_dir": str(folder), "direction": direction, "method": method, "gate": gate,
+        "min_links": min_links, "keywords_gate": keywords_gate,
         "corpus": corpus, "final_count": final_count, "final_without_abstract": final_no_abs,
         "final_without_abstract_pct": final_no_abs_pct, "rescue_count": rescue_count,
         "rescue_count_upper_bound": upper, "counts_by_direction": {q["direction"]: q["count"] for q in queries},
         "stages": {q["direction"]: q["stages"] for q in queries if "stages" in q},
+        **({"co_citations": co_cites} if co_cites else {}),
         "oql": [q.get("oql") or q.get("gate_oql") for q in queries] if not single else (queries[0].get("oql") or queries[0].get("gate_oql")),
         "warnings": warnings, "notes": notes, "unlinked_reference_lines": len(leads),
         "development_rescued": dev_rescued, "development_overlap": dev_overlap, "usage": manifest["usage"],

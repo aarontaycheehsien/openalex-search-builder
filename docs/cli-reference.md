@@ -26,9 +26,10 @@ Python 3.10+ is required. There are no third-party dependencies.
 |---|---|
 | `resolve ID ... --role seed\|relevant\|validation\|benchmark --source "..."` | Resolve OpenAlex Work IDs, DOIs, PMIDs, or PMCIDs into `records.json`. `validation` and `benchmark` stay hidden from development output and term mining. |
 | `develop KEY --reason "..."` | Move a protected (`validation`/`benchmark`) work into `relevant` if it informed strategy development. |
-| `sample --oql "get works where ..." [--size 10] [--seed 42] [--top] [--any-date]` | Draw a reproducible random sample (or top relevance-ordered matches with `--top`) from an exploratory OQL query (respects strategy date limits by default). |
-| `sample --from-strategy [--size 20] [--seed 42] [--top]` | Draw a random sample from the active `strategy.json` to estimate precision and check noise/boilerplate, or add `--top` to screen best-matching records first in relevance order for development works. |
+| `sample --oql "get works where ..." [--size 10] [--seed 42] [--top] [--prior-reviews] [--any-date]` | Draw a reproducible random sample, top relevance-ordered matches (`--top`), or pre-cutoff review works with matched-reference counts (`--prior-reviews`). |
+| `sample --from-strategy [--size 20] [--seed 42] [--top] [--prior-reviews]` | Sample the active `strategy.json` randomly (for precision), in relevance order (`--top`), or restricted to reviews (`--prior-reviews` for wording-independent reference snowballing). |
 | `sample --added [--size 10] [--seed 42]` | Sample *only* records newly added by the latest evaluated revision (to judge whether a broadening earned its records). |
+| `sample --removed [--size 10] [--seed 42]` | Sample *only* records dropped by the latest evaluated revision (to verify that narrowing or tightening a noisy term kept recall safe). |
 | `neighbors WORK_ID [WORK_ID ...] --direction citing\|references\|related [--size 10] [--all] [--cursor C] [--max-pages N] [--any-date]` | Follow citation neighbors (or up to 10 text-similarity `related` works) from one or more development works. Multi-seed calls deduplicate and rank co-linked candidates first. |
 | `screen BATCH WORK_ID include\|exclude\|unclear --reason "..." [--role relevant\|validation]` | Record an eligibility decision for a discovered candidate. `include` adds to `relevant` (or protected local `validation`); `exclude` feeds irrelevant-set specificity tracking in `eval`. |
 
@@ -45,7 +46,7 @@ Python 3.10+ is required. There are no third-party dependencies.
 | Command | Purpose |
 |---|---|
 | `validate` | Compile `strategy.json`, validate OQL with OpenAlex `/query`, run `check_translation()`, and return canonical OQL + `strategy_warnings`. |
-| `eval [--quick] [--abstract-stats]` | Execute the strategy live, run per-block / exclusion / limit counts, leave-one-out ablation (`without/ID`, `drop-route/ID`, `with/ID`), miss diagnostics (`miss_details`), revision cost, and exact-search pilot precision. Use `--quick` between iterations to skip ablation; run full `eval` before `review`. Add `--abstract-stats` to measure missing-abstract attrition. |
+| `eval [--quick] [--abstract-stats] [--term-impact] [--no-cache]` | Execute the strategy (reusing unchanged lines from `query-cache.json` unless `--no-cache`), run per-block / exclusion / limit counts, leave-one-out ablation (`without/ID`, `drop-route/ID`, `with/ID`), miss diagnostics (`miss_details`), independence tiers, delivery budget estimate, revision cost, and exact-search pilot precision. Add `--term-impact` to measure marginal volume and hits per term; add `--abstract-stats` to measure missing-abstract attrition. |
 
 ### Phase E — Critique & Audited Delivery
 
@@ -58,8 +59,8 @@ Python 3.10+ is required. There are no third-party dependencies.
 
 | Command | Purpose |
 |---|---|
-| `rescue --estimate [--direction cited-by\|citing\|both] [--method references\|walk] [--topic T...]` | Estimate credits for post-delivery no-abstract citation rescue without running it. |
-| `rescue [--report ID] [--direction cited-by\|citing\|both] [--method references\|walk] [--topic T...]` | Recover abstract-less works linked by citation to the delivered set. Default `--direction cited-by --method references` extracts matched reference lists without running a timeout-prone nested citation query, and saves `unlinked-references.json`. |
+| `rescue --estimate [--direction cited-by\|citing\|both] [--method references\|walk] [--min-links N] [--keywords-gate] [--topic T...]` | Estimate credits for post-delivery no-abstract citation rescue without running it. |
+| `rescue [--report ID] [--direction cited-by\|citing\|both] [--method references\|walk] [--min-links N] [--keywords-gate] [--topic T...]` | Recover abstract-less works linked by citation to the delivered set. Default `--direction cited-by --method references` extracts matched reference lists without running a timeout-prone nested citation query, reports co-citation counts (`--min-links N` filters by ≥N citing delivered works; `--keywords-gate` also matches OpenAlex keywords), and saves `unlinked-references.json`. |
 | `export --estimate [--report ID] [--rescue]` | Estimate pages, credits, and USD cost without downloading (free). |
 | `export [--report ID] [--max-pages N] [--rescue]` | Cursor-paged, SQLite-checkpointed, Work-ID-deduplicated export into `exports/<report-id>/` (`results.csv`, `results.ris`, `results.jsonl`, `export-manifest.json`). Resumable on interruption; incomplete runs write `results.partial.*`. |
 
