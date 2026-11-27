@@ -183,7 +183,7 @@ class API:
             work_id(record)
         return alias, record
 
-    def members(self, query, ids, include_pulled=None, batch_size=25):
+    def members(self, query, ids, include_pulled=None, batch_size=100):
         hits = set()
         ordered = sorted(set(ids))
         for start in range(0, len(ordered), batch_size):

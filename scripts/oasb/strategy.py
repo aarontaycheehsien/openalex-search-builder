@@ -437,7 +437,15 @@ def lint(strategy):
     }
 
 
-def rescue_oql(strategy, direction="both", topics=None):
+def gate_blocks(blocks, keywords_gate=False):
+    """Upgrade title / title-abstract blocks to title-abstract-keywords when rescuing abstract-less works."""
+    if not keywords_gate:
+        return blocks
+    return [dict(b, field="title-abstract-keywords") if b.get("field", "title-abstract") in {"title", "title-abstract"} else b
+            for b in blocks]
+
+
+def rescue_oql(strategy, direction="both", topics=None, keywords_gate=False):
     """Build a conditional no-abstract citation-set rescue query from a strategy.
 
     Targets works that lack an abstract in OpenAlex, are linked by citation to the
@@ -458,7 +466,8 @@ def rescue_oql(strategy, direction="both", topics=None):
         rel = f"it cites a work in the set {set_expr}"
     else:
         rel = f"(it's cited by a work in the set {set_expr} or it cites a work in the set {set_expr})"
-    gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in blocks) + ")"
+    gblocks = gate_blocks(blocks, keywords_gate)
+    gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in gblocks) + ")"
     clauses = ["it doesn't have an abstract", gate, rel, *limit_clauses(limits).values()]
     return "get works" + CORPORA[corpus] + " where " + " and ".join(clauses)
 
@@ -475,11 +484,11 @@ def rescue_expectation(strategy, direction="both", topics=None):
     return count, words
 
 
-def rescue_gate(strategy, topics=None):
+def rescue_gate(strategy, topics=None, keywords_gate=False):
     """The rescue gate alone (no abstract, any-block or topic gate, limits), for checking candidate IDs found
     from reference lists. Returns the OQL, its leaf count and the words it must keep (see check_translation)."""
     check(strategy)
-    blocks, limits = core(strategy), strategy.get("limits", {})
+    blocks, limits = gate_blocks(core(strategy), keywords_gate), strategy.get("limits", {})
     gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in blocks) + ")"
     query = ("get works" + CORPORA[strategy.get("corpus", "core")] + " where "
              + " and ".join(["it doesn't have an abstract", gate, *limit_clauses(limits).values()]))

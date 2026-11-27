@@ -82,6 +82,40 @@ def summary(records, hits):
     return result
 
 
+def independence(run, records):
+    """Classify resolved development works by whether discovery depended on the strategy's own wording.
+
+    Reviewer seeds, external resolves, and backward reference lists (`neighbors --direction references`)
+    are wording-independent (tier A). Forward citations (`citing`) share vocabulary more closely (tier B).
+    Works only surfaced by keyword samples or `related` are keyword-derived."""
+    dev = {k: r for k, r in records.items() if r["role"] in DEVELOPMENT and r["work"]}
+    folder = run.root / "discovery"
+    by_work = {k: set() for k in dev}
+    for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        batch = json.loads(path.read_text(encoding="utf-8"))
+        kind = (batch.get("route"), batch.get("direction"))
+        for row in batch.get("rows", []):
+            if row.get("id") in by_work:
+                by_work[row["id"]].add(kind)
+    tier_a, tier_b, keyword = [], [], []
+    for wid, rec in sorted(dev.items()):
+        routes = by_work[wid]
+        screened_here = any(str(s).startswith("screened from ") for s in rec.get("sources", []))
+        if rec["role"] == "seed" or ("neighbors", "references") in routes or (not routes and not screened_here):
+            tier_a.append(wid)
+        elif ("neighbors", "citing") in routes:
+            tier_b.append(wid)
+        else:
+            keyword.append(wid)
+    out = {"wording_independent": tier_a, "forward_citation": tier_b, "keyword_derived": keyword}
+    if dev and not tier_a:
+        out["warning"] = ("All development works came from keyword or forward-citation routes. Zero losses on "
+                          "without/<block> do not prove a restrictive setting or population block is recall-safe; "
+                          "find a pre-cutoff review (`sample --from-strategy --prior-reviews` or `--oql ... --prior-reviews`) "
+                          "and screen its `neighbors --direction references`, or ask for seeds.")
+    return out
+
+
 def abstract(work):
     index = work.get("abstract_inverted_index") or {}
     return " ".join(w for _, w in sorted((pos, word) for word, positions in index.items() for pos in positions))
@@ -143,21 +177,26 @@ def windowed(obj, window):
     return dict(obj, filter_rows=rows + [w for w in window if w not in rows])
 
 
-def sample_added(run, api, args, protected, window):
-    """A random sample of the records the latest evaluated revision added: drawn from the current search,
-    keeping those the previous evaluation's search does not retrieve. Screen it to judge a broadening."""
+def evaluation_pair(run, flag):
+    """Return (previous, current) evaluation dicts after checking that at least two exist and the latest is current."""
     if not (run.root / "latest-evaluations.json").is_file():
-        raise Error("--added compares two evaluations: run eval, revise the strategy and run eval again first.")
+        raise Error(f"{flag} compares two evaluations: run eval, revise the strategy and run eval again first.")
     uid, current = run.latest("evaluations")
     # The evaluation before the latest: by timestamp, with file time breaking ties within a second.
     earlier = sorted(((json.loads(p.read_text(encoding="utf-8")), p.stat().st_mtime_ns)
                       for p in (run.root / "evaluations").glob("*.json") if p.stem != uid),
                      key=lambda x: (x[0]["at"], x[1]))
     if not earlier:
-        raise Error("--added compares two evaluations: revise the strategy and run eval again first.")
-    previous = earlier[-1][0]
+        raise Error(f"{flag} compares two evaluations: revise the strategy and run eval again first.")
     if current["input_hash"] != run.fingerprint():
         raise Error("The latest evaluation is stale: run eval on the current strategy first.")
+    return earlier[-1][0], current
+
+
+def sample_added(run, api, args, protected, window):
+    """A random sample of the records the latest evaluated revision added: drawn from the current search,
+    keeping those the previous evaluation's search does not retrieve. Screen it to judge a broadening."""
+    previous, current = evaluation_pair(run, "--added")
     draw = min(100, args.size * 5)
     obj = windowed(dict(current["final"]["oqo"]), window)
     obj.update(sample=draw, seed=str(args.seed))
@@ -177,6 +216,33 @@ def sample_added(run, api, args, protected, window):
             "count_delta": current["final"]["count"] - previous["final"]["count"],
             "note": f"{len(added)} of {len(drawn)} sampled records ({100 * share:.0f}%) are new in this revision. "
                     "Screen them: keep the broadening only if some are eligible."}
+
+
+def sample_removed(run, api, args, protected, window):
+    """A random sample of the records the latest evaluated revision dropped: drawn from the previous search,
+    keeping those the current evaluation's search no longer retrieves. Screen it to check whether narrowing lost
+    eligible works."""
+    previous, current = evaluation_pair(run, "--removed")
+    draw = min(100, args.size * 5)
+    obj = windowed(dict(previous["final"]["oqo"]), window)
+    obj.update(sample=draw, seed=str(args.seed))
+    result = api.run(obj, draw, DISCOVERY_FIELDS)
+    drawn = [w for w in result["rows"] if work_id(w) not in protected]
+    hidden = sorted({work_id(w) for w in result["rows"]} & protected)
+    kept = api.members(current["final"]["oqo"], [work_id(w) for w in drawn]) if drawn else set()
+    removed = [w for w in drawn if work_id(w) not in kept]
+    rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
+             "abstract": abstract(w)} for w in removed[:args.size]]
+    data = {"at": now(), "route": "sample-removed", "route_kind": "text", "oql": result["oql"], "oqo": result["oqo"],
+            "previous_oql": previous["final"]["oql"], "current_oql": current["final"]["oql"],
+            "previous_at": previous["at"], "current_at": current["at"],
+            "drawn": len(drawn), "removed_in_draw": len(removed), "rows": rows, "protected_hits": hidden}
+    uid = run.snapshot("discovery", data)
+    share = len(removed) / len(drawn) if drawn else 0
+    return {"discovery": uid, "candidates": rows, "drawn": len(drawn), "removed_in_draw": len(removed),
+            "count_delta": current["final"]["count"] - previous["final"]["count"],
+            "note": f"{len(removed)} of {len(drawn)} records from the previous search ({100 * share:.0f}%) were dropped "
+                    "by this revision. Screen them: revert or soften the narrowing if eligible works were lost."}
 
 
 def discover(run, api, args):
@@ -324,6 +390,8 @@ def discover(run, api, args):
 
     if getattr(args, "added", False):
         return sample_added(run, api, args, protected, window)
+    if getattr(args, "removed", False):
+        return sample_removed(run, api, args, protected, window)
     if getattr(args, "from_strategy", False):
         check(strategy)
         query, expected = final_query(strategy)
@@ -335,21 +403,41 @@ def discover(run, api, args):
     obj = dict(parsed["oqo"])
     if obj.get("get_rows") != "works" or set(obj) - {"get_rows", "filter_rows", "sort_by", "corpus"}:
         raise Error("Discovery requires a query that lists works.")
+    prior_reviews = getattr(args, "prior_reviews", False)
+    if prior_reviews:
+        review_filter = {"column_id": "type", "value": "review"}
+        if review_filter not in obj.get("filter_rows", []):
+            obj = dict(obj, filter_rows=[*obj.get("filter_rows", []), review_filter])
     obj = windowed(obj, window)
-    top = getattr(args, "top", False)
+    top = getattr(args, "top", False) or prior_reviews
     if not top:
         obj.update(sample=args.size, seed=str(args.seed))
     # With a text search OpenAlex lists best matches first; without one, most cited first (adjusted for age).
     order = ("best matches first" if ".search" in json.dumps(obj) else "most cited first") if top else "random sample"
-    result = api.run(obj, args.size, DISCOVERY_FIELDS)
-    rows = [{"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
-             "abstract": abstract(w)} for w in result["rows"] if work_id(w) not in protected]
-    # "sample-top" batches are not random, so precision() (which reads route "sample") ignores them.
-    data = {"at": now(), "route": "sample-top" if top else args.action, "route_kind": "text", "order": order,
+    fields = DISCOVERY_FIELDS + (",referenced_works_count,cited_by_count" if prior_reviews else "")
+    result = api.run(obj, args.size, fields)
+    rows = []
+    for w in result["rows"]:
+        if work_id(w) in protected:
+            continue
+        item = {"id": work_id(w), "title": w.get("display_name"), "year": w.get("publication_year"),
+                "abstract": abstract(w)}
+        if prior_reviews:
+            item["referenced_works_count"] = w.get("referenced_works_count") or 0
+            item["cited_by_count"] = w.get("cited_by_count") or 0
+        rows.append(item)
+    # "sample-top" and "sample-prior-reviews" batches are not random samples of the strategy, so precision() ignores them.
+    route_name = "sample-prior-reviews" if prior_reviews else ("sample-top" if top else args.action)
+    data = {"at": now(), "route": route_name, "route_kind": "text", "order": order,
             "oql": result["oql"], "oqo": result["oqo"], "date_window": window_note, "rows": rows,
             "protected_hits": sorted({work_id(w) for w in result["rows"]} & protected)}
     uid = run.snapshot("discovery", data)
     out = {"discovery": uid, "candidates": rows, "date_window": window_note, "order": order}
-    if top and order != "best matches first":
+    if prior_reviews:
+        out["note"] = ("Pre-cutoff review works with OpenAlex matched-reference counts (`referenced_works_count`). "
+                       "Pick a relevant review with matched references, screen it (usually `exclude` if primary studies "
+                       "only, or `include` as an anchor if eligible), or resolve a relevant primary study from it and "
+                       "follow `neighbors --direction references` to harvest wording-independent candidates.")
+    elif top and order != "best matches first":
         out["note"] = "This query has no text search, so OpenAlex orders it by citations, not by relevance."
     return out
