@@ -33,7 +33,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "evals"))
 
 import bench  # noqa: E402
-from oasb.api import API, PULLED_VIEWS, Error, check_translation, identifier, work_id  # noqa: E402
+from oasb.api import API, PULLED_VIEWS, Error, check_translation, identifier, load_dotenv, work_id  # noqa: E402
 from oasb.evaluate import evaluate  # noqa: E402
 from oasb.rescue import LOOKUP, date_filters, reference_lists  # noqa: E402
 from oasb.store import Run  # noqa: E402
@@ -317,4 +317,5 @@ def main():
 
 
 if __name__ == "__main__":
+    load_dotenv(Path.cwd(), ROOT)
     sys.exit(main())

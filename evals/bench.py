@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / "evals/fixtures"
 sys.path.insert(0, str(ROOT / "scripts"))
-from oasb.api import API, PULLED_VIEWS, Error, identifier, normalize_query, now, work_id
+from oasb.api import API, PULLED_VIEWS, Error, identifier, load_dotenv, normalize_query, now, work_id
 from oasb.store import Run, digest, write
 from oasb.export import rescue_queries
 from oasb.capture import capture_recapture
@@ -299,6 +299,7 @@ def main():
 
 if __name__ == "__main__":
     try:
+        load_dotenv(Path.cwd(), ROOT)
         print(json.dumps(main(), indent=2))
     except (OSError, ValueError, KeyError) as exc:
         sys.exit(str(exc))

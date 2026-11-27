@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from .api import API, Error, check_translation, now
+from .api import API, Error, api_key_status, check_translation, load_dotenv, now
 from .capture import capture_recapture
 from .evaluate import evaluate, precision, report, review, revision_cost, save_eval, term_counts
 from .export import estimate, export
@@ -17,7 +17,7 @@ from .strategy import check, core, excluded, expected_tokens, final_query, lint
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("-w", "--workspace", required=True, type=Path)
+    p.add_argument("-w", "--workspace", type=Path)
     cmds = p.add_subparsers(dest="action", required=True)
     c = cmds.add_parser("init")
     c.add_argument("--question", required=True)
@@ -117,6 +117,10 @@ def parser():
     c.add_argument("--size", type=int, default=10)
     cmds.add_parser("lint", help="Check strategy syntax and heuristics offline (no API key or network).")
     cmds.add_parser("draft", help="Write untested draft artifacts under draft/ offline (no API key or network).")
+    c = cmds.add_parser("doctor", help="Check OPENALEX_API_KEY, remaining budget/credits, API connectivity, and optional workspace state.")
+    c.add_argument("-w", "--workspace", type=Path, default=argparse.SUPPRESS, help="Optional workspace to inspect.")
+    c.add_argument("--offline", action="store_true",
+                   help="Inspect Python, API key configuration, and workspace state without network calls.")
     return p
 
 
@@ -216,7 +220,66 @@ def write_draft(run):
     }
 
 
+def workspace_status(run):
+    if run is None:
+        return None
+    initialized = (run.root / "protocol.json").is_file()
+    if not initialized:
+        return {"path": str(run.root), "initialized": False}
+    info = {"path": str(run.root), "initialized": True}
+    try:
+        info["scope_confirmed"] = run.scope_confirmed()
+    except Error as exc:
+        info["scope_confirmed"] = False
+        info["scope_error"] = str(exc)
+    cache_path = run.root / "query-cache.json"
+    if cache_path.is_file():
+        try:
+            info["cached_queries"] = len(json.loads(cache_path.read_text(encoding="utf-8")).get("entries") or {})
+        except (OSError, json.JSONDecodeError):
+            info["cached_queries"] = 0
+    else:
+        info["cached_queries"] = 0
+    eval_dir = run.root / "evaluations"
+    info["evaluations"] = len(list(eval_dir.glob("*.json"))) if eval_dir.is_dir() else 0
+    rep_dir = run.root / "reports"
+    info["reports"] = len([d for d in rep_dir.iterdir() if d.is_dir()]) if rep_dir.is_dir() else 0
+    req_log = run.root / "requests.jsonl"
+    if req_log.is_file():
+        try:
+            info["logged_usd"] = round(sum(float(json.loads(s).get("cost_usd") or 0)
+                                           for s in req_log.read_text(encoding="utf-8").splitlines() if s), 6)
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
+    return info
+
+
+def run_doctor(run, api, offline=False, key_source=None):
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    out = {
+        "python_version": py_ver,
+        "python_ok": sys.version_info >= (3, 10),
+        "api_key": api_key_status(key_source),
+    }
+    if run is not None:
+        out["workspace"] = workspace_status(run)
+    if offline:
+        out["offline"] = True
+        out["ready_for_live_eval"] = None
+        return out
+    probe_fn = getattr(api, "probe", None)
+    checks = probe_fn() if callable(probe_fn) else API().probe()
+    out["translator"] = checks["translator"]
+    out["budget"] = checks["budget"]
+    out["ready_for_live_eval"] = bool(checks["translator"].get("ok") and checks["budget"].get("ok"))
+    return out
+
+
 def dispatch(run, api, a):
+    if a.action == "doctor":
+        return run_doctor(run, api, offline=getattr(a, "offline", False), key_source=getattr(a, "_key_source", None))
+    if run is None:
+        raise Error("Pass -w/--workspace.")
     if a.action == "init":
         return run.init(a.question, a.eligibility, a.depth)
     run.get("protocol")
@@ -362,10 +425,20 @@ def dispatch(run, api, a):
     raise Error("Unknown command.")
 
 
-def main():
-    a = parser().parse_args()
-    run = Run(a.workspace)
+def main(argv=None, *, load_env=False):
+    p = parser()
+    a = p.parse_args(argv)
+    if a.action != "doctor" and a.workspace is None:
+        p.error("the following arguments are required: -w/--workspace")
+    if load_env:
+        dirs = ([a.workspace] if a.workspace else []) + [Path.cwd(), Path(__file__).resolve().parents[2]]
+        a._key_source = load_dotenv(*dirs)
+    run = Run(a.workspace) if a.workspace is not None else None
     try:
+        if a.action == "doctor":
+            result = dispatch(run, API(), a)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
         if a.action != "init" and not (run.root / "protocol.json").is_file():
             raise Error("Initialize this workspace first.")
         with run.locked():

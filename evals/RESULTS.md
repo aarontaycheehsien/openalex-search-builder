@@ -257,18 +257,25 @@ Each cell gives gold retrieved and works retrieved.
 
 ### Gold-set index profile via `evals/replay.py gold-profile` (2026-11-27)
 
-Zero-credit single-work lookups across all 135 resolved, in-window gold works of the five `openalex-native` fixtures above (`python evals/replay.py gold-profile CASE`; `frozen` held-out fixtures are refused):
+Zero-credit single-work lookups across all **686** resolved, in-window gold works of the 12 non-PubMed fixtures (`core` + `openalex-native` suites; `python evals/replay.py gold-profile CASE`; `frozen` held-out fixtures are refused):
 
-| Review | In-window gold | Without abstract | Abstract-less with OpenAlex `keywords` | Abstract-less with `has_fulltext` | Non-`article` work types | Top-1 topic share (`topic` primary → `topics` any) |
-|---|---:|---:|---:|---:|---|---|
-| Kapuka 2021 | 27 | 11 (40.7%) | **11/11 (100%)** | 2/11 (18%) | 0 (`article`: 27) | `T10895`: 25.9% → 37.0% |
-| Filges 2022 | 28 | 12 (42.9%) | **12/12 (100%)** | 1/12 (8%) | 12 (`report`: 4, `dissertation`: 4, `conference-paper`: 2, `book-chapter`: 2) | `T11806`: **32.1% → 67.9%** |
-| Noetel 2021 | 27 | 19 (70.4%) | **19/19 (100%)** | 0/19 (0%) | 9 non-`review` (`review`: 18, `article`: 7, `book-chapter`: 1, `conference-paper`: 1) | `T11516`: 88.9% → 88.9% |
-| Verdugo-Castro 2022 | 26 | 2 (7.7%) | **2/2 (100%)** | 1/2 (50%) | 10 (`conference-paper`: 9, `book`: 1) | `T10726`: **57.7% → 80.8%** |
-| Cinquin 2018 | 27 | 12 (44.4%) | **12/12 (100%)** | 1/12 (8%) | 15 (`conference-paper`: 15) | `T12481`: **40.7% → 55.6%** |
-| **Pooled** | **135** | **56 (41.5%)** | **56/56 (100%)** | **5/56 (8.9%)** | | |
+| Review | Suite | In-window gold | Without abstract | Abstract-less with OpenAlex `keywords` | Abstract-less with `has_fulltext` | Non-`article` work types | Top-1 topic share (`topic` primary → `topics` any) |
+|---|---|---:|---:|---:|---:|---|---|
+| Bos 2018 | `core` | 9 | 1 (11.1%) | **1/1 (100%)** | 0/1 (0%) | 0 (`article`: 9) | `T10009`: **66.7% → 100.0%** |
+| Anmarkrud 2021 | `core` | 64 | 27 (42.2%) | **27/27 (100%)** | 0/27 (0%) | 1 (`dissertation`: 1) | `T12887`: **75.0% → 92.2%** |
+| Langham-Putrow 2021 (OACA) | `openalex-native` | 113 | 39 (34.5%) | **39/39 (100%)** | 10/39 (26%) | 16 (`preprint`: 6, `conference-paper`: 6, other: 4) | `T10102`: **82.3% → 99.1%** |
+| Lewowski 2021 | `openalex-native` | 40 | 10 (25.0%) | **10/10 (100%)** | 2/10 (20%) | 27 (`conference-paper`: 27; `article`: 13) | `T10260`: **92.5% → 100.0%** |
+| Moran 2020 | `openalex-native` | 139 | 61 (43.9%) | **61/61 (100%)** | 1/61 (2%) | 1 (`conference-abstract`: 1; 1 pulled) | `T10174`: **50.4% → 79.1%** |
+| Walker 2018 | `openalex-native` | 148 | 52 (35.1%) | **52/52 (100%)** | 9/52 (17%) | 1 (`book-chapter`: 1) | `T10433`: 12.8% → 21.6% |
+| Ruggeri 2019 | `openalex-native` | 38 | 12 (31.6%) | **12/12 (100%)** | 1/12 (8%) | 1 (`review`: 1) | `T10106`: **76.3% → 100.0%** |
+| Kapuka 2021 | `openalex-native` | 27 | 11 (40.7%) | **11/11 (100%)** | 2/11 (18%) | 0 (`article`: 27) | `T10895`: 25.9% → 37.0% |
+| Filges 2022 | `openalex-native` | 28 | 12 (42.9%) | **12/12 (100%)** | 1/12 (8%) | 12 (`report`: 4, `dissertation`: 4, `conference-paper`: 2, `book-chapter`: 2) | `T11806`: **32.1% → 67.9%** |
+| Noetel 2021 | `openalex-native` | 27 | 19 (70.4%) | **19/19 (100%)** | 0/19 (0%) | 9 non-`review` (`review`: 18, `article`: 7, `book-chapter`: 1, `conference-paper`: 1) | `T11516`: 88.9% → 88.9% |
+| Verdugo-Castro 2022 | `openalex-native` | 26 | 2 (7.7%) | **2/2 (100%)** | 1/2 (50%) | 10 (`conference-paper`: 9, `book`: 1) | `T10726`: **57.7% → 80.8%** |
+| Cinquin 2018 | `openalex-native` | 27 | 12 (44.4%) | **12/12 (100%)** | 1/12 (8%) | 15 (`conference-paper`: 15) | `T12481`: **40.7% → 55.6%** |
+| **Pooled (12 reviews)** | | **686** | **258 (37.6%)** | **258/258 (100%)** | **28/258 (10.9%)** | | |
 
-What this establishes before paying for new agent runs:
-- **`keywords`, not `fulltext`, is the index signal on abstract-less misses:** 56 of 135 (41.5%) gold works lack an abstract in OpenAlex, and only 5 of those 56 (8.9%) have `has_fulltext: true` (`0/19` on Noetel, `1/12` on Filges and Cinquin), ruling out `fulltext` as a general remedy for missing abstracts. All **56 of 56 (100%)** carry OpenAlex `keywords`, directly motivating `rescue --keywords-gate` and `title-abstract-keywords` on no-abstract fallback branches.
-- **`limits.type` is unsafe even on reviews-of-reviews:** on `Noetel_2021` (an umbrella review restricted to systematic reviews and meta-analyses), OpenAlex types 9 of 27 (33%) included reviews as `article`, `book-chapter`, or `conference-paper` rather than `review`; on `Filges`, `Verdugo-Castro`, and `Cinquin`, 38–56% of gold works are conference papers, reports, dissertations, or books/chapters. Review-only eligibility should combine `type` with review text terms rather than applying a hard `limits.type: ["review"]` filter.
-- **`topics` (`any_topic`) beats `topic` (`primary_topic`) on multidisciplinary reviews:** OpenAlex assigns up to three topics per work, and OQL `topic is T...` matches `primary_topic.id` only. Matching any assigned topic (`topics is T...`, supported via `any_topic` / `any_topics`) raises single-topic gold coverage from 32.1% to 67.9% on `Filges_2022` and from 57.7% to 80.8% on `Verdugo-Castro_2022`.
+What this establishes across all 12 reviews before paying for new agent runs:
+- **`keywords`, not `fulltext`, is the universal index signal on abstract-less misses:** 258 of 686 (37.6%) gold works lack an abstract in OpenAlex, and only 28 of those 258 (10.9%) have `has_fulltext: true` (`0/27` on Anmarkrud, `0/19` on Noetel, `1/61` on Moran), ruling out `fulltext` as a general remedy for missing abstracts. Every single abstract-less gold work — **258 of 258 (100.0%)** — carries OpenAlex `keywords`, directly motivating `rescue --keywords-gate` and `title-abstract-keywords` on no-abstract fallback branches.
+- **Hard `limits.type` and unrequested `limits.language` filters drop gold studies:** on `Noetel_2021` (an umbrella review restricted to systematic reviews and meta-analyses), OpenAlex types 9 of 27 (33%) included reviews as `article`, `book-chapter`, or `conference-paper` rather than `review`; on `Lewowski_2021`, 27 of 40 (68%) are `conference-paper`; on `Filges`, `Verdugo-Castro`, and `Cinquin`, 38–56% are conference papers, reports, dissertations, or books/chapters. Likewise, `Anmarkrud_2021` (5 `es`), `Langham-Putrow_2021_OACA` (5 non-`en`), `Bos_2018` (1 `es`), and `Walker_2018` (1 `fr`) include non-English gold works when eligibility did not restrict language.
+- **`topics` (`any_topic`) consistently beats `topic` (`primary_topic`):** OpenAlex assigns up to three topics per work, and OQL `topic is T...` matches `primary_topic.id` only. Matching any assigned topic (`topics is T...`, supported via `any_topic` / `any_topics`) reaches **99–100%** single-topic gold coverage on `Bos_2018`, `Langham-Putrow_2021_OACA`, `Lewowski_2021`, and `Ruggeri_2019`, and jumps coverage from 32.1% → 67.9% on `Filges_2022`, 50.4% → 79.1% on `Moran_2020`, and 57.7% → 80.8% on `Verdugo-Castro_2022` (while dispersed reviews like `Walker_2018` at 21.6% confirm topic gates must always be checked empirically).
