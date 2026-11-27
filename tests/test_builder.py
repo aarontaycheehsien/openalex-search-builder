@@ -1724,6 +1724,94 @@ class ClientTests(unittest.TestCase):
         kw = replay.replay_keywords(case, strat, fapi)
         self.assertEqual(len(kw["keyword_trials"]), 2)
 
+    def test_load_dotenv_and_doctor_diagnostics(self):
+        from oasb.api import load_dotenv
+        with tempfile.TemporaryDirectory() as temp:
+            tdir = Path(temp)
+            empty_dir = tdir / "empty"
+            empty_dir.mkdir()
+            env_dir = tdir / "with_env"
+            env_dir.mkdir()
+            (env_dir / ".env").write_text("# comment\nOTHER=1\nexport OPENALEX_API_KEY='secret-dotenv-key'\n", encoding="utf-8")
+
+            with patch.dict(os.environ, {}, clear=True):
+                self.assertIsNone(load_dotenv(empty_dir))
+                self.assertEqual(load_dotenv(env_dir), ".env")
+                self.assertEqual(os.environ["OPENALEX_API_KEY"], "secret-dotenv-key")
+                self.assertEqual(load_dotenv(env_dir), "environment")
+
+            # Standalone offline doctor + non-doctor -w enforcement + uninitialized workspace does not create dirs
+            uninit = tdir / "uninitialized"
+            buf = io.StringIO()
+            with patch.dict(os.environ, {"OPENALEX_API_KEY": "secret-env-token"}, clear=True), patch.object(sys, "stdout", buf):
+                self.assertEqual(cli.main(["doctor", "--offline"]), 0)
+            offline = json.loads(buf.getvalue())
+            self.assertEqual((offline["offline"], offline["api_key"]), (True, {"configured": True, "source": "environment"}))
+            self.assertNotIn("secret-env-token", buf.getvalue())
+
+            buf = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), patch.object(sys, "stdout", buf):
+                self.assertEqual(cli.main(["-w", str(uninit), "doctor", "--offline"]), 0)
+            self.assertFalse(uninit.exists())
+            self.assertFalse(json.loads(buf.getvalue())["workspace"]["initialized"])
+
+            with patch.object(sys, "stderr", io.StringIO()):
+                with self.assertRaises(SystemExit) as ctx:
+                    cli.main(["lint"])
+                self.assertEqual(ctx.exception.code, 2)
+
+            # Initialized workspace inspection via `doctor -w PATH --offline`
+            ws = Run(tdir / "initialized")
+            ws.init("Q?", [], "standard")
+            strat = json.loads((ROOT / "examples/telehealth.json").read_text())
+            ws.put("strategy", strat)
+            cli.dispatch(ws, Index(), cli.parser().parse_args(["-w", str(ws.root), "scope", "--confirm", "--note", "ok"]))
+            write(ws.root / "query-cache.json", {"entries": {"q1": {}, "q2": {}}})
+            buf = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), patch.object(sys, "stdout", buf):
+                self.assertEqual(cli.main(["doctor", "-w", str(ws.root), "--offline"]), 0)
+            ws_info = json.loads(buf.getvalue())["workspace"]
+            self.assertEqual((ws_info["initialized"], ws_info["scope_confirmed"], ws_info["cached_queries"]), (True, True, 2))
+
+            # Mocked live probes: 200 OK then 429 daily_budget (verifying redaction)
+            def mock_res(body_dict, headers=None):
+                m = MagicMock()
+                m.__enter__.return_value = m
+                m.read.return_value = json.dumps(body_dict).encode()
+                m.headers = headers or {}
+                m.status = 200
+                return m
+
+            q_ok = mock_res({"validation": {"valid": True}, "oql": "get works", "oqo": {"get_rows": "works"}})
+            w_ok = mock_res({"meta": {"count": 1}, "results": [{"id": "https://openalex.org/W1"}]},
+                            {"x-ratelimit-credits-used": "1", "x-ratelimit-credits-remaining": "9999",
+                             "x-ratelimit-remaining-usd": "0.9999"})
+            buf = io.StringIO()
+            with patch.dict(os.environ, {"OPENALEX_API_KEY": "secret-live-key"}, clear=True), \
+                    patch("oasb.api.urlopen", side_effect=[q_ok, w_ok]), patch.object(sys, "stdout", buf):
+                self.assertEqual(cli.main(["doctor"]), 0)
+            live_ok = json.loads(buf.getvalue())
+            self.assertTrue(live_ok["ready_for_live_eval"])
+            self.assertEqual(live_ok["budget"]["credits_remaining"], 9999)
+            self.assertNotIn("secret-live-key", buf.getvalue())
+
+            q_ok2 = mock_res({"validation": {"valid": True}, "oql": "get works", "oqo": {"get_rows": "works"}})
+            err_body = json.dumps({"error": "Rate limit exceeded", "reason": "daily_budget",
+                                   "message": "key secret-live-key exhausted", "dailyRemainingUsd": 0,
+                                   "prepaidRemainingUsd": 0, "retryAfter": 51200}).encode()
+            w_429 = HTTPError("https://api.openalex.org/works", 429, "Too Many Requests", {}, io.BytesIO(err_body))
+            buf = io.StringIO()
+            with patch.dict(os.environ, {"OPENALEX_API_KEY": "secret-live-key"}, clear=True), \
+                    patch("oasb.api.urlopen", side_effect=[q_ok2, w_429]), patch.object(sys, "stdout", buf):
+                self.assertEqual(cli.main(["doctor"]), 0)
+            live_429 = json.loads(buf.getvalue())
+            self.assertFalse(live_429["ready_for_live_eval"])
+            self.assertTrue(live_429["translator"]["ok"])
+            self.assertEqual((live_429["budget"]["status"], live_429["budget"]["reason"], live_429["budget"]["retry_after_seconds"]),
+                             (429, "daily_budget", 51200))
+            self.assertIn("00:00 UTC", live_429["budget"]["advice"])
+            self.assertNotIn("secret-live-key", buf.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,10 +2,12 @@
 import json
 import os
 import re
+import sys
 import time
 import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, unquote
 from urllib.request import Request, urlopen
@@ -21,6 +23,54 @@ class Error(ValueError):
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def load_dotenv(*dirs):
+    """Load OPENALEX_API_KEY from the first matching .env file if not already set in os.environ.
+    Returns 'environment', '.env', or None. Never prints or logs key material."""
+    if (os.environ.get("OPENALEX_API_KEY") or "").strip():
+        return "environment"
+    search_dirs = dirs or (Path.cwd(), Path(__file__).resolve().parents[2])
+    seen = set()
+    for raw_dir in search_dirs:
+        if not raw_dir:
+            continue
+        folder = Path(raw_dir).resolve()
+        if folder in seen:
+            continue
+        seen.add(folder)
+        env_file = folder / ".env"
+        if not env_file.is_file():
+            continue
+        try:
+            lines = env_file.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            line = re.sub(r"^export\s+", "", line)
+            if "=" not in line:
+                continue
+            name, value = line.split("=", 1)
+            if name.strip() != "OPENALEX_API_KEY":
+                continue
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                value = value[1:-1].strip()
+            else:
+                value = re.split(r"\s+#", value, maxsplit=1)[0].strip()
+            if value:
+                os.environ["OPENALEX_API_KEY"] = value
+                return ".env"
+    return None
+
+
+def api_key_status(source_hint=None):
+    """Credential-free summary of whether OPENALEX_API_KEY is configured."""
+    configured = bool((os.environ.get("OPENALEX_API_KEY") or "").strip())
+    return {"configured": configured, "source": (source_hint or "environment") if configured else None}
 
 
 PMCID = re.compile(r"(?:(?:https?://(?:www\.)?ncbi\.nlm\.nih\.gov/pmc/articles/|https?://pmc\.ncbi\.nlm\.nih\.gov/articles/"
@@ -288,6 +338,102 @@ class API:
             "note": "OpenAlex keywords and topics are algorithmically assigned labels, not a controlled "
                     "thesaurus like MeSH. Test candidate terms empirically with eval.",
         }
+
+    def probe(self):
+        """Single-shot connectivity and credit/budget check (0-credit /query + 1-credit /works probe).
+        Never raises on HTTP/network errors and never returns credential material."""
+        key = (os.environ.get("OPENALEX_API_KEY") or "").strip()
+
+        def redact(text):
+            return text.replace(key, "[REDACTED]") if (key and isinstance(text, str)) else text
+
+        def base_headers(json_body=False):
+            h = {"Accept": "application/json", "User-Agent": "openalex-search-builder/0.1"}
+            if key:
+                h["Authorization"] = "Bearer " + key
+            if json_body:
+                h["Content-Type"] = "application/json"
+            return h
+
+        # 1. Free /query translator check (0 credits)
+        translator = {"ok": False}
+        q_body = json.dumps({"oql": "get works where title-abstract has (telemedicine)"}).encode()
+        try:
+            with urlopen(Request(ROOT + "/query", data=q_body, headers=base_headers(True)), timeout=15) as res:
+                payload = json.load(res)
+                valid = isinstance(payload, dict) and payload.get("validation", {}).get("valid") is True
+                translator = {"ok": valid, "status": res.status}
+                if not valid:
+                    translator["detail"] = redact(json.dumps(payload.get("validation"))[:400])
+        except HTTPError as exc:
+            detail = redact(exc.read().decode(errors="replace")[:600])
+            translator = {"ok": False, "status": exc.code, "detail": detail}
+        except (URLError, TimeoutError, OSError, UnicodeError, json.JSONDecodeError) as exc:
+            translator = {"ok": False, "error": redact(str(exc))}
+
+        # 2. Paid 1-credit /works filter check for budget and rate-limit headers
+        budget = {"ok": False}
+        w_url = ROOT + "/works?" + urlencode({"filter": "publication_year:2020", "per-page": 1, "select": "id"})
+        try:
+            with urlopen(Request(w_url, headers=base_headers()), timeout=15) as res:
+                json.load(res)
+                hdr = res.headers
+                budget = {"ok": True, "status": res.status}
+                for out_key, h_name, cast in (
+                    ("credits_used", "x-ratelimit-credits-used", int),
+                    ("credits_remaining", "x-ratelimit-credits-remaining", int),
+                    ("cost_usd", "x-ratelimit-cost-usd", float),
+                    ("remaining_usd", "x-ratelimit-remaining-usd", float),
+                    ("reset_seconds", "x-ratelimit-reset", int),
+                ):
+                    raw_val = hdr.get(h_name)
+                    if raw_val is not None:
+                        try:
+                            budget[out_key] = cast(raw_val)
+                        except ValueError:
+                            pass
+        except HTTPError as exc:
+            raw_detail = redact(exc.read().decode(errors="replace")[:1200])
+            parsed = None
+            try:
+                parsed = json.loads(raw_detail)
+            except json.JSONDecodeError:
+                parsed = None
+            budget = {"ok": False, "status": exc.code}
+            if isinstance(parsed, dict):
+                reason = parsed.get("reason") or parsed.get("error")
+                if reason:
+                    budget["reason"] = redact(str(reason))
+                if parsed.get("message"):
+                    budget["message"] = redact(str(parsed["message"]))
+                for out_k, src_k in (
+                    ("daily_remaining_usd", "dailyRemainingUsd"),
+                    ("prepaid_remaining_usd", "prepaidRemainingUsd"),
+                    ("credits_remaining", "creditsRemaining"),
+                    ("retry_after_seconds", "retryAfter"),
+                ):
+                    if parsed.get(src_k) is not None:
+                        budget[out_k] = parsed[src_k]
+            else:
+                budget["detail"] = raw_detail
+            if "retry_after_seconds" not in budget:
+                ra = exc.headers.get("Retry-After") if exc.headers else None
+                if ra and ra.isdecimal():
+                    budget["retry_after_seconds"] = int(ra)
+            if exc.code in (401, 403):
+                budget["advice"] = "OpenAlex rejected OPENALEX_API_KEY; verify the key value."
+            elif exc.code == 429:
+                if not key:
+                    budget["advice"] = ("No OPENALEX_API_KEY is configured and the shared anonymous allowance is "
+                                        "exhausted. Set OPENALEX_API_KEY in the environment or .env, or use lint/draft offline.")
+                else:
+                    budget["advice"] = ("OpenAlex daily/prepaid credits are exhausted (daily allowance resets at 00:00 UTC). "
+                                        "Zero-credit endpoints (/query, single-work /works/{id}) and offline lint/draft "
+                                        "remain available; wait for reset or add prepaid credits before running eval/sample/report.")
+        except (URLError, TimeoutError, OSError, UnicodeError, json.JSONDecodeError) as exc:
+            budget = {"ok": False, "error": redact(str(exc))}
+
+        return {"translator": translator, "budget": budget}
 
 
 def subquery(node):

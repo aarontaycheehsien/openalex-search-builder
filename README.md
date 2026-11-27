@@ -120,16 +120,18 @@ git clone https://github.com/aarontaycheehsien/openalex-search-builder.git
 cd openalex-search-builder
 ```
 
-Set a free OpenAlex API key in `OPENALEX_API_KEY` ([get a key & auth docs](https://help.openalex.org/api/authentication/); see [`.env.example`](.env.example)):
+Set a free OpenAlex API key in `OPENALEX_API_KEY` or in a local `.env` file ([get a key & auth docs](https://help.openalex.org/api/authentication/); see [`.env.example`](.env.example)), then verify connectivity and remaining budget with `doctor`:
 
 ```sh
-# macOS / Linux
+# macOS / Linux (or copy .env.example to .env)
 export OPENALEX_API_KEY="your-key-here"
+python scripts/oasb.py doctor
 ```
 
 ```powershell
 # Windows PowerShell
 $env:OPENALEX_API_KEY="your-key-here"
+python scripts/oasb.py doctor
 ```
 
 > **Typical API cost:** A full interactive search build typically uses about **\$0.07–\$0.15** in OpenAlex credits (block counts, known-work intersections, discovery, and live revalidation). Anonymous calls share a very small daily allowance. Before any large download or rescue, `export --estimate` and `rescue --estimate` report expected credits first.

@@ -1,12 +1,13 @@
 # CLI Reference, Strategy Schema & Walkthrough
 
-Every command is invoked through `scripts/oasb.py` with a workspace path (`-w PATH`) before the subcommand:
+Every command is invoked through `scripts/oasb.py` with a workspace path (`-w PATH`) before the subcommand (`doctor` also runs standalone without `-w`):
 
 ```sh
 python scripts/oasb.py -w runs/my-review <subcommand> [options]
+python scripts/oasb.py doctor
 ```
 
-Python 3.10+ is required. There are no third-party dependencies.
+Python 3.10+ is required, with no third-party dependencies. When `OPENALEX_API_KEY` is not set in the shell environment, the CLI automatically checks `.env` in the workspace, current directory, or repository root.
 
 ---
 
@@ -16,6 +17,7 @@ Python 3.10+ is required. There are no third-party dependencies.
 
 | Command | Purpose |
 |---|---|
+| `doctor [--offline]` | Check Python version, `OPENALEX_API_KEY` configuration (`environment` or `.env`, without printing key material), `/query` connectivity, `/works` credit/budget status (or `429` reset window), and optional `-w` workspace state. |
 | `init --question "..." [--eligibility "..."] [--depth quick\|standard\|thorough]` | Create a workspace and save `protocol.json`. Repeat `--eligibility` for multiple criteria. |
 | `scope` | Print the current concept blocks, roles, limits, corpus, pulled-work setting, and whether scope is confirmed. |
 | `scope --confirm --note "..."` | Record reviewer approval of the current scope. Required before `eval`. Re-confirm only if blocks, roles, protocol, limits, corpus, or `pulled` change (rationale edits do not require re-confirmation). |
@@ -142,7 +144,7 @@ Start from [`examples/telehealth.json`](../examples/telehealth.json) (minimal) o
 - **`pulled`**: `"exclude"` (default; OpenAlex's standard view since 2026-11-19) or `"include"`. Scope-locked.
 - **`combine`** *(optional)*: Monotone AND/OR expression over every `role: "search"` block ID (e.g., `"(a and b) or fallback_no_abs"`). `NOT` is not allowed here — use `role: "exclude"` blocks.
 - **`blocks`**: List of concept block objects.
-- **`limits`**: Optional dictionary supporting `from_date`, `to_date` (ISO `YYYY-MM-DD`), `language` (list of codes), `type` (list of OpenAlex work types), `topic` (list of OpenAlex Topic IDs like `["T10102"]`), and `has_abstract` (`true` or `false`).
+- **`limits`**: Optional dictionary supporting `from_date`, `to_date` (ISO `YYYY-MM-DD`), `language` (list of codes), `type` (list of OpenAlex work types), `topic` (primary topic only: `topic is T...`), `any_topic` (any of a work's 3 assigned topics: `topics is T...`), and `has_abstract` (`true` or `false`).
 
 ### Block Properties
 - **`id`**: Unique alphanumeric/hyphen/underscore identifier (cannot be `and`, `or`, `not`).
@@ -158,7 +160,7 @@ Start from [`examples/telehealth.json`](../examples/telehealth.json) (minimal) o
   - Exact phrase: `"\"remote care\""`
   - Stemmed phrase (no wildcards): `"stemmed \"remote care\""`
   - Proximity object: `{"near": ["video", "consultation"], "within": 3}` (`within` 1–50; single stemmed words unless `"exact": true`, which permits phrases and wildcards).
-- **`has_abstract`** *(optional, boolean)* and **`topics`** *(optional, list of Topic IDs)*: Allowed on non-exclude blocks, enabling conditional no-abstract fallback branches via `combine`.
+- **`has_abstract`** *(optional, boolean)*, **`topics`** *(primary topic IDs)*, and **`any_topics`** *(any assigned topic IDs)*: Allowed on non-exclude blocks, enabling conditional no-abstract fallback branches via `combine`.
 - **`rationale`**: Human-readable justification for peer review.
 
 ---
@@ -187,7 +189,7 @@ Use brace placeholders instead of typing counts by hand — `review` substitutes
 | `{development_recall}` | Relative recall with 95% Wilson CI across `seed` + `relevant` |
 | `{seed_retrieved}` / `{seed_resolved}` / `{seed_recall}` | Same for `seed` set only |
 | `{relevant_retrieved}` / `{relevant_resolved}` / `{relevant_recall}` | Same for `relevant` set only |
-| `{without_abstract_pct}` | Final `% without abstract` *(available when `eval --abstract-stats` was run)* |
+| `{without_abstract_pct}` | Final `% without abstract` *(or `"not measured (eval ran without --abstract-stats)"` when `--abstract-stats` was omitted)* |
 
 *(Holdout `validation` and `benchmark` figures are intentionally never offered to `review`.)*
 
