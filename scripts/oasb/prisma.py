@@ -17,7 +17,8 @@ def limits_text(limits):
     parts = []
     if "from_date" in limits or "to_date" in limits:
         parts.append(f"publication date {limits.get('from_date', 'any')} to {limits.get('to_date', 'any')}")
-    for key, label in (("language", "language"), ("type", "work type"), ("topic", "OpenAlex topic")):
+    for key, label in (("language", "language"), ("type", "work type"), ("topic", "OpenAlex primary topic"),
+                       ("any_topic", "OpenAlex topic (any)")):
         if key in limits:
             parts.append(f"{label} in ({', '.join(limits[key])})")
     if "has_abstract" in limits:

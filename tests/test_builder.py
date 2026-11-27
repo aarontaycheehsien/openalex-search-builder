@@ -1259,6 +1259,13 @@ class StrategyTests(unittest.TestCase):
         self.assertIn("(title has (telemedicine) and topic is T10912 and it doesn't have an abstract)", q)
         self.assertIn("topic is (T10102 or T10912)", q)
         self.assertEqual(n, 8)  # 1 + 1 + (1+1+1) + (1+2)
+        s_any = {"blocks": [{"id": "fb", "role": "search", "field": "title", "terms": ["telemedicine"],
+                             "any_topics": ["T11806", "T11998"], "rationale": "r"}],
+                 "limits": {"any_topic": ["T10726"]}}
+        q_any, n_any = final_query(s_any)
+        self.assertIn("topics is (T11806 or T11998)", q_any)
+        self.assertIn("topics is T10726", q_any)
+        self.assertEqual(n_any, 4)
         with self.assertRaises(Error):
             check({"blocks": [self.block(["a1"])], "limits": {"has_abstract": "false"}})
         with self.assertRaises(Error):
@@ -1681,6 +1688,41 @@ class ClientTests(unittest.TestCase):
                 self.assertNotIn("original_screening_load_source", given)
                 self.assertFalse((folder / "skill/evals").exists())
                 self.assertEqual(given["seeds"], bench.assignment(case, "seeded"))
+
+    def test_replay_refuses_frozen_and_runs_modes(self):
+        import replay
+        with self.assertRaisesRegex(Error, "Refusing frozen held-out fixture"):
+            replay.load_non_frozen("Cohen_2006_ADHD")
+        case = {"id": "Synth_2020", "suite": "openalex-native", "question": "Q?", "to_date": "2020-12-31",
+                "gold": [{"row": 1, "ids": ["W1"]}, {"row": 2, "ids": ["W2"]}, {"row": 3, "ids": ["W3"]}]}
+        class FakeReplayAPI(Index):
+            def request(self, path, params=None, body=None, allow_missing=False):
+                wid = path.rsplit("/", 1)[-1]
+                return {
+                    "id": f"https://openalex.org/{wid}", "publication_date": "2019-05-01",
+                    "type": "article", "language": "en",
+                    "abstract_inverted_index": {"text": [0]} if wid == "W1" else None,
+                    "keywords": [{"display_name": "Telemedicine"}] if wid in {"W1", "W2"} else [],
+                    "has_fulltext": wid == "W3",
+                    "primary_topic": {"id": "https://openalex.org/T10912", "display_name": "Telemedicine"},
+                    "topics": [{"id": "https://openalex.org/T10912", "display_name": "Telemedicine"},
+                               {"id": "https://openalex.org/T10102", "display_name": "Rural Health"}],
+                    "referenced_works": ["https://openalex.org/W2"] if wid in {"W1", "W3"} else [],
+                }
+            def resolve(self, raw):
+                wid = identifier(raw)
+                return wid, {"id": f"https://openalex.org/{wid}", "display_name": wid}
+        fapi = FakeReplayAPI()
+        prof = replay.gold_profile(case, fapi)
+        self.assertEqual((prof["in_window"], prof["without_abstract"], prof["without_abstract_with_keywords"],
+                          prof["without_abstract_with_fulltext"], prof["gold_cited_by_2plus_gold"]), (3, 2, 1, 1, 1))
+        strat = json.loads((ROOT / "examples/telehealth.json").read_text())
+        strat["blocks"][1]["terms"].append("hospital")
+        imp = replay.replay_impact(case, strat, fapi)
+        by_term = {(r["block"], r["term"]): r for r in imp["terms"]}
+        self.assertEqual(by_term[("setting", "hospital")]["gold_only_here"], ["W2"])
+        kw = replay.replay_keywords(case, strat, fapi)
+        self.assertEqual(len(kw["keyword_trials"]), 2)
 
 
 if __name__ == "__main__":

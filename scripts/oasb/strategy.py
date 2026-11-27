@@ -79,9 +79,10 @@ def topic_ids(values):
     return out
 
 
-def topic_clause(values):
+def topic_clause(values, any_topic=False):
     ids = topic_ids(values)
-    return f"topic is {ids[0]}" if len(ids) == 1 else "topic is (" + " or ".join(ids) + ")"
+    col = "topics" if any_topic else "topic"
+    return f"{col} is {ids[0]}" if len(ids) == 1 else f"{col} is (" + " or ".join(ids) + ")"
 
 
 def abstract_clause(value):
@@ -91,8 +92,8 @@ def abstract_clause(value):
 
 
 def limit_clauses(limits):
-    if not isinstance(limits, dict) or set(limits) - {"from_date", "to_date", "language", "type", "has_abstract", "topic"}:
-        raise Error("Supported limits: from_date, to_date, language, type, has_abstract, topic.")
+    if not isinstance(limits, dict) or set(limits) - {"from_date", "to_date", "language", "type", "has_abstract", "topic", "any_topic"}:
+        raise Error("Supported limits: from_date, to_date, language, type, has_abstract, topic, any_topic.")
     clauses = {}
     for key, op in [("from_date", ">="), ("to_date", "<=")]:
         if key in limits:
@@ -113,13 +114,15 @@ def limit_clauses(limits):
         clauses["has_abstract"] = abstract_clause(limits["has_abstract"])
     if "topic" in limits:
         clauses["topic"] = topic_clause(limits["topic"])
+    if "any_topic" in limits:
+        clauses["any_topic"] = topic_clause(limits["any_topic"], any_topic=True)
     return clauses
 
 
 def limit_leaves(limits):
     total = 0
     for key, v in (limits or {}).items():
-        if key == "topic":
+        if key in {"topic", "any_topic"}:
             total += len(topic_ids(v))
         elif isinstance(v, list):
             total += len(v)
@@ -258,7 +261,7 @@ def check(strategy):
         raise Error("Define at least one search block in strategy.json.")
     ids = set()
     for block in blocks:
-        if not isinstance(block, dict) or set(block) - {"id", "role", "field", "terms", "rationale", "has_abstract", "topics"}:
+        if not isinstance(block, dict) or set(block) - {"id", "role", "field", "terms", "rationale", "has_abstract", "topics", "any_topics"}:
             raise Error("Unknown block property.")
         name = block.get("id", "")
         if not re.fullmatch(r"[A-Za-z][\w-]*", name) or name in ids or name.lower() in {"and", "or", "not"}:
@@ -273,10 +276,12 @@ def check(strategy):
             abstract_clause(block["has_abstract"])
         if "topics" in block:
             topic_ids(block["topics"])
-        if block["role"] == "exclude" and ("has_abstract" in block or "topics" in block):
+        if "any_topics" in block:
+            topic_ids(block["any_topics"])
+        if block["role"] == "exclude" and ("has_abstract" in block or "topics" in block or "any_topics" in block):
             raise Error(f"Exclude block {name} only supports text terms.")
-        if block["role"] != "screen" and not terms and "topics" not in block and "has_abstract" not in block:
-            raise Error(f"Define the vocabulary (or topics/has_abstract) for {name}.")
+        if block["role"] != "screen" and not terms and "topics" not in block and "any_topics" not in block and "has_abstract" not in block:
+            raise Error(f"Define the vocabulary (or topics/any_topics/has_abstract) for {name}.")
         for term in terms:
             term_text(term)
     if not any(b["role"] == "search" for b in blocks):
@@ -294,6 +299,8 @@ def clause(block, negate=False):
         parts.append(f"{FIELD_OQL.get(field, field)} has ({terms})")
     if "topics" in block:
         parts.append(topic_clause(block["topics"]))
+    if "any_topics" in block:
+        parts.append(topic_clause(block["any_topics"], any_topic=True))
     if "has_abstract" in block:
         parts.append(abstract_clause(block["has_abstract"]))
     if negate:
@@ -322,6 +329,7 @@ def oql(blocks, limits=None, corpus="core", excludes=(), combine=None):
 def block_leaves(block):
     return (len(block.get("terms", []))
             + (len(topic_ids(block["topics"])) if "topics" in block else 0)
+            + (len(topic_ids(block["any_topics"])) if "any_topics" in block else 0)
             + (1 if "has_abstract" in block else 0))
 
 
@@ -339,6 +347,8 @@ def block_tokens(block):
     out = [t for term in block.get("terms", []) for t in term_tokens(term)]
     if "topics" in block:
         out += [t for tid in topic_ids(block["topics"]) for t in tokens(tid)]
+    if "any_topics" in block:
+        out += [t for tid in topic_ids(block["any_topics"]) for t in tokens(tid)]
     if "has_abstract" in block:
         out += tokens(block["has_abstract"])
     return out
@@ -347,7 +357,7 @@ def block_tokens(block):
 def limit_tokens(limits):
     out = []
     for key, v in (limits or {}).items():
-        values = topic_ids(v) if key == "topic" else v if isinstance(v, list) else [v]
+        values = topic_ids(v) if key in {"topic", "any_topic"} else v if isinstance(v, list) else [v]
         out += [t for item in values for t in tokens(item)]
     return out
 
@@ -445,7 +455,7 @@ def gate_blocks(blocks, keywords_gate=False):
             for b in blocks]
 
 
-def rescue_oql(strategy, direction="both", topics=None, keywords_gate=False):
+def rescue_oql(strategy, direction="both", topics=None, keywords_gate=False, any_topic=False):
     """Build a conditional no-abstract citation-set rescue query from a strategy.
 
     Targets works that lack an abstract in OpenAlex, are linked by citation to the
@@ -467,7 +477,7 @@ def rescue_oql(strategy, direction="both", topics=None, keywords_gate=False):
     else:
         rel = f"(it's cited by a work in the set {set_expr} or it cites a work in the set {set_expr})"
     gblocks = gate_blocks(blocks, keywords_gate)
-    gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in gblocks) + ")"
+    gate = topic_clause(topics, any_topic=any_topic) if topics else "(" + " or ".join(clause(b) for b in gblocks) + ")"
     clauses = ["it doesn't have an abstract", gate, rel, *limit_clauses(limits).values()]
     return "get works" + CORPORA[corpus] + " where " + " and ".join(clauses)
 
@@ -484,12 +494,12 @@ def rescue_expectation(strategy, direction="both", topics=None):
     return count, words
 
 
-def rescue_gate(strategy, topics=None, keywords_gate=False):
+def rescue_gate(strategy, topics=None, keywords_gate=False, any_topic=False):
     """The rescue gate alone (no abstract, any-block or topic gate, limits), for checking candidate IDs found
     from reference lists. Returns the OQL, its leaf count and the words it must keep (see check_translation)."""
     check(strategy)
     blocks, limits = gate_blocks(core(strategy), keywords_gate), strategy.get("limits", {})
-    gate = topic_clause(topics) if topics else "(" + " or ".join(clause(b) for b in blocks) + ")"
+    gate = topic_clause(topics, any_topic=any_topic) if topics else "(" + " or ".join(clause(b) for b in blocks) + ")"
     query = ("get works" + CORPORA[strategy.get("corpus", "core")] + " where "
              + " and ".join(["it doesn't have an abstract", gate, *limit_clauses(limits).values()]))
     gate_leaves = len(topic_ids(topics)) if topics else sum(block_leaves(b) for b in blocks)

@@ -254,3 +254,21 @@ Each cell gives gold retrieved and works retrieved.
   - **Budget overruns:** four runs exceeded the $0.15 budget ($0.150, $0.164, $0.168, $0.228). The agents did not reserve for `report`, which re-runs the full evaluation (about $0.04), and the seedless key ran out ($1.00 for five runs plus scoring). SKILL.md should say what `report` costs, or `eval` should print the cost of the delivery evaluation.
   - **Placeholder refusal:** four agents had `{without_abstract_pct}` refused by `review`. SKILL.md lists it as an example, but `review` offers it only after an `eval --abstract-stats`. Either SKILL.md should say so or `review` should fill it as "not measured".
   - **Skipped checks:** seven of ten agents skipped `--abstract-stats`, `term-counts` or the keywords pilot to save budget.
+
+### Gold-set index profile via `evals/replay.py gold-profile` (2026-11-27)
+
+Zero-credit single-work lookups across all 135 resolved, in-window gold works of the five `openalex-native` fixtures above (`python evals/replay.py gold-profile CASE`; `frozen` held-out fixtures are refused):
+
+| Review | In-window gold | Without abstract | Abstract-less with OpenAlex `keywords` | Abstract-less with `has_fulltext` | Non-`article` work types | Top-1 topic share (`topic` primary → `topics` any) |
+|---|---:|---:|---:|---:|---|---|
+| Kapuka 2021 | 27 | 11 (40.7%) | **11/11 (100%)** | 2/11 (18%) | 0 (`article`: 27) | `T10895`: 25.9% → 37.0% |
+| Filges 2022 | 28 | 12 (42.9%) | **12/12 (100%)** | 1/12 (8%) | 12 (`report`: 4, `dissertation`: 4, `conference-paper`: 2, `book-chapter`: 2) | `T11806`: **32.1% → 67.9%** |
+| Noetel 2021 | 27 | 19 (70.4%) | **19/19 (100%)** | 0/19 (0%) | 9 non-`review` (`review`: 18, `article`: 7, `book-chapter`: 1, `conference-paper`: 1) | `T11516`: 88.9% → 88.9% |
+| Verdugo-Castro 2022 | 26 | 2 (7.7%) | **2/2 (100%)** | 1/2 (50%) | 10 (`conference-paper`: 9, `book`: 1) | `T10726`: **57.7% → 80.8%** |
+| Cinquin 2018 | 27 | 12 (44.4%) | **12/12 (100%)** | 1/12 (8%) | 15 (`conference-paper`: 15) | `T12481`: **40.7% → 55.6%** |
+| **Pooled** | **135** | **56 (41.5%)** | **56/56 (100%)** | **5/56 (8.9%)** | | |
+
+What this establishes before paying for new agent runs:
+- **`keywords`, not `fulltext`, is the index signal on abstract-less misses:** 56 of 135 (41.5%) gold works lack an abstract in OpenAlex, and only 5 of those 56 (8.9%) have `has_fulltext: true` (`0/19` on Noetel, `1/12` on Filges and Cinquin), ruling out `fulltext` as a general remedy for missing abstracts. All **56 of 56 (100%)** carry OpenAlex `keywords`, directly motivating `rescue --keywords-gate` and `title-abstract-keywords` on no-abstract fallback branches.
+- **`limits.type` is unsafe even on reviews-of-reviews:** on `Noetel_2021` (an umbrella review restricted to systematic reviews and meta-analyses), OpenAlex types 9 of 27 (33%) included reviews as `article`, `book-chapter`, or `conference-paper` rather than `review`; on `Filges`, `Verdugo-Castro`, and `Cinquin`, 38–56% of gold works are conference papers, reports, dissertations, or books/chapters. Review-only eligibility should combine `type` with review text terms rather than applying a hard `limits.type: ["review"]` filter.
+- **`topics` (`any_topic`) beats `topic` (`primary_topic`) on multidisciplinary reviews:** OpenAlex assigns up to three topics per work, and OQL `topic is T...` matches `primary_topic.id` only. Matching any assigned topic (`topics is T...`, supported via `any_topic` / `any_topics`) raises single-topic gold coverage from 32.1% to 67.9% on `Filges_2022` and from 57.7% to 80.8% on `Verdugo-Castro_2022`.
