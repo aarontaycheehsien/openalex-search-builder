@@ -210,3 +210,47 @@ The other 10 blocks gained nothing (most at little or no extra volume; two title
 | Cinquin 2018 | 2 | 17/27 | 19/27 (70%; 52–84%) | +2 of 7 | 4,918 + 4,083 | 2,042 |
 
 Each run cost about $0.22, matching `rescue --estimate`. The other eight deliveries' rescues are estimated at $0.07–2.48 each ($7.6 in total) and are queued in ROADMAP.md.
+
+### Batch 3: current skill, seedless and seeded (2026-11-27)
+
+The same five fixtures, rebuilt blind with the skill on main at `8e85d78` (the rewritten SKILL.md, reference-list rescue, `sample --top` and `--added`, the date window on discovery, capture–recapture demoted to a diagnostic). Each fixture was run twice: seedless as before, and seeded with three of the review's included studies supplied as reviewer-known works. Same model (Opus 5.5, medium effort), instructions, $0.15 budget and scoring (`bench.py score --explain`). One run per fixture per condition. In the seeded condition the three seeds are removed from the test set, so gold is 23–25 works per review instead of 26–28.
+
+| Review | Batch 1 (`78399d7`) | Batch 2 (`d0f174f`) | Batch 3 seedless | Batch 3 seeded |
+|---|---:|---:|---:|---:|
+| Kapuka 2021 | 21/27 · 7,722 | 23/27 · 16,820 | 23/27 · 13,966 | 24/24 · 21,204 |
+| Filges 2022 | 19/28 · 30,933 | 18/28 · 19,003 | 22/28 · 35,076 | 21/25 · 41,496 |
+| Noetel 2021 | 24/27 · 1,510 | 25/27 · 7,293 | 25/27 · 5,217 | 22/24 · 8,531 |
+| Verdugo-Castro 2022 | 21/26 · 29,810 | 21/26 · 54,212 | 10/26 · 19,119 | 20/23 · 46,646 |
+| Cinquin 2018 | 16/27 · 5,091 | 17/27 · 4,918 | 16/27 · 7,016 | 14/24 · 4,035 |
+| **Pooled gold recall** | 101/135, 74.8% (66.9–81.4%) | 104/135, 77.0% (69.2–83.3%) | 96/135, 71.1% (63.0–78.1%) | 101/120, 84.2% (76.6–89.6%) |
+| **Records, total** | 75,066 | 102,246 | 80,394 | 121,912 |
+| **Build spend, total** | $0.55 | $0.70 | $0.76 | $0.72 |
+
+Each cell gives gold retrieved and works retrieved.
+
+- **Seedless, current skill against batch 2:** no evidence of change. The pooled drop (77.0% → 71.1%, overlapping intervals) comes from one run. The Verdugo-Castro seedless agent ANDed a higher-education block, a defensible reading of the question ("gender gap in higher education STEM studies"), but 14 of its 16 misses are school-level or all-level works that fail that block. Batch 2's agent lost 4 gold works to the same kind of block. Without Verdugo-Castro, the seedless batches are 83/109 (76.1%) and 86/109 (78.9%).
+- **Seeded against seedless, scored on the same test set (gold minus the seeds):**
+  - Pooled: 86/120 (71.7%; 63.0–79.0%) seedless against 101/120 (84.2%; 76.6–89.6%) seeded.
+  - Per review: Kapuka +3, Filges +1, Noetel 0, Verdugo-Castro +10, Cinquin +1.
+  - Most of the gain is scope correction, not vocabulary:
+    - Verdugo-Castro: one seed is a school-level study, so the agent treated the higher-education context as a focus rather than a block.
+    - Kapuka: one seed is an Africa-wide study naming no southern African country, so the agent added an Africa-wide branch, recovering the four region-block misses of the seedless run.
+  - Where the misses are vocabulary or missing abstracts (Cinquin, Noetel), seeds changed little.
+  - Seeded searches were 52% larger in total (121,912 against 80,394 records).
+  - With one run per condition, this is a signal, not an estimate of the effect of seeds.
+- **Misses by cause (`--explain`):**
+  - Seedless: 39 misses, 17 of them without an abstract.
+  - Seeded: 19 misses, 9 without an abstract.
+  - In both conditions they concentrate in one block per review: region (Kapuka), core service-learning labels (Filges), higher education (Verdugo-Castro seedless), and the cognitive-disability or e-learning block (Cinquin).
+- **Screening of gold works:**
+  - Across the ten runs the agents screened 41 gold works: 38 included, 3 unclear, 0 excluded (92.7%; 80.6–97.5% included).
+  - They again reached few gold works during discovery: 0–17 per run, median 2.5.
+- **Agents' own recall figures were again uninformative.** Development and validation recall were 100% in 7 of 10 runs; the lowest was 67% (Cinquin seeded, validation 2/3). Gold recall was 38–100%. Where the agents' own validation missed works (Verdugo-Castro seedless, 3/4; Kapuka seeded development, 4/5), the misses matched the gold failure mode (higher-education block; climate phrasing).
+- **Blinding:**
+  - The leak check found no registered work outside discovery except each seeded run's intake seeds.
+  - The Filges seeded agent saw a protocol title (W3146159216) in a citation batch and excluded it as a protocol without reading it, as in batch 2.
+  - The Kapuka seedless agent's one attempt to read the `oasb` wrapper was blocked by the permission check, and it did not retry.
+- **Operational problems found:**
+  - **Budget overruns:** four runs exceeded the $0.15 budget ($0.150, $0.164, $0.168, $0.228). The agents did not reserve for `report`, which re-runs the full evaluation (about $0.04), and the seedless key ran out ($1.00 for five runs plus scoring). SKILL.md should say what `report` costs, or `eval` should print the cost of the delivery evaluation.
+  - **Placeholder refusal:** four agents had `{without_abstract_pct}` refused by `review`. SKILL.md lists it as an example, but `review` offers it only after an `eval --abstract-stats`. Either SKILL.md should say so or `review` should fill it as "not measured".
+  - **Skipped checks:** seven of ten agents skipped `--abstract-stats`, `term-counts` or the keywords pilot to save budget.
