@@ -245,7 +245,7 @@ Each cell gives gold retrieved and works retrieved.
 - **Screening of gold works:**
   - Across the ten runs the agents screened 41 gold works: 38 included, 3 unclear, 0 excluded (92.7%; 80.6–97.5% included).
   - They again reached few gold works during discovery: 0–17 per run, median 2.5.
-- **Agents' own recall figures were again uninformative.** Development and validation recall were 100% in 7 of 10 runs; the lowest was 67% (Cinquin seeded, validation 2/3). Gold recall was 38–100%. Where the agents' own validation missed works (Verdugo-Castro seedless, 3/4; Kapuka seeded development, 4/5), the misses matched the gold failure mode (higher-education block; climate phrasing).
+- **Agents' own recall figures were again uninformative.** Every reported seed, development and validation figure was 100% in 6 of 10 runs; the lowest were 67% (Verdugo-Castro seeded, seeds 2/3; Cinquin seeded, validation 2/3). Gold recall was 38–100%. Where the agents' own validation missed works (Verdugo-Castro seedless, 3/4; Kapuka seeded development, 4/5), the misses matched the gold failure mode (higher-education block; climate phrasing).
 - **Blinding:**
   - The leak check found no registered work outside discovery except each seeded run's intake seeds.
   - The Filges seeded agent saw a protocol title (W3146159216) in a citation batch and excluded it as a protocol without reading it, as in batch 2.
